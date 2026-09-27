@@ -68,7 +68,8 @@ export class EnvironmentManager {
     public movingPlatforms: Phaser.GameObjects.Sprite[] = [];
     public jumpPads: Phaser.Physics.Arcade.Sprite[] = [];
     public firebars: Firebar[] = [];
-    public smashTriggers: Phaser.GameObjects.Zone[] = [];
+    public bridgeBreakZones: Phaser.GameObjects.Zone[] = [];
+    public isBridgeBreakArmed: boolean = false;
     public bridges: BridgeData[] = [];
     public doorZones: Phaser.GameObjects.Zone[] = [];
     public doorExitZones: Phaser.GameObjects.Zone[] = [];
@@ -88,7 +89,6 @@ export class EnvironmentManager {
     public doorSprites: Phaser.GameObjects.Sprite[] = [];
     public wells?: Phaser.Physics.Arcade.StaticGroup;
     public wellObjects: { x: number, y: number, width: number, height: number, topY: number }[] = [];
-    public playerSmashAirborne: boolean = false;
 
     constructor(
         scene: Phaser.Scene, 
@@ -722,7 +722,7 @@ export class EnvironmentManager {
 
             if (hasGid && map && map.tilesets) {
                 const cleanGid = obj.gid & 0x1FFFFFFF;
-                const tileset = map.tilesets.find((t: any) => cleanGid >= t.firstgid && cleanGid < t.firstgid + t.total);
+                const tileset = this.findTilesetForGid(map, cleanGid);
                 if (tileset) {
                     const localId = cleanGid - tileset.firstgid;
                     const candidates = [
@@ -734,15 +734,19 @@ export class EnvironmentManager {
                         'Well',
                         'big ahh well'
                     ];
-                    const matched = candidates.find(k => this.scene.textures.exists(k));
+                    if ((tileset as any).image) {
+                        const filename = String((tileset as any).image).split('/').pop()?.replace(/\.[^/.]+$/, '') || '';
+                        candidates.push(filename, filename.toLowerCase());
+                    }
+                    const matched = candidates.find(k => k && this.scene.textures.exists(k));
                     if (matched) {
                         textureKey = matched;
                     }
 
                     const tex = this.scene.textures.get(textureKey);
                     if (tex) {
-                        const tileW = tileset.tileWidth || w;
-                        const tileH = tileset.tileHeight || h;
+                        const tileW = tileset.tileWidth || tileset.tilewidth || w;
+                        const tileH = tileset.tileHeight || tileset.tileheight || h;
                         const frameKey = `well_frame_${cleanGid}_${localId}`;
                         
                         if (!tex.has(frameKey)) {
@@ -792,11 +796,20 @@ export class EnvironmentManager {
 
         this.scene.physics.add.collider(this.player.bullets, this.wells, (bulletObj) => {
             const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
-            if (!bullet || !bullet.active) return;
+            if (!bullet || !bullet.active || !bullet.scene) return;
             const bx = bullet.x;
             const by = bullet.y;
+            if (bullet.body) {
+                bullet.body.enable = false;
+                bullet.body.checkCollision.none = true;
+            }
+            bullet.setActive(false);
+            bullet.setVisible(false);
             bullet.destroy();
             this.uiManager.spawnParticles(bx, by, 0x808080);
+        }, (bulletObj) => {
+            const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
+            return Boolean(bullet && bullet.active && bullet.body && bullet.scene);
         });
     }
 
@@ -834,10 +847,20 @@ export class EnvironmentManager {
             platBody.allowGravity = false; 
             platBody.immovable = true;     
             
-            // Tighten hitbox to match visible platform pixels (removing transparent padding and rounded ends to prevent floating in mid-air)
-            const insetX = 8;
-            const targetW = Math.max(16, obj.width - insetX * 2);
-            platBody.setSize(targetW, 10).setOffset(insetX, 11);     
+            // Tighten hitbox to strictly match non-transparent visible platform pixels (removing all transparent empty air)
+            const textureKey = obj.texture ? obj.texture.key : 'moving-platform-img';
+            const pixelBounds = this.getFramePixelBounds(textureKey, obj.frame ? obj.frame.name : undefined);
+            const frameW = obj.frame ? obj.frame.width : (obj.width || 96);
+            const frameH = obj.frame ? obj.frame.height : (obj.height || 32);
+            const scaleX = (obj.displayWidth || obj.width || frameW) / frameW;
+            const scaleY = (obj.displayHeight || obj.height || frameH) / frameH;
+
+            const bodyX = pixelBounds.width > 0 ? pixelBounds.x * scaleX : 25 * scaleX;
+            const bodyY = pixelBounds.height > 0 ? pixelBounds.y * scaleY : 10 * scaleY;
+            const bodyW = pixelBounds.width > 0 ? Math.max(4, pixelBounds.width * scaleX) : 46 * scaleX;
+            const bodyH = pixelBounds.height > 0 ? Math.max(4, pixelBounds.height * scaleY) : 12 * scaleY;
+
+            platBody.setSize(bodyW, bodyH).setOffset(bodyX, bodyY);     
             
             let platSpeed = 250;
             let platDistance = 150;
@@ -891,11 +914,22 @@ export class EnvironmentManager {
             this.scene.physics.add.collider(this.player, this.movingPlatforms, (_p, plat) => {
                 const pBody = (_p as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.Body;
                 const platBody = (plat as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.Body;
-                if (pBody.bottom <= platBody.top + 5 && pBody.right > platBody.left + 2 && pBody.left < platBody.right - 2) {
+                if (pBody.bottom <= platBody.top + 4 && pBody.right > platBody.left + 2 && pBody.left < platBody.right - 2) {
                     this.player.isOnPlatform = true;
                 }
             });
         }
+    }
+
+    private findTilesetForGid(map: Phaser.Tilemaps.Tilemap, cleanGid: number): any {
+        if (!map || !map.tilesets) return undefined;
+        const sorted = [...map.tilesets].sort((a: any, b: any) => a.firstgid - b.firstgid);
+        for (let i = sorted.length - 1; i >= 0; i--) {
+            if (cleanGid >= sorted[i].firstgid) {
+                return sorted[i];
+            }
+        }
+        return undefined;
     }
 
     setupJumpPads(map: Phaser.Tilemaps.Tilemap, rawMapObjects: any[]) {
@@ -919,7 +953,7 @@ export class EnvironmentManager {
 
             if (rawObj.gid && map && map.tilesets) {
                 const cleanGid = rawObj.gid & 0x1FFFFFFF;
-                const tileset = map.tilesets.find((t: any) => cleanGid >= t.firstgid && cleanGid < t.firstgid + t.total);
+                const tileset = this.findTilesetForGid(map, cleanGid);
                 if (tileset) {
                     const localId = cleanGid - tileset.firstgid;
                     const tilesetKeyMap: Record<string, string> = {
@@ -935,6 +969,9 @@ export class EnvironmentManager {
                         'grass': 'grass',
                         'cherry blossom': 'cherry blossom',
                         'well': 'well',
+                        'Well': 'well',
+                        'well2': 'well2',
+                        'Well2': 'well2',
                         'water': 'water',
                         'lava': 'lava',
                         'moving-platform': 'moving-platform',
@@ -959,23 +996,49 @@ export class EnvironmentManager {
                         'temp platforms': 'temp-platforms',
                         'dungeon background1': 'dungeon background1',
                         'dungeon-background1': 'dungeon-background1',
-                        'dungeon background 1': 'dungeon background1'
+                        'dungeon background 1': 'dungeon background1',
+                        'japanese building': 'japanese building',
+                        'japanese_building_3': 'japanese_building_3',
+                        'cherry blossom 2': 'cherry blossom 2',
+                        'cherry blossom 3': 'cherry blossom 3',
+                        'tree 1': 'tree 1',
+                        'tree 2': 'tree 2',
+                        'tree 3': 'tree 3',
+                        'tree 4': 'tree 4',
+                        'flower bush': 'flower bush',
+                        'grass 1': 'grass 1',
+                        'grass 2': 'grass 2',
+                        'big ahh well': 'big ahh well',
+                        'obstacles sprite': 'obstacles sprite'
                     };
 
-                    const resolvedKey = tilesetKeyMap[tileset.name] || tileset.name;
-                    if (resolvedKey !== 'jump-pad-img') {
-                        isCustomTile = true;
+                    const candidates = [
+                        tilesetKeyMap[tileset.name],
+                        tileset.name,
+                        tileset.name.toLowerCase(),
+                        tileset.name.replace(/\s+/g, '-'),
+                        tileset.name.replace(/-/g, ' ')
+                    ];
+                    if ((tileset as any).image) {
+                        const filename = String((tileset as any).image).split('/').pop()?.replace(/\.[^/.]+$/, '') || '';
+                        candidates.push(filename, filename.toLowerCase(), tilesetKeyMap[filename]);
                     }
 
-                    if (this.scene.textures.exists(resolvedKey)) {
-                        textureKey = resolvedKey;
-                        const tex = this.scene.textures.get(resolvedKey);
-                        const frameKey = String(localId);
+                    const matchedKey = candidates.find(k => k && this.scene.textures.exists(k));
+                    if (matchedKey) {
+                        textureKey = matchedKey;
+                        // It is a custom tile if the tileset is not the default jumppad sprite
+                        if (tileset.name.toLowerCase() !== 'jumppad sprite' && tileset.name.toLowerCase() !== 'jump-pad') {
+                            isCustomTile = true;
+                        }
+
+                        const tex = this.scene.textures.get(textureKey);
+                        const frameKey = `jumppad_tile_${cleanGid}_${localId}`;
                         
                         // If texture does not already have this individual tile frame, add it dynamically from tileset coordinates
                         if (!tex.has(frameKey)) {
-                            const tileW = tileset.tileWidth || 32;
-                            const tileH = tileset.tileHeight || 32;
+                            const tileW = tileset.tileWidth || tileset.tilewidth || 32;
+                            const tileH = tileset.tileHeight || tileset.tileheight || 32;
                             const srcImg = tex.getSourceImage() as HTMLImageElement;
                             const imgW = (srcImg && srcImg.width) ? srcImg.width : (tileset.columns ? tileset.columns * tileW : 96);
                             const cols = tileset.columns || Math.max(1, Math.floor(imgW / tileW));
@@ -990,9 +1053,9 @@ export class EnvironmentManager {
                 }
             }
 
-            const padSprite = (frameIndex !== undefined && String(frameIndex) !== '0')
+            const padSprite = (frameIndex !== undefined)
                 ? this.scene.physics.add.sprite(posX, posY, textureKey, frameIndex)
-                : this.scene.physics.add.sprite(posX, posY, textureKey, 0);
+                : this.scene.physics.add.sprite(posX, posY, textureKey);
 
             padSprite.setDepth(4).setOrigin(0, 1);
             padSprite.setDisplaySize(padWidth, padHeight);
@@ -1011,32 +1074,39 @@ export class EnvironmentManager {
             padSprite.setData('isCustomTile', isCustomTile);
 
             const padBody = padSprite.body as Phaser.Physics.Arcade.Body;
-            const hitboxHeight = isCustomTile ? Math.min(padHeight, 16) : 8; // Visible spring pixel height at the bottom of the 32x32 tile
-            const hitboxOffsetY = padHeight - hitboxHeight;
+            
+            // Calculate exact non-transparent pixel bounds of this specific tile/frame
+            const pixelBounds = this.getFramePixelBounds(textureKey, frameIndex);
+            const frameW = padSprite.frame ? padSprite.frame.width : 32;
+            const frameH = padSprite.frame ? padSprite.frame.height : 32;
+            const scaleX = padWidth / frameW;
+            const scaleY = padHeight / frameH;
+
+            const bodyX = pixelBounds.x * scaleX;
+            const bodyY = pixelBounds.y * scaleY;
+            const bodyW = Math.max(2, pixelBounds.width * scaleX);
+            const bodyH = Math.max(2, pixelBounds.height * scaleY);
+
             padBody.setAllowGravity(false)
                    .setImmovable(true)
-                   .setSize(padWidth, hitboxHeight)
-                   .setOffset(0, hitboxOffsetY);
+                   .setSize(bodyW, bodyH)
+                   .setOffset(bodyX, bodyY);
             this.jumpPads.push(padSprite);
         });
 
         this.scene.physics.add.collider(this.player, this.jumpPads, (_p, padObj) => {
             const pBody = (_p as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.Body;
             const padSprite = padObj as Phaser.Physics.Arcade.Sprite;
-            const padBody = padSprite.body as Phaser.Physics.Arcade.Body;
             const isCustomTile = Boolean(padSprite.getData('isCustomTile'));
-            
-            // Only trigger if player physically touches/lands on the spring pixel hitbox from above
-            const isTouchingTop = (pBody.touching.down || pBody.blocked.down || (pBody.bottom >= padBody.top - 2 && pBody.bottom <= padBody.top + 8 && pBody.velocity.y >= 0));
-            const isHorizontallyAligned = (pBody.right > padBody.left + 2 && pBody.left < padBody.right - 2);
 
-            if (isTouchingTop && isHorizontallyAligned && !padSprite.getData('isCompressing')) {
+            if (!padSprite.getData('isCompressing')) {
                 padSprite.setData('isCompressing', true);
 
                 if (isCustomTile) {
                     // Custom tile: Keep original tile graphic intact, do not use the jumppad sprite spring effect
                     this.player.setVelocityY(padSprite.getData('bouncePower'));
                     this.player.isNormalJump = false; 
+                    this.isBridgeBreakArmed = false;
                     this.player.ignoreGroundJumpUntil = this.scene.time.now + 200;
                     this.soundManager?.playJump();
 
@@ -1070,7 +1140,8 @@ export class EnvironmentManager {
                             // Step 3: Display frame 3 (full launch extension) and shoot player upwards
                             padSprite.setFrame(3);
                             this.player.setVelocityY(padSprite.getData('bouncePower'));
-                            this.player.isNormalJump = false; 
+                            this.player.isNormalJump = false;
+                            this.isBridgeBreakArmed = false;
                             this.player.ignoreGroundJumpUntil = this.scene.time.now + 200;
                             this.soundManager?.playJump();
 
@@ -1086,6 +1157,58 @@ export class EnvironmentManager {
                 }
             }
         });
+    }
+
+    private getFramePixelBounds(textureKey: string, frameName?: string | number): { x: number, y: number, width: number, height: number } {
+        try {
+            const tex = this.scene.textures.get(textureKey);
+            if (!tex) return { x: 0, y: 0, width: 32, height: 32 };
+            
+            const frame = tex.get(frameName);
+            if (!frame) return { x: 0, y: 0, width: 32, height: 32 };
+
+            const srcCanvas = tex.getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+            if (!srcCanvas || !srcCanvas.width) {
+                return { x: 0, y: 0, width: frame.width, height: frame.height };
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = frame.width;
+            canvas.height = frame.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return { x: 0, y: 0, width: frame.width, height: frame.height };
+
+            ctx.drawImage(srcCanvas, frame.cutX, frame.cutY, frame.cutWidth, frame.cutHeight, 0, 0, frame.width, frame.height);
+            const imgData = ctx.getImageData(0, 0, frame.width, frame.height).data;
+
+            let minX = frame.width, maxX = 0, minY = frame.height, maxY = 0;
+            let hasPixels = false;
+            for (let py = 0; py < frame.height; py++) {
+                for (let px = 0; px < frame.width; px++) {
+                    const alpha = imgData[(py * frame.width + px) * 4 + 3];
+                    if (alpha > 10) {
+                        hasPixels = true;
+                        if (px < minX) minX = px;
+                        if (px > maxX) maxX = px;
+                        if (py < minY) minY = py;
+                        if (py > maxY) maxY = py;
+                    }
+                }
+            }
+
+            if (!hasPixels) {
+                return { x: 0, y: 0, width: frame.width, height: frame.height };
+            }
+
+            return {
+                x: minX,
+                y: minY,
+                width: maxX - minX + 1,
+                height: maxY - minY + 1
+            };
+        } catch (_e) {
+            return { x: 0, y: 0, width: 32, height: 32 };
+        }
     }
 
     setupFirebars(rawMapObjects: any[]) {
@@ -1140,18 +1263,18 @@ export class EnvironmentManager {
         });
     }
 
-    setupSmashTriggers(map: Phaser.Tilemaps.Tilemap, rawMapObjects?: any[]) {
-        this.smashTriggers = [];
-        const smashObjs = (rawMapObjects || []).filter((obj: any) => {
+    setupBridgeBreakZones(map: Phaser.Tilemaps.Tilemap, rawMapObjects?: any[]) {
+        this.bridgeBreakZones = [];
+        const breakObjs = (rawMapObjects || []).filter((obj: any) => {
             const name = String(obj.name || '').trim().toLowerCase();
             const type = String(obj.type || '').trim().toLowerCase();
-            return name.includes('smash') || type.includes('smash') ||
-                   name.includes('bridgebreak') || type.includes('bridgebreak') ||
-                   name.includes('breakzone') || type.includes('breakzone');
+            return name.includes('bridgebreak') || type.includes('bridgebreak') ||
+                   name.includes('breakzone') || type.includes('breakzone') ||
+                   name.includes('smash') || type.includes('smash');
         });
 
-        if (smashObjs.length > 0) {
-            smashObjs.forEach((obj: any) => {
+        if (breakObjs.length > 0) {
+            breakObjs.forEach((obj: any) => {
                 const zone = this.scene.add.zone(
                     obj.x + (obj.width ? obj.width / 2 : 16), 
                     obj.y + (obj.height ? obj.height / 2 : 16), 
@@ -1159,7 +1282,7 @@ export class EnvironmentManager {
                     obj.height || 32
                 );
                 this.scene.physics.add.existing(zone, true);
-                this.smashTriggers.push(zone);
+                this.bridgeBreakZones.push(zone);
             });
         } else {
             const objectLayer = map.getObjectLayer('Objects');
@@ -1167,16 +1290,20 @@ export class EnvironmentManager {
                 objectLayer.objects.filter((obj: any) => {
                     const name = String(obj.name || '').trim().toLowerCase();
                     const type = String(obj.type || '').trim().toLowerCase();
-                    return name.includes('smash') || type.includes('smash') ||
-                           name.includes('bridgebreak') || type.includes('bridgebreak') ||
-                           name.includes('breakzone') || type.includes('breakzone');
+                    return name.includes('bridgebreak') || type.includes('bridgebreak') ||
+                           name.includes('breakzone') || type.includes('breakzone') ||
+                           name.includes('smash') || type.includes('smash');
                 }).forEach((obj: any) => {
                     const zone = this.scene.add.zone(obj.x! + (obj.width! / 2), obj.y! + (obj.height! / 2), obj.width!, obj.height!);
                     this.scene.physics.add.existing(zone, true);
-                    this.smashTriggers.push(zone);
+                    this.bridgeBreakZones.push(zone);
                 });
             }
         }
+    }
+
+    setupSmashTriggers(map: Phaser.Tilemaps.Tilemap, rawMapObjects?: any[]) {
+        this.setupBridgeBreakZones(map, rawMapObjects);
     }
 
     setupBridges(_map: Phaser.Tilemaps.Tilemap, rawMapObjects: any[]) {
@@ -1233,14 +1360,13 @@ export class EnvironmentManager {
                     const pBody = this.player.body as Phaser.Physics.Arcade.Body;
                     const bridgeTop = sprite.y;
 
-                    // Bridge ONLY breaks when falling from a BridgeBreakZone/SmashTrigger (this.player.canSmash is active)
-                    if (pBody.velocity.y >= 0 && this.player.canSmash) {
+                    // 1. If armed and falling downwards -> Break the bridge!
+                    if (this.isBridgeBreakArmed && pBody.velocity.y >= 0) {
                         this.breakBridge(bridgeData);
-                        this.player.canSmash = false;
-                        return false; // Break through without collision obstruction
+                        return false; // Pass smoothly through without blocking
                     }
 
-                    // Solid platform when walking, standing, jumping, or landing on it normally
+                    // 2. Normal solid platform when walking, standing, jumping, or landing on it normally
                     return pBody.velocity.y >= 0 && pBody.bottom <= bridgeTop + 24;
                 }
             );
@@ -1253,11 +1379,23 @@ export class EnvironmentManager {
                 (bulletObj) => {
                     if (!bridgeData.broken) {
                         const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
-                        this.uiManager.spawnParticles(bullet.x, bullet.y, 0x8B5A2B);
+                        if (!bullet || !bullet.active || !bullet.scene) return;
+                        const bx = bullet.x;
+                        const by = bullet.y;
+                        if (bullet.body) {
+                            bullet.body.enable = false;
+                            bullet.body.checkCollision.none = true;
+                        }
+                        bullet.setActive(false);
+                        bullet.setVisible(false);
                         bullet.destroy();
+                        this.uiManager.spawnParticles(bx, by, 0x8B5A2B);
                     }
                 },
-                () => !bridgeData.broken
+                (bulletObj) => {
+                    const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
+                    return !bridgeData.broken && Boolean(bullet && bullet.active && bullet.body && bullet.scene);
+                }
             );
             bridgeData.bulletCollider = bulletCollider;
 
@@ -1268,11 +1406,19 @@ export class EnvironmentManager {
     public breakBridge(bridge: BridgeData) {
         if (bridge.broken) return;
         bridge.broken = true;
+        this.isBridgeBreakArmed = false;
 
         const sprite = bridge.sprite;
         const body = sprite.body as Phaser.Physics.Arcade.Body;
         if (body) {
             body.enable = false;
+            body.checkCollision.none = true;
+        }
+        if (bridge.collider) {
+            bridge.collider.active = false;
+        }
+        if (bridge.bulletCollider) {
+            bridge.bulletCollider.active = false;
         }
 
         // Play 4-frame breaking animation (left to right: frame 0 -> 1 -> 2 -> 3)
@@ -1284,7 +1430,7 @@ export class EnvironmentManager {
         // Screen shake
         this.scene.cameras.main.shake(250, 0.012);
 
-        // Low density wooden break particles
+        // Wooden break particles
         const centerX = sprite.x + 48;
         const centerY = sprite.y + 16;
         const woodColors = [0x8B4513, 0xA0522D, 0x6B4226, 0x5C3317, 0x7E481C, 0xCD853F];
@@ -1297,14 +1443,16 @@ export class EnvironmentManager {
         // Float impact feedback text
         this.uiManager.showFloatingText(centerX, sprite.y - 12, 'CRASH!', '#D2B48C');
 
-        // Add impact resistance: dampen downward velocity upon smashing through the bridge
+        // Carry downward plunge velocity cleanly through the broken bridge
         if (this.player && this.player.body) {
             const pBody = this.player.body as Phaser.Physics.Arcade.Body;
+            pBody.blocked.down = false;
+            pBody.touching.down = false;
+            this.player.isOnPlatform = false;
             const currentVY = pBody.velocity.y;
-            const resistedVY = Math.min(Math.max(currentVY * 0.22, 60), 130);
-            pBody.setVelocityY(resistedVY);
+            const plungeVY = Math.max(280, Math.min(Math.max(currentVY * 0.75, 280), 550));
+            pBody.setVelocityY(plungeVY);
         }
-        this.player.canSmash = false;
 
         // Once animation completes, smooth fade
         sprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
@@ -1641,75 +1789,55 @@ export class EnvironmentManager {
             }
         }
 
-        // Handle Smash / BridgeBreak Triggers
-        let touchingTrigger = false;
-        const pRect = new Phaser.Geom.Rectangle(pBody.x, pBody.y, pBody.width, pBody.height);
-        
-        // 1. Check all explicit BridgeBreakZone objects (with horizontal leeway to cover the entire ledge & shaft)
-        this.smashTriggers.forEach(zone => {
+        // Bridge Break Zone & Bridge Impact Logic:
+        // 1. Arming Zone: top staging area (y <= 480, x: 2350..2750) or inside any BridgeBreakZone
+        let inBreakZone = false;
+        for (const zone of this.bridgeBreakZones) {
             const zb = zone.getBounds();
-            const expanded = new Phaser.Geom.Rectangle(zb.x - 140, zb.y - 40, zb.width + 180, zb.height + 80);
-            if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, expanded)) {
-                touchingTrigger = true;
-            }
-        });
-
-        // 2. Also check if the player is in the air in the vertical drop column directly above any bridge
-        for (const bridge of this.bridges) {
-            if (!bridge.broken && bridge.sprite && bridge.sprite.active) {
-                const b = bridge.sprite.getBounds();
-                const dropColumn = new Phaser.Geom.Rectangle(b.x - 32, 0, b.width + 160, b.y - 120);
-                if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, dropColumn)) {
-                    touchingTrigger = true;
-                }
+            const expandedZone = new Phaser.Geom.Rectangle(zb.x - 32, zb.y - 32, zb.width + 64, zb.height + 64);
+            if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, expandedZone)) {
+                inBreakZone = true;
+                break;
             }
         }
+        if (this.player.y <= 480 && this.player.x >= 2350 && this.player.x <= 2750) {
+            inBreakZone = true;
+        }
 
-        if (touchingTrigger) {
-            this.player.canSmash = true;
-            this.playerSmashAirborne = false;
-        } else if (this.player.canSmash) {
-            const isAirborne = !pBody.blocked.down && !pBody.touching.down && !this.player.isOnPlatform;
-            if (isAirborne) {
-                this.playerSmashAirborne = true;
-            }
-
-            // Only cancel if player was airborne and then landed on solid ground FAR away from all bridges:
-            if (this.playerSmashAirborne && (pBody.blocked.down || pBody.touching.down || this.player.isOnPlatform)) {
-                let nearAnyBridge = false;
-                for (const bridge of this.bridges) {
-                    if (!bridge.broken && bridge.sprite && bridge.sprite.active) {
-                        const b = bridge.sprite.getBounds();
-                        if (pBody.bottom >= b.y - 48 && pBody.bottom <= b.y + b.height + 48) {
-                            nearAnyBridge = true;
-                            break;
-                        }
+        if (inBreakZone) {
+            // Player is in top shaft / zone: Arm bridge break
+            this.isBridgeBreakArmed = true;
+        } else if (this.isBridgeBreakArmed) {
+            // Check if the surface the player touches is an unbroken Bridge
+            let landedOnBridge: BridgeData | undefined = undefined;
+            for (const bridge of this.bridges) {
+                if (!bridge.broken && bridge.sprite && bridge.sprite.active) {
+                    const b = bridge.sprite.getBounds();
+                    const bridgeSurface = new Phaser.Geom.Rectangle(b.x - 20, b.y - 32, b.width + 40, b.height + 64);
+                    if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, bridgeSurface)) {
+                        landedOnBridge = bridge;
+                        break;
                     }
                 }
-                if (!nearAnyBridge) {
-                    this.player.canSmash = false;
-                    this.playerSmashAirborne = false;
+            }
+
+            if (landedOnBridge && pBody.velocity.y >= 0) {
+                // Direct landing on bridge without intermediate resting contact -> Break the bridge!
+                this.breakBridge(landedOnBridge);
+            } else if (!landedOnBridge && this.player.y > 480 && this.player.y < 700) {
+                // Only disarm if the player has genuinely LANDED and rested on an intermediate obstacle:
+                // 1. Standing on the moving platform
+                // 2. Or grounded on a floor where vertical fall velocity has completely stopped (ignoring passing wall scrapes)
+                const isRidingPlatform = this.player.isOnPlatform;
+                const isSolidGrounded = (pBody.blocked.down || pBody.touching.down) && Math.abs(pBody.velocity.y) < 15;
+
+                if (isRidingPlatform || isSolidGrounded) {
+                    this.isBridgeBreakArmed = false;
                 }
             }
 
             if (this.player.isDying || this.player.isTeleporting) {
-                this.player.canSmash = false;
-                this.playerSmashAirborne = false;
-            }
-        }
-
-        // Proactive check: if player is touching/inside any bridge zone while canSmash is active OR falling from height
-        for (const bridge of this.bridges) {
-            if (!bridge.broken && bridge.sprite && bridge.sprite.active) {
-                const b = bridge.sprite.getBounds();
-                const bridgeZone = new Phaser.Geom.Rectangle(b.x - 8, b.y - 16, b.width + 16, b.height + 32);
-                if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, bridgeZone)) {
-                    if (this.player.canSmash || pBody.velocity.y > 100) {
-                        this.breakBridge(bridge);
-                        this.player.canSmash = false;
-                        this.playerSmashAirborne = false;
-                    }
-                }
+                this.isBridgeBreakArmed = false;
             }
         } 
     }
@@ -1743,7 +1871,7 @@ export class EnvironmentManager {
         for (const bridge of this.bridges) {
             bridge.snapshotBroken = bridge.broken;
         }
-        this.smashTriggers.forEach(z => z.setData('snapshotUsed', z.getData('used') || false));
+        this.isBridgeBreakArmed = false;
     }
 
     public rollbackToCheckpoint() {
@@ -1760,8 +1888,9 @@ export class EnvironmentManager {
             }
         }
 
-        this.player.canSmash = false;
-        this.smashTriggers.forEach(z => z.setData('used', z.getData('snapshotUsed') || false));
+        // Arm bridge break state if player respawns at or near the top ledge / BridgeBreakZone
+        const isAtTopShaft = this.player ? (this.player.y < 350 || this.player.activeSpawnY < 350) : true;
+        this.isBridgeBreakArmed = isAtTopShaft;
 
         for (const bridge of this.bridges) {
             bridge.broken = bridge.snapshotBroken;
@@ -1770,23 +1899,30 @@ export class EnvironmentManager {
             if (bridge.broken) {
                 sprite.setVisible(false);
                 sprite.setAlpha(0);
-                if (body) body.enable = false;
+                if (body) {
+                    body.enable = false;
+                    body.checkCollision.none = true;
+                }
+                if (bridge.collider) bridge.collider.active = false;
+                if (bridge.bulletCollider) bridge.bulletCollider.active = false;
             } else {
                 this.scene.tweens.killTweensOf(sprite);
                 sprite.setVisible(true);
                 sprite.setAlpha(1);
                 sprite.setFrame(0);
-                if (body) body.enable = true;
+                if (body) {
+                    body.enable = true;
+                    body.checkCollision.none = false;
+                }
+                if (bridge.collider) bridge.collider.active = true;
+                if (bridge.bulletCollider) bridge.bulletCollider.active = true;
             }
         }
     }
 
     resetAll() {
-        this.player.canSmash = false;
-        this.smashTriggers.forEach(z => {
-            z.setData('used', false);
-            z.setData('snapshotUsed', false);
-        });
+        const isAtTopShaft = this.player ? (this.player.y < 350 || this.player.activeSpawnY < 350) : true;
+        this.isBridgeBreakArmed = isAtTopShaft;
 
         for (const trigger of this.revealTriggers) {
             trigger.activated = false;
@@ -1811,7 +1947,12 @@ export class EnvironmentManager {
             sprite.setVisible(true);
             sprite.setAlpha(1);
             sprite.setFrame(0);
-            if (body) body.enable = true;
+            if (body) {
+                body.enable = true;
+                body.checkCollision.none = false;
+            }
+            if (bridge.collider) bridge.collider.active = true;
+            if (bridge.bulletCollider) bridge.bulletCollider.active = true;
         }
 
         this.movingPlatforms.forEach(plat => {

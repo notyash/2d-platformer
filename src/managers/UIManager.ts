@@ -320,21 +320,29 @@ export class UIManager {
     }
 
     public updateBossHealthBar(currentHp: number, maxHp: number = 50) {
-        if (!this.bossHealthContainer || !this.bossHealthBarGraphics) return;
+        if (!this.bossHealthContainer || !this.bossHealthBarGraphics) {
+            this.showBossHealthBar('⚡ ELECKING ⚡', maxHp, currentHp);
+            return;
+        }
 
         const safeHp = Math.max(0, currentHp);
         const targetPct = Math.min(1, Math.max(0, safeHp / maxHp));
 
-        this.scene.tweens.killTweensOf(this.bossBarTweenObj);
-        this.scene.tweens.add({
-            targets: this.bossBarTweenObj,
-            pct: targetPct,
-            duration: 180,
-            ease: 'Cubic.easeOut',
-            onUpdate: () => {
-                this.renderBossHealthBar(this.bossBarTweenObj.pct);
-            }
-        });
+        try {
+            this.scene.tweens.killTweensOf(this.bossBarTweenObj);
+            this.scene.tweens.add({
+                targets: this.bossBarTweenObj,
+                pct: targetPct,
+                duration: 180,
+                ease: 'Cubic.easeOut',
+                onUpdate: () => {
+                    this.renderBossHealthBar(this.bossBarTweenObj.pct);
+                }
+            });
+        } catch (_e) {
+            this.bossBarTweenObj.pct = targetPct;
+            this.renderBossHealthBar(targetPct);
+        }
     }
 
     public hideBossHealthBar() {

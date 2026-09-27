@@ -344,6 +344,12 @@ export class MainStageScene extends Phaser.Scene {
         
         this.collectiblesManager.setupCollectibles(map);
 
+        // Save initial snapshot for stage start (0% progression)
+        this.collectiblesManager.saveCheckpointSnapshot();
+        this.enemyManager.saveCheckpointSnapshot();
+        this.inventoryManager.saveCheckpointSnapshot();
+        this.envManager.saveCheckpointSnapshot();
+
         // Security and SurrealDB backend session start
         SecurityManager.getInstance().startNewRun('stage1');
         InputRecorder.getInstance().start();
@@ -358,26 +364,25 @@ export class MainStageScene extends Phaser.Scene {
             SecurityManager.getInstance().recordEvent('CHECKPOINT', { x: this.player.x, y: this.player.y });
         });
 
-        // Player death event: rollback state to active checkpoint snapshot and pause run timer
+        // Player death event: reset arena/boss if inside boss arena
         this.events.on('player-death', () => {
             this.totalDeaths++;
             SecurityManager.getInstance().recordDeath(this.totalDeaths);
             SecurityManager.getInstance().recordEvent('DEATH', { x: this.player.x, y: this.player.y, deaths: this.totalDeaths });
             
             const isInsideBossArena = Boolean(this.eleckingBoss?.isPlayerInArena());
-            if (!isInsideBossArena) {
-                this.collectiblesManager.rollbackToCheckpoint();
-                this.enemyManager.rollbackToCheckpoint();
-                this.inventoryManager.rollbackToCheckpoint();
-                this.envManager.rollbackToCheckpoint();
+            if (isInsideBossArena) {
                 this.eleckingBoss?.resetAll();
             }
             this.player.bullets.clear(true, true);
         });
 
-        // Player respawn event: resume timer after death animation completes
+        // Player respawn event: restore everything ahead of latest checkpoint earned, persisting state before checkpoint
         this.events.on('player-respawn', () => {
-            // Timer automatically resumes accumulating active time in update()
+            this.collectiblesManager.rollbackToCheckpoint();
+            this.enemyManager.rollbackToCheckpoint();
+            this.inventoryManager.rollbackToCheckpoint();
+            this.envManager.rollbackToCheckpoint();
         });
 
         // ESC, R, and C Key listeners
@@ -449,7 +454,7 @@ export class MainStageScene extends Phaser.Scene {
         // Bullets vs Ground / Walls (pass through inside Well tunnel)
         this.physics.add.collider(this.player.bullets, this.groundLayer, (bulletObj, tileObj) => {
             const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
-            if (!bullet || !bullet.active) return;
+            if (!bullet || !bullet.active || !bullet.scene) return;
             const t = tileObj as Phaser.Tilemaps.Tile;
             if (t && this.wellZones && this.wellZones.length > 0) {
                 const tileCenterX = t.pixelX + t.width / 2;
@@ -462,9 +467,17 @@ export class MainStageScene extends Phaser.Scene {
             }
             const bx = bullet.x;
             const by = bullet.y;
+            if (bullet.body) {
+                bullet.body.enable = false;
+                bullet.body.checkCollision.none = true;
+            }
+            bullet.setActive(false);
+            bullet.setVisible(false);
             bullet.destroy();
             this.uiManager.spawnParticles(bx, by, 0xFF8C00);
-        }, (_bullet, tile) => {
+        }, (bulletObj, tile) => {
+            const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
+            if (!bullet || !bullet.active || !bullet.body || !bullet.scene) return false;
             const t = tile as Phaser.Tilemaps.Tile;
             if (!t || t.index === -1) return false;
             if (this.wellZones && this.wellZones.length > 0) {
@@ -486,11 +499,20 @@ export class MainStageScene extends Phaser.Scene {
 
             this.physics.add.collider(this.player.bullets, this.wellLayer, (bulletObj) => {
                 const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
-                if (!bullet || !bullet.active) return;
+                if (!bullet || !bullet.active || !bullet.scene) return;
                 const bx = bullet.x;
                 const by = bullet.y;
+                if (bullet.body) {
+                    bullet.body.enable = false;
+                    bullet.body.checkCollision.none = true;
+                }
+                bullet.setActive(false);
+                bullet.setVisible(false);
                 bullet.destroy();
                 this.uiManager.spawnParticles(bx, by, 0xFF8C00);
+            }, (bulletObj) => {
+                const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
+                return Boolean(bullet && bullet.active && bullet.body && bullet.scene);
             });
         }
 
@@ -620,21 +642,37 @@ export class MainStageScene extends Phaser.Scene {
         this.totalDeaths++;
         this.player.setPosition(this.player.activeSpawnX, this.player.activeSpawnY);
         this.player.setVelocity(0, 0);
-        const idleKey = this.player.facing === 'right' ? 'idle-r-anim' : 'idle-l-anim';
-        if (this.anims.exists(idleKey)) {
-            this.player.anims.play(idleKey, true);
-        } else {
-            this.player.anims.stop();
-            this.player.setTexture(this.player.facing === 'right' ? 'idle-r' : 'idle-l');
+        const isInsideBossArena = Boolean(this.eleckingBoss?.isPlayerInArena());
+        if (isInsideBossArena) {
+            this.eleckingBoss?.resetAll();
         }
-        this.player.enforceKeyLift();
+        this.player.bullets.clear(true, true);
 
         this.collectiblesManager.rollbackToCheckpoint();
         this.enemyManager.rollbackToCheckpoint();
         this.inventoryManager.rollbackToCheckpoint();
         this.envManager.rollbackToCheckpoint();
-        this.eleckingBoss?.resetAll();
-        this.player.bullets.clear(true, true);
+
+        const isBossPhase2 = Boolean(
+            this.eleckingBoss && 
+            this.eleckingBoss.phase === 2 && 
+            !this.eleckingBoss.isDead
+        );
+        if (isBossPhase2) {
+            this.player.hasGun = true;
+        }
+
+        const gunIdleKey = this.player.facing === 'right' ? 'gun-idle-r-anim' : 'gun-idle-l-anim';
+        const defaultIdleKey = this.player.facing === 'right' ? 'idle-r-anim' : 'idle-l-anim';
+        const chosenAnim = this.player.hasGun && this.anims.exists(gunIdleKey) ? gunIdleKey : defaultIdleKey;
+
+        if (this.anims.exists(chosenAnim)) {
+            this.player.anims.play(chosenAnim, true);
+        } else {
+            this.player.anims.stop();
+            this.player.setTexture(this.player.facing === 'right' ? 'idle-r' : 'idle-l');
+        }
+        this.player.enforceKeyLift();
 
         this.uiManager.showFloatingText(this.player.x, this.player.y - 20, 'RESPAWNED AT CHECKPOINT', '#38BDF8', 1200);
         this.soundManager?.playPowerup();

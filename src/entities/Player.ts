@@ -23,7 +23,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     public isOnPlatform: boolean = false;
     public isNearDoor: boolean = false;
     public isTeleporting: boolean = false;
-    public canSmash: boolean = false;
     public isPassingThroughWell: boolean = false;
 
     // States
@@ -237,7 +236,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.soundManager?.playShoot();
 
         this.scene.time.delayedCall(bulletLifespanMs, () => { 
-            if (bullet.active) {
+            if (bullet && bullet.active && bullet.scene) {
+                if (bullet.body) {
+                    bullet.body.enable = false;
+                    bullet.body.checkCollision.none = true;
+                }
+                bullet.setActive(false);
+                bullet.setVisible(false);
                 bullet.destroy(); 
             }
         });
@@ -416,12 +421,17 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.setVisible(true);
         this.setAlpha(1);
 
+        // Emit player-respawn first to restore all managers (inventory, collectibles, mobs, environment)
+        this.scene.events.emit('player-respawn');
+
         const isBossPhase2 = Boolean(
             (this.scene as any).eleckingBoss && 
             (this.scene as any).eleckingBoss.phase === 2 && 
             !(this.scene as any).eleckingBoss.isDead
         );
-        this.hasGun = isBossPhase2;
+        if (isBossPhase2) {
+            this.hasGun = true;
+        }
 
         const gunIdleKey = this.facing === 'right' ? 'gun-idle-r-anim' : 'gun-idle-l-anim';
         const defaultIdleKey = this.facing === 'right' ? 'idle-r-anim' : 'idle-l-anim';
@@ -441,7 +451,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.isPassingThroughWell = false;
         this.clearTint();
         this.enableGameInputs();
-        this.scene.events.emit('player-respawn');
     }
 
     die(reason: 'default' | 'lava' | 'electric' | 'lightning' | string = 'default') {

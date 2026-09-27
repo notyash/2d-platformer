@@ -115,7 +115,8 @@
 ### ⏳ Active Development & Asset Pipeline
 - [ ] **1. Complete Boss Fight & Minions**:
   - Add skeleton bomb minion mob spawned by Elecking Boss on the ground during battle (max 2 waves per fight).
-  - Polish Phase 1 cloud lightning/charge attacks and Phase 2 ground orb barrage/vulnerability windows.
+  - Fixed boss tile clipping by factoring attack tiles into solid floor detection and aligning origin to ground level (`groundY - 48`).
+  - Fixed game freeze when shooting boss by securing bullet body lifecycle and collision process callbacks across all collider handlers.
   - Finalize boss defeat transition, Victory Orb fanfare, and portal stage completion.
 - [x] **3. New Teleport Door**: Add new door asset and interaction logic for teleportation / level transitions.
 - [x] **4. New Checkpoint Asset**: Placed `checkpoint sprite.png` from `misc` on the ground at Checkpoint 1, 2, 3, and 4 locations with interactive activation tweens.
@@ -128,7 +129,7 @@
   - Seamlessly emerges player with temporary invulnerability flicker and clean key lift enforcement.
 - [x] **11. Gun Movement Effects (Walking, Falling & Jumping)**: Integrated specialized gun animations (`Player-Gun-Fall.png`, `Player-Gun-Walk-R.png`/`-L`, `Player-Jump-Gun-R.png`/`-L`) for walking, jumping, and falling while holding the Blaster Gun.
 - [ ] **12. Limited Blaster Ammo**: Implement limited ammunition for the Blaster Gun with real-time HUD ammo counter, shot depletion, and ammo pickups/replenishment.
-- [x] **13. Well Teleport Emergence Animation & Solid Mechanics**:
+- [x] **13. Well Teleport Emergence Animation & Solid Mechanics**:sho
   - Refactored teleporter transition so player visibly emerges upward from deep inside the Well object upon arrival.
   - Well objects treated as solid ground for player, mobs (LOS, raycasting, ledge detection), and projectiles.
 - [x] **SmashGround Layer One-Time Pass-Through & Solid Ground Conversion**:
@@ -164,6 +165,7 @@
 ---
 
 ### 🎨 Gameplay Polish & World Expansion
+- [ ] **Remove Cherry Blossom Petals Effect**: Remove the ambient floating cherry blossom petal breeze particles from the screen.
 - [ ] **Fix Grey Lines & Edge Bleeding on Sprites**: Thoroughly audit and clean all sprite sheets, tile boundaries, texture bleed margins, and camera subpixel rounding to eliminate grey lines appearing on top of sprites.
 - [ ] **Map Expansion & Level 2**: Connect stage doors to secondary map sections or next level.
 - [ ] **Audio Assets**: Replace synthesized audio oscillator tones with dedicated sound effects and background music tracks.

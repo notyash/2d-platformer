@@ -1,12 +1,4 @@
 { "compressionlevel":-1,
- "editorsettings":
-    {
-     "export":
-        {
-         "format":"json",
-         "target":"harder-main-stage.json"
-        }
-    },
  "height":45,
  "infinite":false,
  "layers":[
@@ -304,8 +296,8 @@
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":159.64275,
-                 "x":2559.93125,
+                 "width":160.415477272727,
+                 "x":2559.15852272727,
                  "y":191.031
                 }, 
                 {
@@ -1351,8 +1343,8 @@
                  "type":"",
                  "visible":true,
                  "width":95.75,
-                 "x":3200.38,
-                 "y":1119.63
+                 "x":3200.04666666667,
+                 "y":695.296666666667
                 }, 
                 {
                  "gid":1645,
@@ -2121,8 +2113,8 @@
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":2656,
-                 "y":192
+                 "x":4669,
+                 "y":533.833333333333
                 }, 
                 {
                  "height":31.93,
@@ -2935,18 +2927,6 @@
                  "y":736
                 }, 
                 {
-                 "height":64.1818181818181,
-                 "id":381,
-                 "name":"Bridge",
-                 "opacity":1,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":96,
-                 "x":2464,
-                 "y":736
-                }, 
-                {
                  "gid":1667,
                  "height":32,
                  "id":376,
@@ -3192,8 +3172,7 @@
                  "width":32,
                  "x":3680,
                  "y":768
-                },
-            
+                }, 
                 {
                  "gid":1667,
                  "height":32,
@@ -3206,7 +3185,8 @@
                  "width":32,
                  "x":3872,
                  "y":256
-                }, 
+                },
+            
                 {
                  "gid":1667,
                  "height":32,

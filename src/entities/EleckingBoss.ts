@@ -15,9 +15,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
     private hasStarted: boolean = false;
     private hp: number = 50;
-    private phase: number = 1;
+    public phase: number = 1;
     public isDead: boolean = false;
-    private isInvulnerable: boolean = true;
+    public isInvulnerable: boolean = true;
 
     private map: Phaser.Tilemaps.Tilemap;
     private arenaZone?: Phaser.Geom.Rectangle;
@@ -98,10 +98,16 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
         scene.physics.add.overlap(this.player.bullets, this, (bulletObj, _bossObj) => {
             const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
-            if (!bullet || !bullet.active) return;
+            if (!bullet || !bullet.active || !bullet.scene) return;
             
             const bx = bullet.x;
             const by = bullet.y;
+            if (bullet.body) {
+                bullet.body.enable = false;
+                bullet.body.checkCollision.none = true;
+            }
+            bullet.setActive(false);
+            bullet.setVisible(false);
             bullet.destroy();
             this.uiManager.spawnParticles(bx, by, 0xF59E0B);
 
@@ -1145,6 +1151,20 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     }
 
     private isSolidTileAt(x: number, y: number): boolean {
+        // 1. Check dotBlocks / attack tiles
+        for (const [_, tiles] of this.thunderTiles.entries()) {
+            for (const t of tiles) {
+                const tx = t.pixelX !== undefined ? t.pixelX : (t as any).x;
+                const ty = t.pixelY !== undefined ? t.pixelY : (t as any).y;
+                const tw = t.width || 32;
+                const th = t.height || 32;
+                if (x >= tx && x < tx + tw && y >= ty && y < ty + th) {
+                    return true;
+                }
+            }
+        }
+
+        // 2. Check tilemap layers
         if (!this.map || !this.map.layers) return false;
         for (const layerData of this.map.layers) {
             const tLayer = layerData.tilemapLayer;
@@ -1162,13 +1182,35 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     }
 
     private findGroundYBelow(startX: number, startY: number = this.y): number {
-        // Scan downwards in 8px increments from startY to locate highest solid floor tile
-        const maxScanY = startY + 500;
-        for (let checkY = startY; checkY < maxScanY; checkY += 8) {
-            if (this.isSolidTileAt(startX, checkY)) {
-                return Math.floor(checkY / 32) * 32;
+        // Find highest surface beneath startX among thunderTiles / attack tiles
+        let highestY: number | null = null;
+        for (const [_, tiles] of this.thunderTiles.entries()) {
+            for (const t of tiles) {
+                const tx = t.pixelX !== undefined ? t.pixelX : (t as any).x;
+                const ty = t.pixelY !== undefined ? t.pixelY : (t as any).y;
+                const tw = t.width || 32;
+                if (startX >= tx - 8 && startX <= tx + tw + 8) {
+                    if (ty >= startY - 48) {
+                        if (highestY === null || ty < highestY) {
+                            highestY = ty;
+                        }
+                    }
+                }
             }
         }
+
+        // Scan downwards in 8px increments from startY to locate highest solid floor tile
+        const maxScanY = startY + 600;
+        for (let checkY = startY; checkY < maxScanY; checkY += 8) {
+            if (this.isSolidTileAt(startX, checkY)) {
+                const tileTop = Math.floor(checkY / 32) * 32;
+                if (highestY === null || tileTop < highestY) {
+                    highestY = tileTop;
+                }
+                break;
+            }
+        }
+        if (highestY !== null) return highestY;
         return this.arenaZone ? this.arenaZone.bottom - 48 : startY + 120;
     }
 
@@ -1183,8 +1225,11 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.uiManager.showFloatingText(this.x, this.y - 40, 'PHASE 2 - VULNERABLE', '#FF0000');
         this.uiManager.showBossHealthBar('⚡ ELECKING ⚡', 50, this.hp);
 
-        // Find ground position directly beneath boss
-        const targetGroundY = this.findGroundYBelow(this.x, this.y) - 24;
+        // Find ground position directly beneath boss.
+        // Boss sprite is 96px high with origin (0.5, 0.5), so sprite bottom is y + 48.
+        // For feet to rest on ground surface at groundY, y = groundY - 48.
+        const floorTopY = this.findGroundYBelow(this.x, this.y);
+        const targetGroundY = floorTopY - 48;
         const startAirY = Math.min(this.y, targetGroundY - 120);
 
         // Reveal boss in the air first
@@ -1226,9 +1271,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 if (this.isDead) return;
 
                 // Impact landing dust & audio
-                this.uiManager.spawnParticles(this.x, targetGroundY + 16, 0xEF4444);
-                this.uiManager.spawnParticles(this.x - 24, targetGroundY + 16, 0xA855F7);
-                this.uiManager.spawnParticles(this.x + 24, targetGroundY + 16, 0xA855F7);
+                this.uiManager.spawnParticles(this.x, floorTopY, 0xEF4444);
+                this.uiManager.spawnParticles(this.x - 24, floorTopY, 0xA855F7);
+                this.uiManager.spawnParticles(this.x + 24, floorTopY, 0xA855F7);
                 this.soundManager?.playStomp();
 
                 this.startGroundedPatrol();
@@ -1252,7 +1297,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.p2PaceDir = this.player.x > this.x ? 1 : -1;
 
         const groundY = this.findGroundYBelow(this.x, this.y - 16);
-        this.setY(groundY - 24);
+        this.setY(groundY - 48);
 
         const dir = this.player.x > this.x ? 1 : -1;
         (this.body as Phaser.Physics.Arcade.Body).setVelocityX(this.patrolSpeed * dir);
@@ -1318,7 +1363,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.bossState = 'summoning';
         (this.body as Phaser.Physics.Arcade.Body).setVelocityX(0); // Pause patrol
         
-        // Summon 2-3 Sandal Mobs at boss location
+        // Summon 2-3 Sandal Mobs at boss location grounded on the floor
+        const floorY = this.y + 48;
         const count = Phaser.Math.Between(2, 3);
         for (let i = 0; i < count; i++) {
             const offsetX = Phaser.Math.Between(-30, 30);
@@ -1326,7 +1372,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             const texKey = initialDir === 1 ? 'mob-sandal-r' : 'mob-sandal-l';
             const validTex = this.scene.textures.exists(texKey) ? texKey : (this.scene.textures.exists('mob-sandal-r') ? 'mob-sandal-r' : 'mob-sandal');
             
-            const minion = this.enemyManager.groundMobs.create(this.x + offsetX, this.y, validTex, 0) as Phaser.Physics.Arcade.Sprite;
+            const minion = this.enemyManager.groundMobs.create(this.x + offsetX, floorY, validTex, 0) as Phaser.Physics.Arcade.Sprite;
             minion.setDepth(4).setOrigin(0.5, 1);
             
             const body = minion.body as Phaser.Physics.Arcade.Body;
@@ -1343,7 +1389,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             
             minion.setData('uniqueKey', `boss_minion_${this.scene.time.now}_${i}`);
             minion.setData('spawnX', this.x + offsetX);
-            minion.setData('spawnY', this.y);
+            minion.setData('spawnY', floorY);
             minion.setData('direction', initialDir);
             minion.setData('speed', 60);
             minion.setData('stationary', false);
@@ -1598,9 +1644,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         if (this.phase === 2 && this.bossState === 'patrolling') {
             const body = this.body as Phaser.Physics.Arcade.Body;
             if (body) {
-                // Keep boss firmly grounded on the floor surface
+                // Keep boss firmly grounded on the floor surface (sprite bottom at groundY, origin 0.5)
                 const groundY = this.findGroundYBelow(this.x, this.y - 16);
-                this.setY(groundY - 24);
+                this.setY(groundY - 48);
 
                 this.p2StateTimer += delta;
 
@@ -1640,11 +1686,11 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                     desiredDir = this.p2PaceDir;
                 }
 
-                // Check for solid wall tiles or cliff edges in Ground / DungeonFill layers
+                // Check for solid wall tiles or cliff edges in Ground / DungeonFill / Attack tiles
                 if (desiredDir !== 0) {
                     const checkX = desiredDir > 0 ? this.x + 36 : this.x - 36;
                     const wallAhead = this.isSolidTileAt(checkX, this.y);
-                    const floorAhead = this.isSolidTileAt(checkX, this.y + 36);
+                    const floorAhead = this.isSolidTileAt(checkX, groundY + 8);
 
                     if (wallAhead || !floorAhead) {
                         // Hit wall or cliff edge: turn around smoothly

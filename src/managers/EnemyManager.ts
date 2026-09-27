@@ -132,13 +132,29 @@ export class EnemyManager {
         // Player Bullets vs Ground Mobs & Flying Mobs overlap (kill mob with blaster)
         this.scene.physics.add.overlap(this.player.bullets, this.groundMobs, (bulletObj, mobObj) => {
             const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
-            if (bullet && bullet.active) bullet.destroy();
+            if (bullet && bullet.active && bullet.scene) {
+                if (bullet.body) {
+                    bullet.body.enable = false;
+                    bullet.body.checkCollision.none = true;
+                }
+                bullet.setActive(false);
+                bullet.setVisible(false);
+                bullet.destroy();
+            }
             const mob = mobObj as Phaser.Physics.Arcade.Sprite;
             if (mob && mob.active) this.killMob(mob, 'shoot');
         });
         this.scene.physics.add.overlap(this.player.bullets, this.flyingMobs, (bulletObj, mobObj) => {
             const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
-            if (bullet && bullet.active) bullet.destroy();
+            if (bullet && bullet.active && bullet.scene) {
+                if (bullet.body) {
+                    bullet.body.enable = false;
+                    bullet.body.checkCollision.none = true;
+                }
+                bullet.setActive(false);
+                bullet.setVisible(false);
+                bullet.destroy();
+            }
             const mob = mobObj as Phaser.Physics.Arcade.Sprite;
             if (mob && mob.active) this.killMob(mob, 'shoot');
         });
@@ -146,9 +162,15 @@ export class EnemyManager {
         // Player vs Enemy Bullets (Hazard)
         this.scene.physics.add.overlap(this.player, this.enemyBullets, (_playerObj, bulletObj) => {
             const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
-            if (!bullet || !bullet.active) return;
+            if (!bullet || !bullet.active || !bullet.scene) return;
             const bx = bullet.x;
             const by = bullet.y;
+            if (bullet.body) {
+                bullet.body.enable = false;
+                bullet.body.checkCollision.none = true;
+            }
+            bullet.setActive(false);
+            bullet.setVisible(false);
             bullet.destroy();
             this.uiManager.spawnParticles(bx, by, 0xEF4444);
             this.player.die();
@@ -158,13 +180,25 @@ export class EnemyManager {
         this.scene.physics.add.overlap(this.player.bullets, this.enemyBullets, (pBulletObj, eBulletObj) => {
             const pBullet = pBulletObj as Phaser.Physics.Arcade.Sprite;
             const eBullet = eBulletObj as Phaser.Physics.Arcade.Sprite;
-            if (eBullet && eBullet.active) {
+            if (eBullet && eBullet.active && eBullet.scene) {
                 const ex = eBullet.x;
                 const ey = eBullet.y;
+                if (eBullet.body) {
+                    eBullet.body.enable = false;
+                    eBullet.body.checkCollision.none = true;
+                }
+                eBullet.setActive(false);
+                eBullet.setVisible(false);
                 eBullet.destroy();
                 this.uiManager.spawnParticles(ex, ey, 0xF59E0B);
             }
-            if (pBullet && pBullet.active) {
+            if (pBullet && pBullet.active && pBullet.scene) {
+                if (pBullet.body) {
+                    pBullet.body.enable = false;
+                    pBullet.body.checkCollision.none = true;
+                }
+                pBullet.setActive(false);
+                pBullet.setVisible(false);
                 pBullet.destroy();
             }
             this.soundManager?.playStomp();
