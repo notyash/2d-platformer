@@ -19,10 +19,11 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     public isDead: boolean = false;
     private isInvulnerable: boolean = true;
 
-    // Tiled Properties & Objects
+    private map: Phaser.Tilemaps.Tilemap;
     private arenaZone?: Phaser.Geom.Rectangle;
     private arenaCover?: Phaser.GameObjects.TileSprite;
     public isEntranceRevealed: boolean = false;
+    private pendingPhase2Transition: boolean = false;
     private bossLimitZone?: Phaser.Geom.Rectangle;
     private bossEntranceZone?: Phaser.Geom.Rectangle;
     private envManager?: EnvironmentManager;
@@ -38,8 +39,15 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private victoryPortal?: Phaser.Physics.Arcade.Sprite;
     
     // State Tracking
-    private bossState: 'idle' | 'memory-telegraph' | 'vanished' | 'striking' | 'patrolling' | 'summoning' = 'idle';
+    private bossState: 'idle' | 'memory-telegraph' | 'vanished' | 'striking' | 'descending' | 'patrolling' | 'summoning' = 'idle';
     
+    // Phase 2 Movement Routine: Follow -> Pace back & forth -> Follow
+    private p2MoveState: 'follow' | 'pace' = 'follow';
+    private p2StateTimer: number = 0;
+    private p2MoveDuration: number = 3500;
+    private p2PaceDir: number = 1;
+    private p2PaceFlipTimer: number = 0;
+
     // Attack Properties
     private currentSequence: number[] = [];
     private thunderTiles: Map<number, Phaser.Tilemaps.Tile[]> = new Map();
@@ -70,6 +78,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         inventoryManager?: InventoryManager
     ) {
         super(scene, x, y, 'elecking-power', 0);
+        this.map = map;
         this.player = player;
         this.uiManager = uiManager;
         this.enemyManager = enemyManager;
@@ -96,11 +105,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             bullet.destroy();
             this.uiManager.spawnParticles(bx, by, 0xF59E0B);
 
-            // Deal damage only if boss is vulnerable in Phase 2
+            // Phase 1: Zero damage, no state changes, no game freeze
+            // Phase 2: Deal damage only if boss is vulnerable and not vanished/dead
             if (this.phase === 2 && !this.isInvulnerable && !this.isDead && this.bossState !== 'vanished') {
                 this.takeDamage();
-            } else if (this.phase === 1) {
-                this.soundManager?.playEnemyShoot();
             }
         });
 
@@ -134,6 +142,17 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 if (this.player.activeSpawnX === this.bossRespawnPoint.x && this.player.activeSpawnY === this.bossRespawnPoint.y) {
                     this.isEntranceRevealed = true;
                     if (this.arenaCover) this.arenaCover.setVisible(false);
+                }
+            }
+            if (this.phase === 2 && !this.isDead) {
+                // Ensure player retains the Blaster Gun in Phase 2
+                this.player.hasGun = true;
+                if (this.inventoryManager) {
+                    this.inventoryManager.addGun();
+                    this.inventoryManager.saveCheckpointSnapshot();
+                } else if ((this.scene as any).inventoryManager) {
+                    (this.scene as any).inventoryManager.addGun();
+                    (this.scene as any).inventoryManager.saveCheckpointSnapshot();
                 }
             }
             if (this.hasStarted && !this.isDead) {
@@ -550,6 +569,35 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 }
             });
         }
+
+        // Setup bounds & collisions for Orbs of Rage against Ground, DungeonFill, and other solid dungeon layers
+        map.layers.forEach(layerData => {
+            const tLayer = layerData.tilemapLayer;
+            if (tLayer) {
+                const lName = (layerData.name || '').toLowerCase();
+                if (lName.includes('ground') || lName.includes('dungeon') || lName.includes('fill') || lName.includes('boss') || lName.includes('well')) {
+                    this.scene.physics.add.collider(this.orbsOfRageGroup, tLayer, (orbObj) => {
+                        const orb = orbObj as Phaser.Physics.Arcade.Sprite;
+                        if (orb && orb.active) {
+                            const ox = orb.x;
+                            const oy = orb.y;
+                            orb.destroy();
+                            this.uiManager.spawnParticles(ox, oy, 0xA855F7);
+                        }
+                    });
+                }
+            }
+        });
+
+        this.scene.physics.add.collider(this.orbsOfRageGroup, this.dotBlocks, (orbObj) => {
+            const orb = orbObj as Phaser.Physics.Arcade.Sprite;
+            if (orb && orb.active) {
+                const ox = orb.x;
+                const oy = orb.y;
+                orb.destroy();
+                this.uiManager.spawnParticles(ox, oy, 0xA855F7);
+            }
+        });
     }
 
     private spawnGravityOrbs() {
@@ -880,6 +928,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
         // Reset arena cover
         this.isEntranceRevealed = false;
+        this.pendingPhase2Transition = false;
         if (this.arenaCover) {
             this.arenaCover.setVisible(true);
         }
@@ -995,20 +1044,23 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                     const tileW = tile.width || 32;
                     const tileH = tile.height || 32;
 
-                    // Play cloud & lightning animation striking down onto the 32x32 ground tile from the sky
+                    const attackHeight = 10 * 32; // Exactly 10 tiles (320px) above the attack tiles
+
+                    // Play cloud & lightning animation striking down onto the 32x32 ground tile from 10 tiles above in the sky
                     const cloudEffect = this.scene.add.sprite(tileX + tileW / 2, tileY, 'cloud-thunder-attack', 0);
                     cloudEffect.setOrigin(0.5, 1);
+                    cloudEffect.setDisplaySize(tileW, attackHeight);
                     cloudEffect.setDepth(12);
                     cloudEffect.play('cloud-thunder-strike');
                     this.activeAttackEffects.push(cloudEffect);
 
-                    // Physics body covering the entire 32x240 column from cloud top down to ground
+                    // Physics body covering the entire 32x320 column from cloud top down to ground
                     this.scene.physics.add.existing(cloudEffect);
                     const cBody = cloudEffect.body as Phaser.Physics.Arcade.Body;
                     if (cBody) {
                         cBody.setAllowGravity(false);
                         cBody.setImmovable(true);
-                        cBody.setSize(24, 240);
+                        cBody.setSize(tileW - 8, attackHeight);
                         cBody.setOffset(4, 0);
                     }
 
@@ -1042,14 +1094,21 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             delay += 400; // Stagger each strike so the player can see them clearly
         });
 
-        // Return to normal
-        this.addBossTimer(delay + 1000, () => {
+        // Return to normal or execute Phase 2 descent if last orb was collected mid-attack
+        this.addBossTimer(delay + 800, () => {
             if (!this.hasStarted || this.isDead) return;
+
+            // Reveal boss in the air first
             this.setTexture('elecking-power');
             this.setVisible(true);
             this.setBossFrame(0);
             (this.body as Phaser.Physics.Arcade.Body).setEnable(true);
-            
+
+            if (this.pendingPhase2Transition) {
+                this.descendAndStartPhase2();
+                return;
+            }
+
             if (this.phase === 1) {
                 this.bossState = 'idle';
                 this.flyTarget = undefined;
@@ -1061,15 +1120,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     }
 
     private transitionToPhase2() {
-        this.phase = 2;
-        this.isInvulnerable = false;
-        this.phase2ThunderTimer = 15000;
-        
-        // Show phase transition banner & Top-Screen Boss Health Bar
-        this.uiManager.showFloatingText(this.x, this.y - 40, 'PHASE 2 - VULNERABLE', '#FF0000');
-        this.uiManager.showBossHealthBar('⚡ ELECKING ⚡', 50, this.hp);
-        
-        // Directly equip player with the Blaster Gun and enable all gun sprites/animations
+        // Directly equip player with the Blaster Gun and enable all gun sprites/animations immediately
         if (this.inventoryManager) {
             this.inventoryManager.addGun();
         } else if ((this.scene as any).inventoryManager) {
@@ -1082,40 +1133,162 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.uiManager.spawnParticles(this.player.x, this.player.y, 0x38BDF8);
         this.soundManager?.playPowerup();
 
-        // Descend to ground
-        this.startGroundedPatrol();
+        // If boss is currently mid thunder attack (telegraphing, vanished, or striking):
+        // Allow the thunder attack to finish executing first, then reveal in the air and descend
+        if (this.bossState === 'memory-telegraph' || this.bossState === 'vanished' || this.bossState === 'striking') {
+            this.pendingPhase2Transition = true;
+            return;
+        }
 
-        // Start shooting Orbs of Rage
-        this.addBossTimer(2000, () => {
-            if (this.phase === 2 && this.bossState === 'patrolling' && !this.isDead) {
-                this.fireOrbOfRage();
+        // Otherwise (boss is idle in air), reveal in air and descend immediately
+        this.descendAndStartPhase2();
+    }
+
+    private isSolidTileAt(x: number, y: number): boolean {
+        if (!this.map || !this.map.layers) return false;
+        for (const layerData of this.map.layers) {
+            const tLayer = layerData.tilemapLayer;
+            if (tLayer) {
+                const name = (layerData.name || '').toLowerCase();
+                if (name.includes('ground') || name.includes('fill') || name.includes('dungeon') || name.includes('boss')) {
+                    const tile = tLayer.getTileAtWorldXY(x, y);
+                    if (tile && tile.index !== -1) {
+                        return true;
+                    }
+                }
             }
-        }, true);
+        }
+        return false;
+    }
+
+    private findGroundYBelow(startX: number, startY: number = this.y): number {
+        // Scan downwards in 8px increments from startY to locate highest solid floor tile
+        const maxScanY = startY + 500;
+        for (let checkY = startY; checkY < maxScanY; checkY += 8) {
+            if (this.isSolidTileAt(startX, checkY)) {
+                return Math.floor(checkY / 32) * 32;
+            }
+        }
+        return this.arenaZone ? this.arenaZone.bottom - 48 : startY + 120;
+    }
+
+    private descendAndStartPhase2() {
+        this.phase = 2;
+        this.isInvulnerable = false;
+        this.phase2ThunderTimer = 15000;
+        this.pendingPhase2Transition = false;
+        this.bossState = 'descending';
+
+        // Show phase transition banner & Top-Screen Boss Health Bar
+        this.uiManager.showFloatingText(this.x, this.y - 40, 'PHASE 2 - VULNERABLE', '#FF0000');
+        this.uiManager.showBossHealthBar('⚡ ELECKING ⚡', 50, this.hp);
+
+        // Find ground position directly beneath boss
+        const targetGroundY = this.findGroundYBelow(this.x, this.y) - 24;
+        const startAirY = Math.min(this.y, targetGroundY - 120);
+
+        // Reveal boss in the air first
+        this.setTexture('elecking-power');
+        this.setVisible(true);
+        this.setBossFrame(0);
+        this.setY(startAirY);
+
+        const body = this.body as Phaser.Physics.Arcade.Body;
+        if (body) {
+            body.setEnable(true);
+            body.setVelocity(0, 0);
+            body.setAllowGravity(false);
+        }
+
+        // Floating descent aura particles
+        const auraEmitter = this.scene.time.addEvent({
+            delay: 100,
+            repeat: 14,
+            callback: () => {
+                if (this && this.active && this.bossState === 'descending') {
+                    this.uiManager.spawnParticles(
+                        this.x + Phaser.Math.Between(-24, 24), 
+                        this.y + Phaser.Math.Between(-20, 20), 
+                        0xA855F7
+                    );
+                }
+            }
+        });
+
+        // Descend smoothly from the air to the ground
+        this.scene.tweens.add({
+            targets: this,
+            y: targetGroundY,
+            duration: 1500,
+            ease: 'Sine.easeInOut',
+            onComplete: () => {
+                auraEmitter.remove();
+                if (this.isDead) return;
+
+                // Impact landing dust & audio
+                this.uiManager.spawnParticles(this.x, targetGroundY + 16, 0xEF4444);
+                this.uiManager.spawnParticles(this.x - 24, targetGroundY + 16, 0xA855F7);
+                this.uiManager.spawnParticles(this.x + 24, targetGroundY + 16, 0xA855F7);
+                this.soundManager?.playStomp();
+
+                this.startGroundedPatrol();
+
+                // Start periodic Orbs of Rage
+                this.addBossTimer(1500, () => {
+                    if (this.phase === 2 && this.bossState === 'patrolling' && !this.isDead) {
+                        this.fireOrbOfRage();
+                    }
+                }, true);
+            }
+        });
     }
 
     private startGroundedPatrol() {
         this.bossState = 'patrolling';
-        // Position just above ground
-        const zone = this.bossLimitZone || this.arenaZone;
-        if (zone) {
-            this.setPosition(this.x, zone.bottom - 48);
-        }
+        this.p2MoveState = 'follow';
+        this.p2StateTimer = 0;
+        this.p2MoveDuration = Phaser.Math.Between(3000, 4500);
+        this.p2PaceFlipTimer = 0;
+        this.p2PaceDir = this.player.x > this.x ? 1 : -1;
+
+        const groundY = this.findGroundYBelow(this.x, this.y - 16);
+        this.setY(groundY - 24);
+
         const dir = this.player.x > this.x ? 1 : -1;
         (this.body as Phaser.Physics.Arcade.Body).setVelocityX(this.patrolSpeed * dir);
     }
 
     private fireOrbOfRage() {
-        const orb = this.orbsOfRageGroup.create(this.x, this.y, 'attack-orb') as Phaser.Physics.Arcade.Sprite;
+        const isFacingRight = this.player.x > this.x;
+        const mouthX = this.x + (isFacingRight ? 18 : -18);
+        const mouthY = this.y - 10;
+
+        // Speed is faster than before (150) but not faster than Lava Kappa fireballs (220)
+        const speed = 195;
+        const angle = Phaser.Math.Angle.Between(mouthX, mouthY, this.player.x, this.player.y);
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+
+        const orb = this.orbsOfRageGroup.create(mouthX, mouthY, 'attack-orb') as Phaser.Physics.Arcade.Sprite;
         orb.play('attack-orb-anim');
         orb.setDepth(14);
-        const angle = Phaser.Math.Angle.Between(this.x, this.y, this.player.x, this.player.y);
-        const speed = 150; // Medium speed
+        orb.setOrigin(0.5, 0.5);
+        orb.setRotation(angle);
+
         const orbBody = orb.body as Phaser.Physics.Arcade.Body;
         if (orbBody) {
-            orbBody.setSize(20, 20);
-            orbBody.setOffset(6, 6);
-            this.scene.physics.velocityFromRotation(angle, speed, orbBody.velocity);
+            orbBody.setSize(16, 16);
+            orbBody.setOffset(8, 8);
+            orbBody.setAllowGravity(false);
+            orb.setVelocity(vx, vy);
         }
+
+        this.soundManager?.playEnemyShoot();
+        this.uiManager.spawnParticles(mouthX, mouthY, 0xA855F7);
+
+        this.scene.time.delayedCall(3000, () => {
+            if (orb && orb.active) orb.destroy();
+        });
     }
 
     public takeDamage() {
@@ -1374,6 +1547,19 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.player.die();
         });
 
+        // Clean up any Orbs of Rage that fly outside the boss arena bounds
+        const arenaZoneBounds = this.bossLimitZone || this.arenaZone;
+        if (arenaZoneBounds) {
+            this.orbsOfRageGroup.getChildren().forEach(orbObj => {
+                const orb = orbObj as Phaser.Physics.Arcade.Sprite;
+                if (orb && orb.active) {
+                    if (orb.x < arenaZoneBounds.left - 32 || orb.x > arenaZoneBounds.right + 32 || orb.y < arenaZoneBounds.top - 32 || orb.y > arenaZoneBounds.bottom + 32) {
+                        orb.destroy();
+                    }
+                }
+            });
+        }
+
         // Hover & Air Flight logic for Phase 1 (fly towards player direction and back, not very close to the ground)
         if (this.phase === 1 && this.bossState === 'idle') {
             const zone = this.bossLimitZone || this.arenaZone;
@@ -1408,28 +1594,82 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
         }
 
-        // Ground Patrol & Player Following for Phase 2
+        // Ground Patrol & Dynamic Follow/Pacing for Phase 2
         if (this.phase === 2 && this.bossState === 'patrolling') {
-            const zone = this.bossLimitZone || this.arenaZone;
             const body = this.body as Phaser.Physics.Arcade.Body;
-            if (zone && body) {
-                this.setY(zone.bottom - 48);
+            if (body) {
+                // Keep boss firmly grounded on the floor surface
+                const groundY = this.findGroundYBelow(this.x, this.y - 16);
+                this.setY(groundY - 24);
 
-                const minX = zone.left + 32;
-                const maxX = zone.right - 32;
+                this.p2StateTimer += delta;
 
-                const dx = this.player.x - this.x;
-                if (Math.abs(dx) > 10) {
-                    const dir = dx > 0 ? 1 : -1;
-                    body.setVelocityX(this.patrolSpeed * dir);
+                // State transitions:
+                if (this.p2MoveState === 'follow') {
+                    if (this.p2StateTimer >= this.p2MoveDuration) {
+                        // Switch to pacing back and forth for 2.5 - 3.5 seconds
+                        this.p2MoveState = 'pace';
+                        this.p2StateTimer = 0;
+                        this.p2MoveDuration = Phaser.Math.Between(2500, 3500);
+                        this.p2PaceDir = this.player.x > this.x ? -1 : 1; // initially feint/pace away
+                        this.p2PaceFlipTimer = 0;
+                    }
+                } else if (this.p2MoveState === 'pace') {
+                    this.p2PaceFlipTimer += delta;
+                    // Flip pacing direction every 1.1 - 1.5 seconds
+                    if (this.p2PaceFlipTimer >= 1300) {
+                        this.p2PaceFlipTimer = 0;
+                        this.p2PaceDir = -this.p2PaceDir;
+                    }
+                    if (this.p2StateTimer >= this.p2MoveDuration) {
+                        // Switch back to following the player for 3.0 - 4.5 seconds
+                        this.p2MoveState = 'follow';
+                        this.p2StateTimer = 0;
+                        this.p2MoveDuration = Phaser.Math.Between(3000, 4500);
+                    }
                 }
 
-                if (this.x <= minX && body.velocity.x < 0) {
-                    body.setVelocityX(0);
-                    this.setX(minX);
-                } else if (this.x >= maxX && body.velocity.x > 0) {
-                    body.setVelocityX(0);
-                    this.setX(maxX);
+                // Determine desired movement direction
+                let desiredDir = 0;
+                if (this.p2MoveState === 'follow') {
+                    const dx = this.player.x - this.x;
+                    if (Math.abs(dx) > 16) {
+                        desiredDir = dx > 0 ? 1 : -1;
+                    }
+                } else {
+                    desiredDir = this.p2PaceDir;
+                }
+
+                // Check for solid wall tiles or cliff edges in Ground / DungeonFill layers
+                if (desiredDir !== 0) {
+                    const checkX = desiredDir > 0 ? this.x + 36 : this.x - 36;
+                    const wallAhead = this.isSolidTileAt(checkX, this.y);
+                    const floorAhead = this.isSolidTileAt(checkX, this.y + 36);
+
+                    if (wallAhead || !floorAhead) {
+                        // Hit wall or cliff edge: turn around smoothly
+                        desiredDir = -desiredDir;
+                        if (this.p2MoveState === 'pace') {
+                            this.p2PaceDir = desiredDir;
+                        }
+                    }
+                }
+
+                // Arena zone boundary clamp fallback if present
+                if (this.arenaZone) {
+                    if (this.x <= this.arenaZone.left + 32 && desiredDir < 0) {
+                        desiredDir = 1;
+                        this.p2PaceDir = 1;
+                    } else if (this.x >= this.arenaZone.right - 32 && desiredDir > 0) {
+                        desiredDir = -1;
+                        this.p2PaceDir = -1;
+                    }
+                }
+
+                // Apply smooth velocity
+                body.setVelocityX(desiredDir * this.patrolSpeed);
+                if (desiredDir !== 0) {
+                    this.setFlipX(desiredDir < 0);
                 }
             }
         }

@@ -418,7 +418,7 @@ export class UIManager {
             this.scene.game.canvas.focus();
         }
 
-        this.pauseContainer = this.scene.add.container(0, 0).setScrollFactor(0).setDepth(100);
+        this.pauseContainer = this.scene.add.container(0, 0).setScrollFactor(0).setDepth(200);
 
         // Dark dimming backdrop
         const backdrop = this.scene.add.rectangle(this.pauseModalX, this.pauseModalY, this.scene.scale.width, this.scene.scale.height, 0x000000, 0.75);

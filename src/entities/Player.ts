@@ -416,14 +416,28 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.setVisible(true);
         this.setAlpha(1);
 
-        const idleAnimKey = this.facing === 'right' ? 'idle-r-anim' : 'idle-l-anim';
-        if (this.scene.anims.exists(idleAnimKey)) {
-            this.anims.play(idleAnimKey, true);
+        const isBossPhase2 = Boolean(
+            (this.scene as any).eleckingBoss && 
+            (this.scene as any).eleckingBoss.phase === 2 && 
+            !(this.scene as any).eleckingBoss.isDead
+        );
+        this.hasGun = isBossPhase2;
+
+        const gunIdleKey = this.facing === 'right' ? 'gun-idle-r-anim' : 'gun-idle-l-anim';
+        const defaultIdleKey = this.facing === 'right' ? 'idle-r-anim' : 'idle-l-anim';
+        const chosenAnim = this.hasGun && this.scene.anims.exists(gunIdleKey) ? gunIdleKey : defaultIdleKey;
+
+        if (this.scene.anims.exists(chosenAnim)) {
+            this.anims.play(chosenAnim, true);
         } else {
             this.anims.stop();
             this.setTexture(this.facing === 'right' ? 'idle-r' : 'idle-l');
         }
-        this.hasGun = false;
+
+        if (this.hasGun && (this.scene as any).inventoryManager) {
+            (this.scene as any).inventoryManager.addGun();
+        }
+
         this.isPassingThroughWell = false;
         this.clearTint();
         this.enableGameInputs();

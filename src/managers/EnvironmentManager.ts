@@ -509,7 +509,11 @@ export class EnvironmentManager {
                 let collider: Phaser.Physics.Arcade.Collider | undefined;
                 if (collides || lowerName.includes('fill') || lowerName.includes('ground') || lowerName.includes('wall') || lowerName.includes('dungeon')) {
                     layer.setCollisionByExclusion([-1], true);
-                    collider = this.scene.physics.add.collider(this.player, layer);
+                    collider = this.scene.physics.add.collider(this.player, layer, undefined, (_p, tile) => {
+                        return (this.scene as any).checkTileWellCollision 
+                            ? (this.scene as any).checkTileWellCollision(tile, this.player.body) 
+                            : true;
+                    });
                     collider.active = initVis;
                 }
 
@@ -676,7 +680,8 @@ export class EnvironmentManager {
         const wellObjs = rawMapObjects.filter((obj: any) => {
             const name = String(obj.name || '').trim().toLowerCase();
             const type = String(obj.type || '').trim().toLowerCase();
-            return name === 'well' || name.startsWith('well') || type === 'well' || type.startsWith('well');
+            const isWell = name === 'well' || name.startsWith('well') || type === 'well' || type.startsWith('well');
+            return isWell && obj.gid !== undefined;
         });
 
         wellObjs.forEach((obj: any) => {

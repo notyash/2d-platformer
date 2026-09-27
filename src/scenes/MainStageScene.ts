@@ -26,6 +26,8 @@ export class MainStageScene extends Phaser.Scene {
     private groundLayer!: Phaser.Tilemaps.TilemapLayer;
     private oneWayLayer!: Phaser.Tilemaps.TilemapLayer;
     public wellLayer?: Phaser.Tilemaps.TilemapLayer;
+    public wellZones: Phaser.Geom.Rectangle[] = [];
+    public wellForegroundLayers: Phaser.Tilemaps.TilemapLayer[] = [];
     private hazardsLayer?: Phaser.Tilemaps.TilemapLayer;
     private allTilesets: Phaser.Tilemaps.Tileset[] = [];
 
@@ -288,6 +290,7 @@ export class MainStageScene extends Phaser.Scene {
         this.enemyManager = new EnemyManager(this, this.player, this.uiManager, this.collectiblesManager, this.soundManager, this.envManager);
 
         // Setup Level Environment Objects & Checkpoints
+        this.setupWellTunnelZones(map, rawMapObjects);
         this.envManager.setupCheckpoints(rawMapObjects);
         this.envManager.setupRevealTriggers(rawMapObjects);
         this.envManager.setupRevealTileLayers(map, this.allTilesets);
@@ -429,66 +432,61 @@ export class MainStageScene extends Phaser.Scene {
             });
         }
 
-        // Accidental Reload Guard (beforeunload event) & Auto-Pause on Window Blur / Focus Loss
+        // Accidental Reload Guard (beforeunload event)
         window.addEventListener('beforeunload', this.beforeUnloadHandler);
-        window.addEventListener('blur', this.onWindowBlur);
-        document.addEventListener('visibilitychange', this.onVisibilityChange);
-        this.game.events.on(Phaser.Core.Events.BLUR, this.onWindowBlur);
-        this.game.events.on(Phaser.Core.Events.HIDDEN, this.onWindowBlur);
 
         this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
             window.removeEventListener('beforeunload', this.beforeUnloadHandler);
-            window.removeEventListener('blur', this.onWindowBlur);
-            document.removeEventListener('visibilitychange', this.onVisibilityChange);
-            this.game.events.off(Phaser.Core.Events.BLUR, this.onWindowBlur);
-            this.game.events.off(Phaser.Core.Events.HIDDEN, this.onWindowBlur);
         });
 
         // World Colliders
-        this.physics.add.collider(this.player, this.groundLayer);
+        this.physics.add.collider(this.player, this.groundLayer, undefined, (_p, tile) => {
+            return this.checkTileWellCollision(tile as Phaser.Tilemaps.Tile, this.player.body as Phaser.Physics.Arcade.Body);
+        });
         this.physics.add.collider(this.player, this.oneWayLayer, undefined, (_p, tile) => {
             const t = tile as Phaser.Tilemaps.Tile;
             if (t.index === -1) return false; 
             const body = this.player.body as Phaser.Physics.Arcade.Body;
+            if (!this.checkTileWellCollision(t, body)) return false;
             return body.velocity.y > 0 && body.bottom <= t.pixelY + 10;
         });
 
-        // Bullets vs Ground / Walls
-        this.physics.add.collider(this.player.bullets, this.groundLayer, (bulletObj) => {
+        // Bullets vs Ground / Walls (pass through inside Well tunnel)
+        this.physics.add.collider(this.player.bullets, this.groundLayer, (bulletObj, tileObj) => {
             const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
             if (!bullet || !bullet.active) return;
+            const t = tileObj as Phaser.Tilemaps.Tile;
+            if (t && this.wellZones && this.wellZones.length > 0) {
+                const tileCenterX = t.pixelX + t.width / 2;
+                const tileCenterY = t.pixelY + t.height / 2;
+                const inWell = this.wellZones.some(z => 
+                    tileCenterX >= z.left && tileCenterX <= z.right &&
+                    tileCenterY >= z.top && tileCenterY <= z.bottom
+                );
+                if (inWell) return;
+            }
             const bx = bullet.x;
             const by = bullet.y;
             bullet.destroy();
             this.uiManager.spawnParticles(bx, by, 0xFF8C00);
+        }, (_bullet, tile) => {
+            const t = tile as Phaser.Tilemaps.Tile;
+            if (!t || t.index === -1) return false;
+            if (this.wellZones && this.wellZones.length > 0) {
+                const tileCenterX = t.pixelX + t.width / 2;
+                const tileCenterY = t.pixelY + t.height / 2;
+                const inWell = this.wellZones.some(z => 
+                    tileCenterX >= z.left && tileCenterX <= z.right &&
+                    tileCenterY >= z.top && tileCenterY <= z.bottom
+                );
+                if (inWell) return false;
+            }
+            return true;
         });
 
         if (this.wellLayer) {
             this.physics.add.collider(this.player, this.wellLayer, undefined, (_p, tile) => {
-                const t = tile as Phaser.Tilemaps.Tile;
-                if (t.index === -1) return false;
-
-                const pBody = this.player.body as Phaser.Physics.Arcade.Body;
-                if (!pBody) return true;
-
-                // If player is already passing through the well (descending inside), allow passing through
-                if (this.player.isPassingThroughWell) {
-                    return false;
-                }
-
-                // Check if player enters from the top (jumps / falls on top of the well)
-                // A tile is at the top surface of the well if there is no well tile directly above it
-                const tileAbove = this.wellLayer!.getTileAt(t.x, t.y - 1);
-                const isTopSurfaceTile = !tileAbove || tileAbove.index === -1;
-
-                // If player lands / falls onto a top surface tile from above (falling downwards)
-                if (isTopSurfaceTile && pBody.velocity.y >= 0 && pBody.bottom <= t.pixelY + 16) {
-                    this.player.isPassingThroughWell = true;
-                    return false;
-                }
-
-                // Otherwise, treat as solid ground (blocks jumping up from below or entering from sides)
-                return true;
+                return this.checkTileWellCollision(tile as Phaser.Tilemaps.Tile, this.player.body as Phaser.Physics.Arcade.Body);
             });
 
             this.physics.add.collider(this.player.bullets, this.wellLayer, (bulletObj) => {
@@ -576,18 +574,6 @@ export class MainStageScene extends Phaser.Scene {
     private beforeUnloadHandler = (e: BeforeUnloadEvent) => {
         e.preventDefault();
         e.returnValue = '';
-    };
-
-    private onWindowBlur = () => {
-        if (!this.isGamePaused) {
-            this.pauseGame();
-        }
-    };
-
-    private onVisibilityChange = () => {
-        if (document.hidden && !this.isGamePaused) {
-            this.pauseGame();
-        }
     };
 
     private pauseGame() {
@@ -947,6 +933,84 @@ export class MainStageScene extends Phaser.Scene {
                 });
             }
         });
+    }
+
+    private setupWellTunnelZones(map: Phaser.Tilemaps.Tilemap, rawMapObjects: any[]) {
+        this.wellZones = [];
+        this.wellForegroundLayers = [];
+
+        const wellRectObjs = rawMapObjects.filter((obj: any) => {
+            const name = String(obj.name || '').trim().toLowerCase();
+            const type = String(obj.type || '').trim().toLowerCase();
+            return (name === 'well' || type === 'well' || name === 'smashground' || name === 'smash') && 
+                obj.gid === undefined && 
+                (obj.width || 0) > 0 && 
+                (obj.height || 0) > 0;
+        });
+
+        wellRectObjs.forEach((obj: any, idx: number) => {
+            const rect = new Phaser.Geom.Rectangle(obj.x, obj.y, obj.width, obj.height);
+            this.wellZones.push(rect);
+
+            // Create a foreground tilemap layer to render the tiles covered by this Well in front of the player (hiding the player like foreground)
+            const fgLayer = map.createBlankLayer(`WellTunnelForeground_${idx}`, this.allTilesets, 0, 0);
+            if (fgLayer) {
+                fgLayer.setDepth(6.0); // Player depth is 5.0, so this renders directly over the player
+                (map.layers || []).forEach(lData => {
+                    const tLayer = lData.tilemapLayer;
+                    if (tLayer && tLayer !== fgLayer && !lData.name.toLowerCase().includes('sky') && !lData.name.toLowerCase().includes('mountain')) {
+                        const tiles = tLayer.getTilesWithinWorldXY(rect.x, rect.y, rect.width, rect.height);
+                        tiles.forEach(tile => {
+                            if (tile && tile.index !== -1) {
+                                fgLayer.putTileAt(tile.index, tile.x, tile.y);
+                            }
+                        });
+                    }
+                });
+                this.wellForegroundLayers.push(fgLayer);
+            }
+        });
+    }
+
+    public checkTileWellCollision(tile: Phaser.Tilemaps.Tile, pBody: Phaser.Physics.Arcade.Body): boolean {
+        if (!tile || tile.index === -1) return false;
+        if (!pBody) return true;
+
+        if (this.wellZones && this.wellZones.length > 0) {
+            const tileCenterX = tile.pixelX + tile.width / 2;
+            const tileCenterY = tile.pixelY + tile.height / 2;
+
+            const wellZone = this.wellZones.find(z => 
+                tileCenterX >= z.left - 2 && tileCenterX <= z.right + 2 &&
+                tileCenterY >= z.top - 2 && tileCenterY <= z.bottom + 2
+            );
+
+            if (wellZone) {
+                const isSurface = tileCenterY <= wellZone.top + 32;
+                const isLeftEdge = wellZone.width >= 64 && tileCenterX < wellZone.left + 32;
+                const isRightEdge = wellZone.width >= 64 && tileCenterX > wellZone.right - 32;
+                const isEdgeTile = isLeftEdge || isRightEdge;
+
+                // Edge tiles below the surface are ALWAYS solid from both outside and inside
+                if (isEdgeTile && !isSurface) {
+                    return true;
+                }
+
+                // If player is strictly outside the well horizontally on the left side attempting to push right:
+                if (pBody.right <= wellZone.left + 2) {
+                    return true;
+                }
+                // If player is strictly outside the well horizontally on the right side attempting to push left:
+                if (pBody.left >= wellZone.right - 2) {
+                    return true;
+                }
+
+                // Center vertical shaft and top surface entry allow pass-through
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private getDefaultLayerDepth(layerName: string, index: number, allLayers: any[]): number {
@@ -1357,8 +1421,29 @@ export class MainStageScene extends Phaser.Scene {
 
         this.player.update();
 
-        // Check if player has completely exited the Well layer to restore solid ground behavior
-        if (this.wellLayer && this.player.isPassingThroughWell) {
+        // Keep player strictly inside the vertical well tunnel laterally while in transit
+        if (this.wellZones && this.wellZones.length > 0) {
+            const pBody = this.player.body as Phaser.Physics.Arcade.Body;
+            if (pBody) {
+                let insideAnyWell = false;
+                for (const wellZone of this.wellZones) {
+                    const shaftLeft = wellZone.width >= 64 ? wellZone.left + 32 : wellZone.left;
+                    const shaftRight = wellZone.width >= 64 ? wellZone.right - 32 : wellZone.right;
+
+                    if (pBody.top >= wellZone.top && pBody.bottom <= wellZone.bottom + 16 &&
+                        pBody.right > shaftLeft && pBody.left < shaftRight) {
+                        insideAnyWell = true;
+                        this.player.x = Phaser.Math.Clamp(
+                            this.player.x, 
+                            shaftLeft + pBody.halfWidth, 
+                            shaftRight - pBody.halfWidth
+                        );
+                        break;
+                    }
+                }
+                this.player.isPassingThroughWell = insideAnyWell;
+            }
+        } else if (this.wellLayer && this.player.isPassingThroughWell) {
             const pBody = this.player.body as Phaser.Physics.Arcade.Body;
             if (pBody) {
                 const overlappingTiles = this.wellLayer.getTilesWithinWorldXY(

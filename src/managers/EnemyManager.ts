@@ -1178,11 +1178,18 @@ export class EnemyManager {
     }
 
     public isPlayerInsideOrBehindWell(): boolean {
-        if (!this.player || !this.player.body || !this.envManager) return false;
+        if (!this.player || !this.player.body) return false;
         if (this.player.isTeleporting) return true;
         const pBody = this.player.body as Phaser.Physics.Arcade.Body;
         const pRect = new Phaser.Geom.Rectangle(pBody.x, pBody.y, pBody.width, pBody.height);
-        if (this.envManager.wellObjects) {
+        if ((this.scene as any).wellZones) {
+            for (const zone of (this.scene as any).wellZones) {
+                if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, zone)) {
+                    return true;
+                }
+            }
+        }
+        if (this.envManager && this.envManager.wellObjects) {
             for (const well of this.envManager.wellObjects) {
                 const wBounds = new Phaser.Geom.Rectangle(well.x - well.width / 2, well.topY, well.width, well.height);
                 if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, wBounds)) {
@@ -1232,6 +1239,14 @@ export class EnemyManager {
         if (this.isPlayerInsideOrBehindSmashGround() || this.isPlayerInsideOrBehindWell()) return false;
 
         this.losLine.setTo(mobX, mobY, targetX, targetY);
+
+        if ((this.scene as any).wellZones) {
+            for (const zone of (this.scene as any).wellZones) {
+                if (Phaser.Geom.Intersects.LineToRectangle(this.losLine, zone)) {
+                    return false;
+                }
+            }
+        }
 
         if (this.envManager && this.envManager.bridges) {
             for (const bridge of this.envManager.bridges) {
