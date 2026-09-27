@@ -23,7 +23,7 @@
   - Timed vanishing phase (3-4s) followed by sequential thunder strikes raining down onto mapped `dotNumber` ground tiles.
   - Phase 2 grounded patrol with player pursuit, Orbs of Rage firing, and minion summoning.
   - Moving `TemporaryCloud` platform evasion with stand duration, step fading (3 -> 2 -> 1 -> 0), and respawn cycles.
-  - `BossArenaZone` cover tile sprite occlusion (`plainGround.png`) outside arena, unfreezing boss and moving platforms upon crossing `BossFightEntrance`.
+  - `BossArenaZone` cover tile sprite occlusion (`plainWell.png`) outside arena, unfreezing boss and moving platforms upon crossing `BossFightEntrance`.
   - Arena state persistence on death inside the arena, with clean full reset on run restart or checkpoint rollback.
 - [x] **Lava Kappa & Mob AI Line-of-Sight (LOS) System**:
   - Player detection and follow behavior within detection range.

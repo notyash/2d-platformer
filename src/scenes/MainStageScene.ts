@@ -58,6 +58,8 @@ export class MainStageScene extends Phaser.Scene {
         // Tileset overlays
         this.load.image('plain-ground', 'assets/sprites/blocks/plainGround.png');
         this.load.image('plainGround', 'assets/sprites/blocks/plainGround.png');
+        this.load.image('plain-well', 'assets/sprites/blocks/plainWell.png');
+        this.load.image('plainWell', 'assets/sprites/blocks/plainWell.png');
         this.load.image('plain-dungeon', 'assets/sprites/background/plainDungeon.png');
         this.load.image('plainDungeon', 'assets/sprites/background/plainDungeon.png');
 
@@ -457,8 +459,14 @@ export class MainStageScene extends Phaser.Scene {
             this.physics.add.collider(this.player, this.smashLayer, undefined, (_p, tile) => {
                 const t = tile as Phaser.Tilemaps.Tile;
                 if (t.index === -1) return false;
-                const body = this.player.body as Phaser.Physics.Arcade.Body;
-                return body.velocity.y > 0 && body.bottom <= t.pixelY + 10 && !this.player.canSmash;
+
+                // When falling uninterrupted from SmashTrigger, pass through SmashGround tiles
+                if (this.player.canSmash && (this.player.body as Phaser.Physics.Arcade.Body).velocity.y > 0) {
+                    return false;
+                }
+
+                // After interaction or otherwise, behave completely solid like ground layer tiles
+                return true;
             });
 
             this.physics.add.collider(this.player.bullets, this.smashLayer, (bulletObj) => {
@@ -922,7 +930,7 @@ export class MainStageScene extends Phaser.Scene {
         const effectiveGroundIndex = groundIndex > 0 ? groundIndex : 6;
 
         if (lowerName === 'ground') return 3.0;
-        if (lowerName === 'smashground' || lowerName === 'smash') return 3.1;
+        if (lowerName === 'smashground' || lowerName === 'smash') return 8.0;
         if (lowerName === 'onewayplatforms' || lowerName === 'oneway') return 3.2;
         if (lowerName === 'hazards' || lowerName === 'hazard') return 3.3;
 

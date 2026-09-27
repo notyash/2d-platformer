@@ -1608,8 +1608,12 @@ export class EnvironmentManager {
         // Handle Smash Triggers
         let touchingTrigger = false;
         this.smashTriggers.forEach(zone => {
+            if (zone.getData('used')) return;
             const pRect = new Phaser.Geom.Rectangle(pBody.x, pBody.y, pBody.width, pBody.height);
-            if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, zone.getBounds())) touchingTrigger = true;
+            if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, zone.getBounds())) {
+                touchingTrigger = true;
+                zone.setData('used', true);
+            }
         });
 
         if (touchingTrigger) {
@@ -1670,6 +1674,7 @@ export class EnvironmentManager {
         for (const bridge of this.bridges) {
             bridge.snapshotBroken = bridge.broken;
         }
+        this.smashTriggers.forEach(z => z.setData('snapshotUsed', z.getData('used') || false));
     }
 
     public rollbackToCheckpoint() {
@@ -1687,6 +1692,7 @@ export class EnvironmentManager {
         }
 
         this.player.canSmash = false;
+        this.smashTriggers.forEach(z => z.setData('used', z.getData('snapshotUsed') || false));
 
         for (const bridge of this.bridges) {
             bridge.broken = bridge.snapshotBroken;
@@ -1708,6 +1714,10 @@ export class EnvironmentManager {
 
     resetAll() {
         this.player.canSmash = false;
+        this.smashTriggers.forEach(z => {
+            z.setData('used', false);
+            z.setData('snapshotUsed', false);
+        });
 
         for (const trigger of this.revealTriggers) {
             trigger.activated = false;

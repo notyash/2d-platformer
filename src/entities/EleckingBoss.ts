@@ -20,6 +20,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     // Tiled Properties & Objects
     private arenaZone?: Phaser.Geom.Rectangle;
     private arenaCover?: Phaser.GameObjects.TileSprite;
+    private entranceCover?: Phaser.GameObjects.TileSprite;
     private bossLimitZone?: Phaser.Geom.Rectangle;
     private bossEntranceZone?: Phaser.Geom.Rectangle;
     private envManager?: EnvironmentManager;
@@ -241,13 +242,15 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         }
 
         if (this.arenaZone) {
-            const texKey = this.scene.textures.exists('plainGround') ? 'plainGround' : (this.scene.textures.exists('plain-ground') ? 'plain-ground' : 'blocks/plainGround');
+            const groundTexKey = this.scene.textures.exists('plainGround') 
+                ? 'plainGround' 
+                : (this.scene.textures.exists('plain-ground') ? 'plain-ground' : 'blocks/plainGround');
             this.arenaCover = this.scene.add.tileSprite(
                 this.arenaZone.x,
                 this.arenaZone.y,
                 this.arenaZone.width,
                 this.arenaZone.height,
-                texKey
+                groundTexKey
             );
             this.arenaCover.setOrigin(0, 0);
             this.arenaCover.setDepth(20);
@@ -266,6 +269,31 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 entranceObj.width || 64, 
                 entranceObj.height || 96
             );
+
+            // Overlap plainWell from BossFightEntrance over plainGround only where BossFightEntrance overlaps BossArenaZone
+            let overlapRect = this.bossEntranceZone;
+            if (this.arenaZone) {
+                const intersection = new Phaser.Geom.Rectangle();
+                if (Phaser.Geom.Intersects.GetRectangleIntersection(this.bossEntranceZone, this.arenaZone, intersection)) {
+                    if (intersection.width > 0 && intersection.height > 0) {
+                        overlapRect = intersection;
+                    }
+                }
+            }
+
+            const wellTexKey = this.scene.textures.exists('plainWell') 
+                ? 'plainWell' 
+                : (this.scene.textures.exists('plain-well') ? 'plain-well' : 'blocks/plainWell');
+            this.entranceCover = this.scene.add.tileSprite(
+                overlapRect.x,
+                overlapRect.y,
+                overlapRect.width,
+                overlapRect.height,
+                wellTexKey
+            );
+            this.entranceCover.setOrigin(0, 0);
+            this.entranceCover.setDepth(21); // Displayed directly over plainGround arenaCover (depth 20)
+            this.entranceCover.setVisible(true);
         }
 
         // Find BossFightRespawn
@@ -492,6 +520,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         if (this.arenaCover) {
             this.arenaCover.setVisible(false);
         }
+        if (this.entranceCover) {
+            this.entranceCover.setVisible(false);
+        }
         if (this.envManager) {
             this.envManager.triggerRevealLayer('', true);
             this.envManager.triggerRevealLayer('DungeonFill', true);
@@ -581,6 +612,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         // Reset arena cover
         if (this.arenaCover) {
             this.arenaCover.setVisible(true);
+        }
+        if (this.entranceCover) {
+            this.entranceCover.setVisible(true);
         }
     }
 
@@ -1005,6 +1039,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 if (this.arenaCover) {
                     this.arenaCover.setVisible(true);
                 }
+                if (this.entranceCover) {
+                    this.entranceCover.setVisible(true);
+                }
                 return;
             }
         }
@@ -1013,6 +1050,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
         if (this.arenaCover) {
             this.arenaCover.setVisible(false);
+        }
+        if (this.entranceCover) {
+            this.entranceCover.setVisible(false);
         }
 
         if (!inArena) {
