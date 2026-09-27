@@ -83,7 +83,6 @@ export class MainStageScene extends Phaser.Scene {
         this.load.image('bridge extra', 'assets/sprites/misc/bridge extra.png');
         this.load.image('temp platforms', 'assets/sprites/boss/temp platforms.png');
         this.load.image('gravity orb', 'assets/sprites/boss/gravity orb.png');
-        this.load.image('attack tiles', 'assets/sprites/boss/attack tiles.png');
         this.load.spritesheet('dandelion', 'assets/sprites/background/dandelion flower sprite.png', { frameWidth: 32, frameHeight: 32 });
         this.load.image('well', 'assets/sprites/blocks/well2.png');
         this.load.image('Well', 'assets/sprites/blocks/well2.png');

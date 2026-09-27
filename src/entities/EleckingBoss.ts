@@ -22,6 +22,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private arenaCover?: Phaser.GameObjects.TileSprite;
     private bossLimitZone?: Phaser.Geom.Rectangle;
     private bossEntranceZone?: Phaser.Geom.Rectangle;
+    private envManager?: EnvironmentManager;
     private bossRespawnPoint?: { x: number, y: number };
     private victoryPortalPoint?: { x: number, y: number };
     private initialSpawn: { x: number, y: number };
@@ -65,6 +66,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.player = player;
         this.uiManager = uiManager;
         this.enemyManager = enemyManager;
+        this.envManager = _envManager;
         this.soundManager = soundManager;
         this.initialSpawn = { x, y };
 
@@ -377,16 +379,31 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 const tileset = map.tilesets.find((t: any) => cleanGid >= t.firstgid && cleanGid < t.firstgid + t.total);
                 const localFrame = tileset ? cleanGid - tileset.firstgid : 0;
                 let texKey = 'attack-tiles';
-                if (tileset && tileset.name && this.scene.textures.exists(tileset.name)) {
-                    texKey = tileset.name;
-                } else if (this.scene.textures.exists('attack-tiles')) {
+                if (this.scene.textures.exists('attack-tiles')) {
                     texKey = 'attack-tiles';
                 } else if (this.scene.textures.exists('attack tiles')) {
                     texKey = 'attack tiles';
+                } else if (tileset && tileset.name && this.scene.textures.exists(tileset.name)) {
+                    texKey = tileset.name;
                 }
 
+                const tex = this.scene.textures.get(texKey);
+                const frameKey = String(localFrame);
+                if (tex && !tex.has(frameKey) && !tex.has(String(localFrame))) {
+                    const tileW = (tileset && tileset.tileWidth) || 32;
+                    const tileH = (tileset && tileset.tileHeight) || 32;
+                    const srcImg = tex.getSourceImage() as HTMLImageElement;
+                    const imgW = (srcImg && srcImg.width) ? srcImg.width : (tileset?.columns ? tileset.columns * tileW : 160);
+                    const cols = (tileset && tileset.columns) || Math.max(1, Math.floor(imgW / tileW));
+                    const col = localFrame % cols;
+                    const row = Math.floor(localFrame / cols);
+                    tex.add(frameKey, 0, col * tileW, row * tileH, tileW, tileH);
+                }
+
+                const finalFrame = (tex && tex.has(String(localFrame))) ? localFrame : (tex && tex.has(frameKey) ? frameKey : 0);
+
                 // Render solid block sprite (origin bottom-left in Tiled)
-                const sprite = this.dotBlocks.create(o.x, o.y, texKey, localFrame) as Phaser.Physics.Arcade.Sprite;
+                const sprite = this.dotBlocks.create(o.x, o.y, texKey, finalFrame) as Phaser.Physics.Arcade.Sprite;
                 sprite.setOrigin(0, 1);
                 sprite.setDisplaySize(o.width || 32, o.height || 32);
                 sprite.refreshBody();
@@ -474,6 +491,11 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.nextAttackTimer = 2000;
         if (this.arenaCover) {
             this.arenaCover.setVisible(false);
+        }
+        if (this.envManager) {
+            this.envManager.triggerRevealLayer('', true);
+            this.envManager.triggerRevealLayer('DungeonFill', true);
+            this.envManager.triggerRevealLayer('1', true);
         }
 
         // Unfreeze and start moving all TemporaryCloud platforms

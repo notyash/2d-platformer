@@ -27,6 +27,7 @@ export interface RevealTriggerData {
 
 export interface RevealTileLayerData {
     name: string;
+    id?: string;
     layer: Phaser.Tilemaps.TilemapLayer;
     collider?: Phaser.Physics.Arcade.Collider;
     revealed: boolean;
@@ -443,7 +444,19 @@ export class EnvironmentManager {
             // Check custom properties on the tile layer in Tiled
             const rawProps = (layerData as any).properties;
             let collides = true;
+            let id = '';
             if (rawProps && Array.isArray(rawProps)) {
+                const idProp = rawProps.find((p: any) => 
+                    p.name && (
+                        p.name.toLowerCase() === 'id' || 
+                        p.name.toLowerCase() === 'linkid' ||
+                        p.name.toLowerCase() === 'triggerid'
+                    )
+                );
+                if (idProp && idProp.value !== undefined) {
+                    id = String(idProp.value).trim();
+                }
+
                 const depthProp = rawProps.find((p: any) => 
                     p.name && (
                         p.name.toLowerCase() === 'depth' || 
@@ -480,27 +493,28 @@ export class EnvironmentManager {
                 }
             }
 
-            const createdLayer = map.createLayer(name, allTilesets, 0, 0);
-            if (createdLayer && 'setDepth' in createdLayer) {
-                const layer = createdLayer as Phaser.Tilemaps.TilemapLayer;
+            const layer = layerData.tilemapLayer || (map.createLayer(name, allTilesets, 0, 0) as Phaser.Tilemaps.TilemapLayer);
+            if (layer && 'setDepth' in layer) {
                 layer.setDepth(depth);
-                layer.setAlpha(0);
-                layer.setVisible(false);
+                const initVis = layerData.visible !== false;
+                layer.setVisible(initVis);
+                layer.setAlpha(initVis ? (layerData.alpha ?? (layerData as any).opacity ?? 1) : 0);
 
                 let collider: Phaser.Physics.Arcade.Collider | undefined;
                 if (collides || lowerName.includes('fill') || lowerName.includes('ground') || lowerName.includes('wall') || lowerName.includes('dungeon')) {
                     layer.setCollisionByExclusion([-1], true);
                     collider = this.scene.physics.add.collider(this.player, layer);
-                    collider.active = false;
+                    collider.active = initVis;
                 }
 
                 this.revealTileLayers.push({
                     name,
+                    id,
                     layer,
                     collider,
-                    revealed: false,
-                    initialRevealed: false,
-                    snapshotRevealed: false,
+                    revealed: initVis,
+                    initialRevealed: initVis,
+                    snapshotRevealed: initVis,
                     keepRevealed
                 });
             }
@@ -1434,7 +1448,8 @@ export class EnvironmentManager {
 
         // Handle Reveal Triggers (e.g. BossFightEntrance, DungeonFill, Boss triggers, etc.)
         for (const trigger of this.revealTriggers) {
-            const isInside = Phaser.Geom.Intersects.RectangleToRectangle(pBounds, trigger.zone.getBounds());
+            const isInside = Phaser.Geom.Intersects.RectangleToRectangle(pBounds, trigger.zone.getBounds()) ||
+                             Phaser.Geom.Intersects.RectangleToRectangle(new Phaser.Geom.Rectangle(pBody.x, pBody.y, pBody.width, pBody.height), trigger.zone.getBounds());
             if (isInside) {
                 if (!trigger.activated) {
                     trigger.activated = true;
@@ -1630,8 +1645,9 @@ export class EnvironmentManager {
         const query = String(targetNameOrId || '').toLowerCase().trim();
         for (const reveal of this.revealTileLayers) {
             const rName = reveal.name.toLowerCase();
+            const rId = String(reveal.id || '').toLowerCase().trim();
             const match = (
-                (query !== '' && (rName === query || rName.includes(query))) ||
+                (query !== '' && (rName === query || rName.includes(query) || rId === query)) ||
                 (isBoss && (rName.includes('boss') || rName.includes('dungeon') || rName.includes('fill')))
             );
 
@@ -1642,7 +1658,7 @@ export class EnvironmentManager {
                 if (reveal.collider) {
                     reveal.collider.active = true;
                 }
-                console.log(`[EnvironmentManager] Revealed layer '${reveal.name}'`);
+                console.log(`[EnvironmentManager] Revealed layer '${reveal.name}' (id: ${reveal.id})`);
             }
         }
     }

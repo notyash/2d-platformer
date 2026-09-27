@@ -125,15 +125,21 @@
 - [ ] **10. Totem Respawn Animation**: Add dedicated activation and revival animation sequence for the Totem of Undying.
 - [x] **11. Gun Movement Effects (Walking, Falling & Jumping)**: Integrated specialized gun animations (`Player-Gun-Fall.png`, `Player-Gun-Walk-R.png`/`-L`, `Player-Jump-Gun-R.png`/`-L`) for walking, jumping, and falling while holding the Blaster Gun.
 - [ ] **12. Limited Blaster Ammo**: Implement limited ammunition for the Blaster Gun with real-time HUD ammo counter, shot depletion, and ammo pickups/replenishment.
-- [ ] **13. Well Teleport Emergence Animation**: Animate the teleporter transition so the player visibly climbs out of the well upon arrival (ascending emergence tween from inside the well).
-- [ ] **14. Multi-Layer Background Parallax**: Implement seamless layered parallax scrolling for all background scenery assets and skyboxes without tile detachment.
-- [ ] **15. Performance Optimization (Eliminate Stuttering)**: Optimize tile rendering, particle emitters, texture filtering, and update loops to ensure silky smooth 60+ FPS without frame drops.
-- [ ] **16. UI Polish & Visual Glassmorphism**:
+- [x] **13. Well Teleport Emergence Animation & Solid Mechanics**:
+  - Refactored teleporter transition so player visibly emerges upward from deep inside the Well object upon arrival.
+  - Well objects treated as solid ground for player, mobs (LOS, raycasting, ledge detection), and projectiles.
+- [x] **14. Moving Platform Precision Hitbox**: Tightened physics body size and vertical offsets to snugly match visible wooden plank pixels, eliminating air-walking past platform boundaries.
+- [x] **15. DungeonFill Reveal Trigger & Attack Tiles Frame Slicing**:
+  - Fixed `DungeonFill` tile layer reveal toggling upon player crossing `BossFightEntrance` (id matching and layer duplication removal).
+  - Fixed `attack tiles` object rendering to display individual 32x32 frames rather than squishing the full 160x64 tileset into placed blocks.
+- [ ] **16. Multi-Layer Background Parallax**: Implement seamless layered parallax scrolling for all background scenery assets and skyboxes without tile detachment.
+- [ ] **17. Performance Optimization (Eliminate Stuttering)**: Optimize tile rendering, particle emitters, texture filtering, and update loops to ensure silky smooth 60+ FPS without frame drops.
+- [ ] **18. UI Polish & Visual Glassmorphism**:
   - Modernize HUD design with crisp retro glassmorphism, responsive status bars, and vibrant equipment status cards.
   - Refine pause menu and overlay layouts, improving button hover effects, typography, and spacing.
   - Add micro-animations and smooth transition effects for banners (checkpoint notifications, respawn alerts, timer cues).
-- [ ] **17. Cloudflare Turnstile Verification Widget**: Add free Turnstile bot protection widget to start-run UI and validate Turnstile tokens in `SurrealService.startRun()`.
-- [ ] **18. Web3 Wallet Connection (EIP-712 / SIWE)**: Connect browser wallet (MetaMask, Phantom, Wagmi) to authenticate sessions and sign run verification proofs.
+- [ ] **19. Cloudflare Turnstile Verification Widget**: Add free Turnstile bot protection widget to start-run UI and validate Turnstile tokens in `SurrealService.startRun()`.
+- [ ] **20. Web3 Wallet Connection (EIP-712 / SIWE)**: Connect browser wallet (MetaMask, Phantom, Wagmi) to authenticate sessions and sign run verification proofs.
 
 ---
 
