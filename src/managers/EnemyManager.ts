@@ -31,7 +31,7 @@ export class EnemyManager {
     private groundLayer!: Phaser.Tilemaps.TilemapLayer;
     private oneWayLayer!: Phaser.Tilemaps.TilemapLayer;
     private hazardsLayer?: Phaser.Tilemaps.TilemapLayer;
-    private smashLayer?: Phaser.Tilemaps.TilemapLayer;
+    private wellLayer?: Phaser.Tilemaps.TilemapLayer;
     private map!: Phaser.Tilemaps.Tilemap;
     private losLine = new Phaser.Geom.Line();
 
@@ -83,13 +83,13 @@ export class EnemyManager {
         groundLayer: Phaser.Tilemaps.TilemapLayer, 
         oneWayLayer: Phaser.Tilemaps.TilemapLayer, 
         hazardsLayer?: Phaser.Tilemaps.TilemapLayer,
-        smashLayer?: Phaser.Tilemaps.TilemapLayer
+        wellLayer?: Phaser.Tilemaps.TilemapLayer
     ) {
         this.rawMapObjects = rawMapObjects;
         this.groundLayer = groundLayer;
         this.oneWayLayer = oneWayLayer;
         this.hazardsLayer = hazardsLayer;
-        this.smashLayer = smashLayer;
+        this.wellLayer = wellLayer;
 
         // Parse Ignore Line-of-Sight Zones
         this.ignoreLOSZones = [];
@@ -110,9 +110,9 @@ export class EnemyManager {
             this.scene.physics.add.collider(this.groundMobs, this.envManager.wells);
         }
 
-        // Mobs vs Smash Ground collision
-        if (this.smashLayer) {
-            this.scene.physics.add.collider(this.groundMobs, this.smashLayer);
+        // Mobs vs Well Ground collision
+        if (this.wellLayer) {
+            this.scene.physics.add.collider(this.groundMobs, this.wellLayer);
         }
 
         // Mobs vs One-Way Platforms collision
@@ -131,28 +131,42 @@ export class EnemyManager {
 
         // Player Bullets vs Ground Mobs & Flying Mobs overlap (kill mob with blaster)
         this.scene.physics.add.overlap(this.player.bullets, this.groundMobs, (bulletObj, mobObj) => {
-            bulletObj.destroy();
-            this.killMob(mobObj as Phaser.Physics.Arcade.Sprite, 'shoot');
+            const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
+            if (bullet && bullet.active) bullet.destroy();
+            const mob = mobObj as Phaser.Physics.Arcade.Sprite;
+            if (mob && mob.active) this.killMob(mob, 'shoot');
         });
         this.scene.physics.add.overlap(this.player.bullets, this.flyingMobs, (bulletObj, mobObj) => {
-            bulletObj.destroy();
-            this.killMob(mobObj as Phaser.Physics.Arcade.Sprite, 'shoot');
+            const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
+            if (bullet && bullet.active) bullet.destroy();
+            const mob = mobObj as Phaser.Physics.Arcade.Sprite;
+            if (mob && mob.active) this.killMob(mob, 'shoot');
         });
 
         // Player vs Enemy Bullets (Hazard)
         this.scene.physics.add.overlap(this.player, this.enemyBullets, (_playerObj, bulletObj) => {
             const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
-            this.uiManager.spawnParticles(bullet.x, bullet.y, 0xEF4444);
+            if (!bullet || !bullet.active) return;
+            const bx = bullet.x;
+            const by = bullet.y;
             bullet.destroy();
+            this.uiManager.spawnParticles(bx, by, 0xEF4444);
             this.player.die();
         });
 
         // Player Bullets vs Enemy Bullets (Bullet Clash)
         this.scene.physics.add.overlap(this.player.bullets, this.enemyBullets, (pBulletObj, eBulletObj) => {
+            const pBullet = pBulletObj as Phaser.Physics.Arcade.Sprite;
             const eBullet = eBulletObj as Phaser.Physics.Arcade.Sprite;
-            this.uiManager.spawnParticles(eBullet.x, eBullet.y, 0xF59E0B);
-            pBulletObj.destroy();
-            eBullet.destroy();
+            if (eBullet && eBullet.active) {
+                const ex = eBullet.x;
+                const ey = eBullet.y;
+                eBullet.destroy();
+                this.uiManager.spawnParticles(ex, ey, 0xF59E0B);
+            }
+            if (pBullet && pBullet.active) {
+                pBullet.destroy();
+            }
             this.soundManager?.playStomp();
         });
 
@@ -194,10 +208,10 @@ export class EnemyManager {
             }
         );
 
-        if (this.smashLayer) {
+        if (this.wellLayer) {
             this.scene.physics.add.collider(
                 this.enemyBullets, 
-                this.smashLayer, 
+                this.wellLayer, 
                 (bulletObj) => {
                     const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
                     this.uiManager.spawnParticles(bullet.x, bullet.y, 0x94A3B8);
@@ -852,9 +866,11 @@ export class EnemyManager {
         // Bullets vs Pipe Monsters overlap
         this.scene.physics.add.overlap(this.player.bullets, this.pipeMonsters, (bulletObj, monsterObj) => {
             const monster = monsterObj as Phaser.GameObjects.Sprite;
+            if (!monster || !monster.active) return;
             const restingY = monster.getData('restingY') as number;
             if (monster.y <= restingY - 6) {
-                bulletObj.destroy();
+                const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
+                if (bullet && bullet.active) bullet.destroy();
                 this.killPipeMonster(monster);
             }
         });
@@ -1033,6 +1049,7 @@ export class EnemyManager {
     }
 
     private killMob(mob: Phaser.Physics.Arcade.Sprite, _method: 'stomp' | 'shoot') {
+        if (!mob || !mob.active || !mob.body) return;
         const uniqueKey = mob.getData('uniqueKey') as string;
         if (uniqueKey) {
             this.killedEnemyKeys.add(uniqueKey);
@@ -1145,17 +1162,17 @@ export class EnemyManager {
                 }
             }
         }
-        if (!this.smashLayer || !this.player || !this.player.body) return false;
+        if (!this.wellLayer || !this.player || !this.player.body) return false;
         const pBody = this.player.body as Phaser.Physics.Arcade.Body;
-        const centerTile = this.smashLayer.getTileAtWorldXY(pBody.center.x, pBody.center.y);
+        const centerTile = this.wellLayer.getTileAtWorldXY(pBody.center.x, pBody.center.y);
         if (centerTile && centerTile.index !== -1) return true;
-        const topTile = this.smashLayer.getTileAtWorldXY(pBody.center.x, pBody.top + 2);
+        const topTile = this.wellLayer.getTileAtWorldXY(pBody.center.x, pBody.top + 2);
         if (topTile && topTile.index !== -1) return true;
-        const bottomTile = this.smashLayer.getTileAtWorldXY(pBody.center.x, pBody.bottom - 2);
+        const bottomTile = this.wellLayer.getTileAtWorldXY(pBody.center.x, pBody.bottom - 2);
         if (bottomTile && bottomTile.index !== -1) return true;
-        const leftTile = this.smashLayer.getTileAtWorldXY(pBody.left + 2, pBody.center.y);
+        const leftTile = this.wellLayer.getTileAtWorldXY(pBody.left + 2, pBody.center.y);
         if (leftTile && leftTile.index !== -1) return true;
-        const rightTile = this.smashLayer.getTileAtWorldXY(pBody.right - 2, pBody.center.y);
+        const rightTile = this.wellLayer.getTileAtWorldXY(pBody.right - 2, pBody.center.y);
         if (rightTile && rightTile.index !== -1) return true;
         return false;
     }
@@ -1185,9 +1202,9 @@ export class EnemyManager {
             if (oneWayTile && oneWayTile.index !== -1) return true;
         }
 
-        if (this.smashLayer) {
-            const smashTile = this.smashLayer.getTileAtWorldXY(checkX, checkY);
-            if (smashTile && smashTile.index !== -1) return true;
+        if (this.wellLayer) {
+            const wellTile = this.wellLayer.getTileAtWorldXY(checkX, checkY);
+            if (wellTile && wellTile.index !== -1) return true;
         }
 
         if (this.envManager?.bridges) {
@@ -1247,7 +1264,7 @@ export class EnemyManager {
             }
         }
 
-        if (!this.groundLayer && !this.smashLayer) return true;
+        if (!this.groundLayer && !this.wellLayer) return true;
         
         if (this.groundLayer) {
             const tiles = this.groundLayer.getTilesWithinShape(this.losLine);
@@ -1258,9 +1275,9 @@ export class EnemyManager {
             }
         }
 
-        if (this.smashLayer) {
-            const smashTiles = this.smashLayer.getTilesWithinShape(this.losLine);
-            for (const tile of smashTiles) {
+        if (this.wellLayer) {
+            const wellTiles = this.wellLayer.getTilesWithinShape(this.losLine);
+            for (const tile of wellTiles) {
                 if (tile && tile.index !== -1) {
                     return false;
                 }
@@ -1277,8 +1294,8 @@ export class EnemyManager {
                 const gTile = this.groundLayer.getTileAtWorldXY(sampleX, sampleY);
                 if (gTile && gTile.index !== -1) return false;
             }
-            if (this.smashLayer) {
-                const sTile = this.smashLayer.getTileAtWorldXY(sampleX, sampleY);
+            if (this.wellLayer) {
+                const sTile = this.wellLayer.getTileAtWorldXY(sampleX, sampleY);
                 if (sTile && sTile.index !== -1) return false;
             }
             if (this.envManager && this.envManager.wellObjects) {
@@ -1506,7 +1523,7 @@ export class EnemyManager {
                 let isBlocked = false;
                 for (const pt of samplePoints) {
                     const tile = groundLayer.getTileAtWorldXY(pt.x, pt.y);
-                    const sTile = this.smashLayer ? this.smashLayer.getTileAtWorldXY(pt.x, pt.y) : null;
+                    const sTile = this.wellLayer ? this.wellLayer.getTileAtWorldXY(pt.x, pt.y) : null;
                     if ((tile && tile.index !== -1) || (sTile && sTile.index !== -1)) {
                         isBlocked = true;
                         break;
@@ -1516,7 +1533,7 @@ export class EnemyManager {
 
                 // Ensure tile directly above floor is not solid (prevents spawning inside a solid block column)
                 const tileAbove = groundLayer.getTileAtWorldXY(testX, floorY - 2);
-                const sTileAbove = this.smashLayer ? this.smashLayer.getTileAtWorldXY(testX, floorY - 2) : null;
+                const sTileAbove = this.wellLayer ? this.wellLayer.getTileAtWorldXY(testX, floorY - 2) : null;
                 if ((tileAbove && tileAbove.index !== -1) || (sTileAbove && sTileAbove.index !== -1)) continue;
 
                 // 4. Hazard Avoidance: Ghost strictly avoids everything on the hazards layer (spikes, lava, death zones in empty air)

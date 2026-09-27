@@ -24,6 +24,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     public isNearDoor: boolean = false;
     public isTeleporting: boolean = false;
     public canSmash: boolean = false;
+    public isPassingThroughWell: boolean = false;
 
     // States
     public hasGun: boolean = false;
@@ -423,6 +424,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             this.setTexture(this.facing === 'right' ? 'idle-r' : 'idle-l');
         }
         this.hasGun = false;
+        this.isPassingThroughWell = false;
         this.clearTint();
         this.enableGameInputs();
         this.scene.events.emit('player-respawn');
@@ -434,6 +436,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         // If player has Totem Shield: absorb death with totem revive animation without resetting stage
         if (this.hasTotem) {
             this.hasTotem = false; 
+            if ((this.scene as any).inventoryManager) {
+                (this.scene as any).inventoryManager.consumeTotem();
+            }
             this.isInvincible = true;
             this.disableGameInputs();
             const reviveX = this.lastSafeX;
@@ -520,6 +525,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }
         this.setVisible(false);
         this.hasGun = false;
+        this.hasTotem = false;
+        if ((this.scene as any).inventoryManager) {
+            (this.scene as any).inventoryManager.consumeTotem();
+        }
         this.clearTint();
         this.soundManager?.playDeath();
 

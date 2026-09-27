@@ -25,7 +25,7 @@ export class MainStageScene extends Phaser.Scene {
 
     private groundLayer!: Phaser.Tilemaps.TilemapLayer;
     private oneWayLayer!: Phaser.Tilemaps.TilemapLayer;
-    private smashLayer?: Phaser.Tilemaps.TilemapLayer;
+    public wellLayer?: Phaser.Tilemaps.TilemapLayer;
     private hazardsLayer?: Phaser.Tilemaps.TilemapLayer;
     private allTilesets: Phaser.Tilemaps.Tileset[] = [];
 
@@ -175,6 +175,9 @@ export class MainStageScene extends Phaser.Scene {
         this.load.spritesheet('gravity-orb', 'assets/sprites/boss/gravity orb.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('attack-tiles', 'assets/sprites/boss/attack tiles.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('attack tiles', 'assets/sprites/boss/attack tiles.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.image('dungeon background1', 'assets/sprites/background/dungeon background1.png');
+        this.load.image('dungeon-background1', 'assets/sprites/background/dungeon background1.png');
+        this.load.image('dungeon background 1', 'assets/sprites/background/dungeon background1.png');
 
         // Auto-discover and preload unique image files in public/assets/ (once per file, zero duplicate network requests)
         const autoAssetModules = import.meta.glob<{ default?: string } | string>(
@@ -301,7 +304,7 @@ export class MainStageScene extends Phaser.Scene {
         this.envManager.setupStartTutorialCues(rawMapObjects, spawnX, spawnY);
 
         // Setup Entities & Level Objects
-        this.enemyManager.setupGroundMobs(rawMapObjects, this.groundLayer, this.oneWayLayer, this.hazardsLayer, this.smashLayer);
+        this.enemyManager.setupGroundMobs(rawMapObjects, this.groundLayer, this.oneWayLayer, this.hazardsLayer, this.wellLayer);
         this.enemyManager.setupPipeMonsters(map, rawMapObjects);
 
         const bossSpawnObj = rawMapObjects.find(o => o.name === 'BossSpawn');
@@ -316,7 +319,8 @@ export class MainStageScene extends Phaser.Scene {
                 this.envManager, 
                 this.soundManager, 
                 rawMapObjects, 
-                map
+                map,
+                this.inventoryManager
             );
         }
 
@@ -452,28 +456,48 @@ export class MainStageScene extends Phaser.Scene {
         // Bullets vs Ground / Walls
         this.physics.add.collider(this.player.bullets, this.groundLayer, (bulletObj) => {
             const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
-            this.uiManager.spawnParticles(bullet.x, bullet.y, 0xFF8C00);
+            if (!bullet || !bullet.active) return;
+            const bx = bullet.x;
+            const by = bullet.y;
             bullet.destroy();
+            this.uiManager.spawnParticles(bx, by, 0xFF8C00);
         });
 
-        if (this.smashLayer) {
-            this.physics.add.collider(this.player, this.smashLayer, undefined, (_p, tile) => {
+        if (this.wellLayer) {
+            this.physics.add.collider(this.player, this.wellLayer, undefined, (_p, tile) => {
                 const t = tile as Phaser.Tilemaps.Tile;
                 if (t.index === -1) return false;
 
-                // When falling uninterrupted from SmashTrigger, pass through SmashGround tiles
-                if (this.player.canSmash && (this.player.body as Phaser.Physics.Arcade.Body).velocity.y > 0) {
+                const pBody = this.player.body as Phaser.Physics.Arcade.Body;
+                if (!pBody) return true;
+
+                // If player is already passing through the well (descending inside), allow passing through
+                if (this.player.isPassingThroughWell) {
                     return false;
                 }
 
-                // After interaction or otherwise, behave completely solid like ground layer tiles
+                // Check if player enters from the top (jumps / falls on top of the well)
+                // A tile is at the top surface of the well if there is no well tile directly above it
+                const tileAbove = this.wellLayer!.getTileAt(t.x, t.y - 1);
+                const isTopSurfaceTile = !tileAbove || tileAbove.index === -1;
+
+                // If player lands / falls onto a top surface tile from above (falling downwards)
+                if (isTopSurfaceTile && pBody.velocity.y >= 0 && pBody.bottom <= t.pixelY + 16) {
+                    this.player.isPassingThroughWell = true;
+                    return false;
+                }
+
+                // Otherwise, treat as solid ground (blocks jumping up from below or entering from sides)
                 return true;
             });
 
-            this.physics.add.collider(this.player.bullets, this.smashLayer, (bulletObj) => {
+            this.physics.add.collider(this.player.bullets, this.wellLayer, (bulletObj) => {
                 const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
-                this.uiManager.spawnParticles(bullet.x, bullet.y, 0xFF8C00);
+                if (!bullet || !bullet.active) return;
+                const bx = bullet.x;
+                const by = bullet.y;
                 bullet.destroy();
+                this.uiManager.spawnParticles(bx, by, 0xFF8C00);
             });
         }
 
@@ -719,6 +743,7 @@ export class MainStageScene extends Phaser.Scene {
         const attackTilesTileset = map.addTilesetImage('attack tiles', 'attack tiles');
         const cherryBlossomTreeTileset = map.addTilesetImage('cherry blossom tree', 'cherry blossom tree');
         const newLavaTileset = map.addTilesetImage('new lava', 'new lava');
+        const dungeonBg1Tileset = map.addTilesetImage('dungeon background1', 'dungeon background1') || map.addTilesetImage('dungeon background1', 'dungeon-background1') || map.addTilesetImage('dungeon background1', 'dungeon background 1');
         const plainDungeonTileset = map.addTilesetImage('plainDungeon', 'plainDungeon') || map.addTilesetImage('plain-dungeon', 'plain-dungeon');
         const plainGroundTileset = map.addTilesetImage('plainGround', 'plainGround') || map.addTilesetImage('plain-ground', 'plain-ground');
         const spikeTileset = map.addTilesetImage('spike', 'spike');
@@ -782,6 +807,7 @@ export class MainStageScene extends Phaser.Scene {
             tempPlatformsTileset,
             gravityOrbTileset,
             attackTilesTileset,
+            dungeonBg1Tileset,
             plainDungeonTileset,
             plainGroundTileset,
             spikeTileset
@@ -853,9 +879,9 @@ export class MainStageScene extends Phaser.Scene {
             if (lowerName === 'ground') {
                 this.groundLayer = layer;
                 this.groundLayer.setCollisionByExclusion([-1]);
-            } else if (lowerName === 'smashground' || lowerName === 'smash') {
-                this.smashLayer = layer;
-                this.smashLayer.setCollisionByExclusion([-1]);
+            } else if (lowerName === 'well' || lowerName === 'smashground' || lowerName === 'smash') {
+                this.wellLayer = layer;
+                this.wellLayer.setCollisionByExclusion([-1]);
             } else if (lowerName === 'onewayplatforms' || lowerName === 'oneway') {
                 this.oneWayLayer = layer;
                 this.oneWayLayer.setCollisionByExclusion([-1]);
@@ -931,7 +957,7 @@ export class MainStageScene extends Phaser.Scene {
         const effectiveGroundIndex = groundIndex > 0 ? groundIndex : 6;
 
         if (lowerName === 'ground') return 3.0;
-        if (lowerName === 'smashground' || lowerName === 'smash') return 8.0;
+        if (lowerName === 'well' || lowerName === 'smashground' || lowerName === 'smash') return 8.0;
         if (lowerName === 'onewayplatforms' || lowerName === 'oneway') return 3.2;
         if (lowerName === 'hazards' || lowerName === 'hazard') return 3.3;
 
@@ -1007,15 +1033,12 @@ export class MainStageScene extends Phaser.Scene {
             return { x: sx ?? 1, y: sy ?? 1 };
         }
 
-        // 3. Fallbacks: ONLY sky and mountain have parallax
-        if (name === 'sky') {
-            return { x: 0.05, y: 1 };
-        }
+        // 3. Fallbacks: ONLY mountain has default parallax fallback if not specified in Tiled
         if (name === 'mountain') {
             return { x: 0.3, y: 1 };
         }
 
-        // All other layers (Background, Trees, Ground, SmashGround, etc.) scroll 1:1 with the world
+        // All other layers (Sky, Background, Trees, Ground, SmashGround, etc.) scroll 1:1 with the world
         return { x: 1, y: 1 };
     }
 
@@ -1333,6 +1356,25 @@ export class MainStageScene extends Phaser.Scene {
         );
 
         this.player.update();
+
+        // Check if player has completely exited the Well layer to restore solid ground behavior
+        if (this.wellLayer && this.player.isPassingThroughWell) {
+            const pBody = this.player.body as Phaser.Physics.Arcade.Body;
+            if (pBody) {
+                const overlappingTiles = this.wellLayer.getTilesWithinWorldXY(
+                    pBody.left,
+                    pBody.top,
+                    pBody.width,
+                    pBody.height,
+                    { isNotEmpty: true }
+                );
+                const isStillInside = overlappingTiles && overlappingTiles.some(t => t.index !== -1);
+                if (!isStillInside) {
+                    this.player.isPassingThroughWell = false;
+                }
+            }
+        }
+
         this.envManager.update(delta);
         this.inventoryManager.update();
         this.enemyManager.update(this.groundLayer, this.oneWayLayer, delta);

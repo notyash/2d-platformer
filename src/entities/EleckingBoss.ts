@@ -4,12 +4,14 @@ import { UIManager } from '../managers/UIManager';
 import { EnemyManager } from '../managers/EnemyManager';
 import { EnvironmentManager } from '../managers/EnvironmentManager';
 import { SoundManager } from '../managers/SoundManager';
+import { InventoryManager } from '../managers/InventoryManager';
 
 export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private player: Player;
     private uiManager: UIManager;
     private enemyManager: EnemyManager;
     private soundManager?: SoundManager;
+    private inventoryManager?: InventoryManager;
 
     private hasStarted: boolean = false;
     private hp: number = 50;
@@ -20,7 +22,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     // Tiled Properties & Objects
     private arenaZone?: Phaser.Geom.Rectangle;
     private arenaCover?: Phaser.GameObjects.TileSprite;
-    private entranceCover?: Phaser.GameObjects.TileSprite;
+    public isEntranceRevealed: boolean = false;
     private bossLimitZone?: Phaser.Geom.Rectangle;
     private bossEntranceZone?: Phaser.Geom.Rectangle;
     private envManager?: EnvironmentManager;
@@ -28,7 +30,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private victoryPortalPoint?: { x: number, y: number };
     private initialSpawn: { x: number, y: number };
     private gravityOrbs: Phaser.GameObjects.Sprite[] = [];
-    private rawGravityOrbData: { x: number, y: number }[] = [];
+    private rawGravityOrbData: { x: number, y: number, width?: number, height?: number, id?: number }[] = [];
+    private orbRevealTimer?: Phaser.Time.TimerEvent;
     private tempClouds: Phaser.Physics.Arcade.Sprite[] = [];
     private collectedOrbs: number = 0;
     private victoryOrb?: Phaser.Physics.Arcade.Sprite;
@@ -50,6 +53,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private flyTowardsPlayer: boolean = false;
     private nextAttackTimer: number = 2000;
     private phase2ThunderTimer: number = 15000;
+    private activeTimers: Phaser.Time.TimerEvent[] = [];
+    private activeAttackEffects: Phaser.GameObjects.GameObject[] = [];
 
     constructor(
         scene: Phaser.Scene, 
@@ -61,7 +66,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         _envManager: EnvironmentManager,
         soundManager: SoundManager,
         rawMapObjects: any[],
-        map: Phaser.Tilemaps.Tilemap
+        map: Phaser.Tilemaps.Tilemap,
+        inventoryManager?: InventoryManager
     ) {
         super(scene, x, y, 'elecking-power', 0);
         this.player = player;
@@ -69,6 +75,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.enemyManager = enemyManager;
         this.envManager = _envManager;
         this.soundManager = soundManager;
+        this.inventoryManager = inventoryManager || (scene as any).inventoryManager;
         this.initialSpawn = { x, y };
 
         scene.add.existing(this);
@@ -80,10 +87,21 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         body.setOffset(12, 0);
         body.setImmovable(true);
 
-        scene.physics.add.overlap(this.player.bullets, this as unknown as Phaser.GameObjects.GameObject, (bulletObj) => {
-            const bullet = bulletObj as Phaser.GameObjects.GameObject;
+        scene.physics.add.overlap(this.player.bullets, this, (bulletObj, _bossObj) => {
+            const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
+            if (!bullet || !bullet.active) return;
+            
+            const bx = bullet.x;
+            const by = bullet.y;
             bullet.destroy();
-            this.takeDamage();
+            this.uiManager.spawnParticles(bx, by, 0xF59E0B);
+
+            // Deal damage only if boss is vulnerable in Phase 2
+            if (this.phase === 2 && !this.isInvulnerable && !this.isDead && this.bossState !== 'vanished') {
+                this.takeDamage();
+            } else if (this.phase === 1) {
+                this.soundManager?.playEnemyShoot();
+            }
         });
 
         this.setDepth(15);
@@ -98,6 +116,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         scene.physics.add.collider(this.player, this.tempClouds, (_p, _c) => {
             const playerSprite = _p as Player;
             const cloudSprite = _c as Phaser.Physics.Arcade.Sprite;
+            if (cloudSprite.getData('state') === 'vanished' || !cloudSprite.visible) return;
             const pBody = playerSprite.body as Phaser.Physics.Arcade.Body;
             const cBody = cloudSprite.body as Phaser.Physics.Arcade.Body;
 
@@ -111,6 +130,12 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.startPhase1(false);
 
         this.scene.events.on('player-respawn', () => {
+            if (this.player.activeSpawnX && this.player.activeSpawnY && this.bossRespawnPoint) {
+                if (this.player.activeSpawnX === this.bossRespawnPoint.x && this.player.activeSpawnY === this.bossRespawnPoint.y) {
+                    this.isEntranceRevealed = true;
+                    if (this.arenaCover) this.arenaCover.setVisible(false);
+                }
+            }
             if (this.hasStarted && !this.isDead) {
                 // When player respawns inside boss arena, boss and arena objects retain their position and state
                 if (this.phase === 1 && this.bossState === 'idle') {
@@ -216,6 +241,17 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         return undefined;
     }
 
+    private parseBoolProp(obj: any, keys: string[], defaultVal: boolean = true): boolean {
+        const val = this.getProp(obj, keys);
+        if (val === undefined || val === null) return defaultVal;
+        if (typeof val === 'boolean') return val;
+        if (typeof val === 'number') return val !== 0;
+        const s = String(val).toLowerCase().trim();
+        if (s === 'false' || s === '0' || s === 'off' || s === 'no' || s === 'disable' || s === 'disabled') return false;
+        if (s === 'true' || s === '1' || s === 'on' || s === 'yes' || s === 'enable' || s === 'enabled') return true;
+        return defaultVal;
+    }
+
     private parseMapObjects(rawMapObjects: any[], map: Phaser.Tilemaps.Tilemap) {
         // Find BossArenaZone
         const zoneObj = rawMapObjects.find(o => {
@@ -269,31 +305,6 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 entranceObj.width || 64, 
                 entranceObj.height || 96
             );
-
-            // Overlap plainWell from BossFightEntrance over plainGround only where BossFightEntrance overlaps BossArenaZone
-            let overlapRect = this.bossEntranceZone;
-            if (this.arenaZone) {
-                const intersection = new Phaser.Geom.Rectangle();
-                if (Phaser.Geom.Intersects.GetRectangleIntersection(this.bossEntranceZone, this.arenaZone, intersection)) {
-                    if (intersection.width > 0 && intersection.height > 0) {
-                        overlapRect = intersection;
-                    }
-                }
-            }
-
-            const wellTexKey = this.scene.textures.exists('plainWell') 
-                ? 'plainWell' 
-                : (this.scene.textures.exists('plain-well') ? 'plain-well' : 'blocks/plainWell');
-            this.entranceCover = this.scene.add.tileSprite(
-                overlapRect.x,
-                overlapRect.y,
-                overlapRect.width,
-                overlapRect.height,
-                wellTexKey
-            );
-            this.entranceCover.setOrigin(0, 0);
-            this.entranceCover.setDepth(21); // Displayed directly over plainGround arenaCover (depth 20)
-            this.entranceCover.setVisible(true);
         }
 
         // Find BossFightRespawn
@@ -317,8 +328,24 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             };
         }
 
-        // Find TemporaryClouds
-        const cloudObjs = rawMapObjects.filter(o => o.name === 'TemporaryCloud');
+        // Find TemporaryClouds / TempPlatforms
+        const cloudObjs = rawMapObjects.filter(o => {
+            const nameLower = (o.name || '').toLowerCase();
+            const typeLower = (o.type || '').toLowerCase();
+            const classLower = (o.class || '').toLowerCase();
+            const isTempGid = o.gid && map.tilesets && map.tilesets.some((t: any) => {
+                const tsName = (t.name || '').toLowerCase();
+                return (tsName.includes('temp platform') || tsName.includes('temp-platform')) && o.gid >= t.firstgid && o.gid < t.firstgid + (t.total || 4);
+            });
+            return nameLower === 'temporarycloud' || nameLower === 'tempcloud' ||
+                   nameLower === 'tempplatform' || nameLower === 'tempplatforms' ||
+                   nameLower === 'temporaryplatform' || nameLower === 'temporaryplatforms' ||
+                   nameLower === 'temp platforms' || nameLower === 'temp platform' ||
+                   typeLower === 'tempplatform' || typeLower === 'temporarycloud' ||
+                   classLower === 'tempplatform' || classLower === 'temporarycloud' ||
+                   Boolean(isTempGid);
+        });
+
         cloudObjs.forEach(c => {
             const posX = c.gid 
                 ? c.x + (c.width || 64) / 2 
@@ -345,8 +372,34 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             }
 
             // Custom Properties for Fading & Movement
-            const fadeVal = this.getProp(c, ['fade', 'canFade', 'canfade', 'isTemporary', 'temporary']);
-            const canFade = fadeVal !== undefined ? Boolean(fadeVal) : true;
+            let canFade = true;
+            const noFadeVal = this.parseBoolProp(c, [
+                'noFade', 'nofade', 'no_fade', 'stopFade', 'stopfade', 'stop_fade',
+                'disableFade', 'disablefade', 'disable_fade', 'neverFade', 'neverfade', 'never_fade',
+                'dontFade', 'dontfade', 'dont_fade', 'permanent', 'isPermanent', 'ispermanent', 'is_permanent',
+                'solid', 'isSolid', 'issolid'
+            ], false);
+
+            if (noFadeVal) {
+                canFade = false;
+            } else {
+                canFade = this.parseBoolProp(c, [
+                    'fade', 'canFade', 'canfade', 'can_fade',
+                    'isTemporary', 'istemporary', 'is_temporary',
+                    'temporary', 'temp', 'fades', 'fadeable'
+                ], true);
+            }
+
+            let isMoving = true;
+            const isStatic = this.parseBoolProp(c, ['isStatic', 'isstatic', 'is_static', 'static', 'stationary'], false);
+            if (isStatic) {
+                isMoving = false;
+            } else {
+                const hasMoveProp = this.getProp(c, ['isMoving', 'ismoving', 'is_moving', 'moving', 'canMove', 'canmove', 'can_move', 'move', 'moves']);
+                if (hasMoveProp !== undefined) {
+                    isMoving = this.parseBoolProp(c, ['isMoving', 'ismoving', 'is_moving', 'moving', 'canMove', 'canmove', 'can_move', 'move', 'moves'], true);
+                }
+            }
 
             let standDuration = Number(this.getProp(c, ['fadeDurationMs', 'standDurationMs', 'standduration', 'fadeduration', 'duration', 'fadetime'])) || 1600;
             if (standDuration > 0 && standDuration <= 20) standDuration = Math.round(standDuration * 1000); // allow seconds (e.g. 1.8 -> 1800ms)
@@ -354,15 +407,23 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             let respawnDelay = Number(this.getProp(c, ['respawnDelayMs', 'respawndelay', 'respawntime', 'respawn'])) || 2500;
             if (respawnDelay > 0 && respawnDelay <= 20) respawnDelay = Math.round(respawnDelay * 1000); // allow seconds (e.g. 2.5 -> 2500ms)
 
-            const distance = Number(this.getProp(c, ['distance', 'platDistance', 'travelDistance', 'range'])) || 0;
+            let distance = Number(this.getProp(c, ['distance', 'platDistance', 'travelDistance', 'range'])) || 0;
             let speed = Number(this.getProp(c, ['speed', 'platSpeed', 'moveSpeed'])) || 0;
-            if (distance > 0 && speed === 0) speed = 50; // default medium-slow speed if distance is set
+
+            if (!isMoving) {
+                speed = 0;
+                distance = 0;
+            } else {
+                if (distance > 0 && speed === 0) speed = 50; // default medium-slow speed if distance is set
+                if (speed > 0 && distance === 0) distance = 96; // default 3 tiles travel distance if speed is set
+            }
 
             const axis = String(this.getProp(c, ['axis', 'directionAxis', 'moveAxis']) || 'x').toLowerCase();
             const direction = Number(this.getProp(c, ['direction', 'dir'])) || 1;
 
             cloud.setData('state', 'idle');
             cloud.setData('canFade', canFade);
+            cloud.setData('isMoving', isMoving);
             cloud.setData('standDurationMs', standDuration);
             cloud.setData('respawnDelayMs', respawnDelay);
             cloud.setData('speed', speed);
@@ -372,7 +433,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             cloud.setData('startX', posX);
             cloud.setData('startY', posY);
 
-            if (speed > 0 && distance > 0) {
+            if (isMoving && speed > 0 && distance > 0) {
                 if (axis === 'y') {
                     cloud.setData('minY', direction === -1 ? posY - distance : posY);
                     cloud.setData('maxY', direction === -1 ? posY : posY + distance);
@@ -387,8 +448,40 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         });
 
         // Find GravityOrbs
-        const orbObjs = rawMapObjects.filter(o => o.name === 'GravityOrb');
-        this.rawGravityOrbData = orbObjs.map(o => ({ x: o.x, y: o.y }));
+        const orbObjs = rawMapObjects.filter(o => {
+            const nameLower = (o.name || '').toLowerCase();
+            const typeLower = (o.type || '').toLowerCase();
+            const classLower = (o.class || '').toLowerCase();
+            const isOrbGid = o.gid && map.tilesets && map.tilesets.some((t: any) => {
+                const tsName = (t.name || '').toLowerCase();
+                return (tsName.includes('gravity orb') || tsName.includes('gravity-orb')) && o.gid >= t.firstgid && o.gid < t.firstgid + (t.total || 4);
+            });
+            return nameLower === 'gravityorb' || nameLower === 'gravity-orb' || nameLower === 'gravity_orb' ||
+                   typeLower === 'gravityorb' || typeLower === 'gravity-orb' ||
+                   classLower === 'gravityorb' || classLower === 'gravity-orb' ||
+                   Boolean(isOrbGid);
+        });
+
+        this.rawGravityOrbData = orbObjs.map(o => {
+            const idVal = this.getProp(o, ['id', 'orbId', 'orbid', 'order', 'index', 'sequence', 'step']);
+            const parsedId = (idVal !== undefined && idVal !== null && !isNaN(Number(idVal)))
+                ? Number(idVal)
+                : undefined;
+
+            const hasGid = o.gid !== undefined;
+            const width = o.width || 32;
+            const height = o.height || 32;
+            const centerX = o.x + (width / 2);
+            const centerY = hasGid ? (o.y - (height / 2)) : (o.y + (height / 2));
+
+            return {
+                x: centerX,
+                y: centerY,
+                width: width,
+                height: height,
+                id: parsedId
+            };
+        });
         this.spawnGravityOrbs();
 
         // Find Hazard tiles with dotNumber from Object Layer & Tile Layers
@@ -460,57 +553,234 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     }
 
     private spawnGravityOrbs() {
+        if (this.orbRevealTimer) {
+            this.orbRevealTimer.remove(false);
+            this.orbRevealTimer = undefined;
+        }
+
         this.gravityOrbs.forEach(orb => {
             if (orb && orb.active) orb.destroy();
         });
         this.gravityOrbs = [];
+
+        const definedIds = this.rawGravityOrbData
+            .filter(d => d.id !== undefined && !isNaN(d.id))
+            .map(d => d.id!);
+
+        const sortedUniqueIds = Array.from(new Set(definedIds)).sort((a, b) => a - b);
+        const hasSequentialIds = sortedUniqueIds.length > 0;
+        const firstActiveId = hasSequentialIds ? sortedUniqueIds[0] : undefined;
+        const totalOrbs = this.rawGravityOrbData.length > 0 ? this.rawGravityOrbData.length : 7;
+
         this.rawGravityOrbData.forEach(pos => {
             const orb = this.scene.physics.add.sprite(pos.x, pos.y, 'gravity-orb');
             orb.play('gravity-orb-anim');
             orb.setDepth(10);
+            orb.setOrigin(0.5, 0.5);
+            orb.setDisplaySize(pos.width || 32, pos.height || 32);
+
             const orbBody = orb.body as Phaser.Physics.Arcade.Body;
             if (orbBody) {
                 orbBody.setAllowGravity(false);
                 orbBody.setSize(24, 24);
                 orbBody.setOffset(4, 4);
             }
+
+            orb.setData('orbId', pos.id);
+
+            // If sequential IDs are configured, only the lowest ID starts visible/active
+            if (hasSequentialIds && pos.id !== undefined) {
+                if (pos.id === firstActiveId) {
+                    orb.setVisible(true);
+                    orb.setActive(true);
+                    if (orbBody) orbBody.setEnable(true);
+                } else {
+                    orb.setVisible(false);
+                    orb.setActive(false);
+                    if (orbBody) orbBody.setEnable(false);
+                }
+            } else {
+                orb.setVisible(true);
+                orb.setActive(true);
+                if (orbBody) orbBody.setEnable(true);
+            }
+
             this.gravityOrbs.push(orb);
 
             // Overlap to collect
             this.scene.physics.add.overlap(this.player, orb, () => {
+                if (!orb.visible || !orb.active) return;
+
+                const currentOrbId = orb.getData('orbId');
                 orb.destroy();
                 this.collectedOrbs++;
-                this.uiManager.showFloatingText(orb.x, orb.y - 10, `ORB ${this.collectedOrbs}/10`, '#38BDF8');
-                if (this.collectedOrbs >= 10 && this.phase === 1) {
+
+                // Sound & Floating text notification
+                this.soundManager?.playPowerup();
+                this.uiManager.showFloatingText(orb.x, orb.y - 10, `ORB ${this.collectedOrbs}/${totalOrbs}`, '#38BDF8');
+
+                if (this.collectedOrbs >= totalOrbs && this.phase === 1) {
+                    if (this.orbRevealTimer) {
+                        this.orbRevealTimer.remove(false);
+                        this.orbRevealTimer = undefined;
+                    }
                     this.transitionToPhase2();
+                    return;
+                }
+
+                // If sequential IDs: reveal the next orb in sequence instantly
+                if (hasSequentialIds && currentOrbId !== undefined) {
+                    const currentIndex = sortedUniqueIds.indexOf(currentOrbId);
+                    const nextId = (currentIndex !== -1 && currentIndex + 1 < sortedUniqueIds.length)
+                        ? sortedUniqueIds[currentIndex + 1]
+                        : currentOrbId + 1;
+
+                    if (this.orbRevealTimer) {
+                        this.orbRevealTimer.remove(false);
+                        this.orbRevealTimer = undefined;
+                    }
+
+                    this.revealNextGravityOrb(nextId);
                 }
             });
         });
+    }
+
+    private revealNextGravityOrb(nextId: number) {
+        let revealedAny = false;
+
+        this.gravityOrbs.forEach(orb => {
+            if (!orb || !orb.scene) return;
+            const orbId = orb.getData('orbId');
+            if (orbId === nextId && !orb.visible) {
+                orb.setVisible(true);
+                orb.setActive(true);
+                const orbBody = orb.body as Phaser.Physics.Arcade.Body;
+                if (orbBody) orbBody.setEnable(true);
+                orb.play('gravity-orb-anim');
+
+                // Appearance pop animation & sound
+                orb.setScale(0);
+                this.scene.tweens.add({
+                    targets: orb,
+                    scaleX: 1,
+                    scaleY: 1,
+                    duration: 400,
+                    ease: 'Back.easeOut'
+                });
+
+                this.soundManager?.playCheckpoint();
+
+                revealedAny = true;
+            }
+        });
+
+        // Fallback: If no orb with exact nextId was found, reveal the next hidden orb in list
+        if (!revealedAny) {
+            const nextHidden = this.gravityOrbs.find(o => o && o.scene && !o.visible);
+            if (nextHidden) {
+                nextHidden.setVisible(true);
+                nextHidden.setActive(true);
+                const b = nextHidden.body as Phaser.Physics.Arcade.Body;
+                if (b) b.setEnable(true);
+                nextHidden.play('gravity-orb-anim');
+                nextHidden.setScale(0);
+                this.scene.tweens.add({
+                    targets: nextHidden,
+                    scaleX: 1,
+                    scaleY: 1,
+                    duration: 400,
+                    ease: 'Back.easeOut'
+                });
+                this.soundManager?.playCheckpoint();
+            }
+        }
     }
 
     public isPlayerInArena(): boolean {
         if (!this.arenaZone || !this.player) return false;
         const px = this.player.x;
         const py = this.player.y;
-        if (Phaser.Geom.Rectangle.Contains(this.arenaZone, px, py)) return true;
-        if (this.bossLimitZone && Phaser.Geom.Rectangle.Contains(this.bossLimitZone, px, py)) return true;
+
+        // If player is at/above the surface well entrance, they are NOT in the arena yet
+        if (this.bossEntranceZone) {
+            const inEntranceX = px >= this.bossEntranceZone.left - 16 && px <= this.bossEntranceZone.right + 16;
+            const inEntranceY = py <= this.bossEntranceZone.bottom - 8;
+            if (inEntranceX && inEntranceY) {
+                return false;
+            }
+        }
+
+        // If player has respawned at boss checkpoint inside the arena
         if (this.player.activeSpawnX && this.player.activeSpawnY && this.bossRespawnPoint) {
             if (this.player.activeSpawnX === this.bossRespawnPoint.x && this.player.activeSpawnY === this.bossRespawnPoint.y) {
                 return true;
             }
         }
+
+        if (this.bossLimitZone && Phaser.Geom.Rectangle.Contains(this.bossLimitZone, px, py)) {
+            return true;
+        }
+
+        if (Phaser.Geom.Rectangle.Contains(this.arenaZone, px, py)) {
+            // Near entrance X, ensure player has actually dropped below the entrance
+            if (this.bossEntranceZone && px >= this.bossEntranceZone.left - 24 && py < this.bossEntranceZone.bottom - 8) {
+                return false;
+            }
+            return true;
+        }
+
         return false;
+    }
+
+    private addBossTimer(delay: number, callback: () => void, loop: boolean = false, repeat: number = 0): Phaser.Time.TimerEvent {
+        const timer = this.scene.time.addEvent({
+            delay,
+            callback,
+            loop,
+            repeat
+        });
+        this.activeTimers.push(timer);
+        return timer;
+    }
+
+    private clearAllActiveTimers() {
+        if (this.orbRevealTimer) {
+            this.orbRevealTimer.remove(false);
+            this.orbRevealTimer = undefined;
+        }
+        this.activeTimers.forEach(t => {
+            if (t) t.remove(false);
+        });
+        this.activeTimers = [];
+    }
+
+    private clearAllAttackEffects() {
+        this.activeAttackEffects.forEach(obj => {
+            if (obj && (obj as any).active) {
+                obj.destroy();
+            }
+        });
+        this.activeAttackEffects = [];
+    }
+
+    public isPlayerTouchingEntrance(): boolean {
+        if (!this.bossEntranceZone || !this.player || !this.player.body) return false;
+        const pBody = this.player.body as Phaser.Physics.Arcade.Body;
+        const pRect = new Phaser.Geom.Rectangle(pBody.x, pBody.y, pBody.width, pBody.height);
+        return Phaser.Geom.Intersects.RectangleToRectangle(pRect, this.bossEntranceZone);
     }
 
     public activateEncounter() {
         if (this.hasStarted) return;
         this.hasStarted = true;
+        this.isEntranceRevealed = true;
+        this.clearAllActiveTimers();
+        this.clearAllAttackEffects();
+        this.currentSequence = [];
         this.nextAttackTimer = 2000;
         if (this.arenaCover) {
             this.arenaCover.setVisible(false);
-        }
-        if (this.entranceCover) {
-            this.entranceCover.setVisible(false);
         }
         if (this.envManager) {
             this.envManager.triggerRevealLayer('', true);
@@ -536,10 +806,16 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             }
         });
 
+        // Show top-screen boss health bar immediately on encounter start
+        this.uiManager.showBossHealthBar('⚡ ELECKING ⚡', 50, this.hp);
+
         this.startPhase1(false);
     }
 
     public resetAll() {
+        this.clearAllActiveTimers();
+        this.clearAllAttackEffects();
+
         this.hasStarted = false;
         this.isDead = false;
         this.phase = 1;
@@ -552,6 +828,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.collectedOrbs = 0;
         this.nextAttackTimer = 2000;
         this.phase2ThunderTimer = 15000;
+        this.currentSequence = [];
 
         // Clear all boss projectiles
         this.orbsOfRageGroup.clear(true, true);
@@ -570,7 +847,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         const minionMobs = this.enemyManager.groundMobs.getChildren().filter((m: any) => m.getData('isBossMinion'));
         minionMobs.forEach((m: any) => m.destroy());
 
-        // Reset gravity orbs to full 10
+        // Hide Boss Health Bar
+        this.uiManager.hideBossHealthBar();
+
+        // Reset gravity orbs to full
         this.spawnGravityOrbs();
 
         // Reset moving platforms to start positions and freeze them
@@ -599,11 +879,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         }
 
         // Reset arena cover
+        this.isEntranceRevealed = false;
         if (this.arenaCover) {
             this.arenaCover.setVisible(true);
-        }
-        if (this.entranceCover) {
-            this.entranceCover.setVisible(true);
         }
     }
 
@@ -646,7 +924,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     }
 
     private playThunderTelegraph() {
-        if (this.isDead) return;
+        if (!this.hasStarted || this.isDead) return;
         this.bossState = 'memory-telegraph';
         this.anims.stop();
         (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
@@ -658,7 +936,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         // Step through each drum in the sequence displaying its specific frame sequentially for 1 second each
         let step = 0;
         const playNextDrum = () => {
-            if (this.isDead || this.bossState !== 'memory-telegraph') return;
+            if (!this.hasStarted || this.isDead || this.bossState !== 'memory-telegraph') return;
 
             if (step < this.currentSequence.length) {
                 const drumNumber = this.currentSequence[step];
@@ -667,7 +945,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 this.setBossFrame(drumNumber);
                 this.soundManager?.playEnemyShoot();
                 step++;
-                this.scene.time.delayedCall(1000, playNextDrum);
+                this.addBossTimer(1000, playNextDrum);
             } else {
                 // Play "Elecking Powerup 96.png" from left frame to right before disappearing for thunder attack
                 this.setTexture('elecking-powerup');
@@ -688,27 +966,28 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     }
 
     private vanishAndStrike() {
-        if (this.isDead) return;
+        if (!this.hasStarted || this.isDead) return;
         this.bossState = 'vanished';
         this.setVisible(false);
         (this.body as Phaser.Physics.Arcade.Body).setEnable(false);
 
         // Disappear for 3-4 seconds, then strike
-        this.scene.time.delayedCall(Phaser.Math.Between(3000, 4000), () => {
-            if (!this.isDead) {
+        this.addBossTimer(Phaser.Math.Between(3000, 4000), () => {
+            if (this.hasStarted && !this.isDead && this.bossState === 'vanished') {
                 this.executeThunderStrikes();
             }
         });
     }
 
     private executeThunderStrikes() {
-        if (this.isDead) return;
+        if (!this.hasStarted || this.isDead) return;
         this.bossState = 'striking';
 
         // Strike the tiles matching the boss's telegraphed pattern in sequence
         let delay = 0;
         this.currentSequence.forEach(dotNumber => {
-            this.scene.time.delayedCall(delay, () => {
+            this.addBossTimer(delay, () => {
+                if (!this.hasStarted || this.isDead || this.bossState !== 'striking') return;
                 const tiles = this.thunderTiles.get(dotNumber) || [];
                 tiles.forEach(tile => {
                     const tileX = tile.pixelX !== undefined ? tile.pixelX : (tile as any).x;
@@ -721,6 +1000,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                     cloudEffect.setOrigin(0.5, 1);
                     cloudEffect.setDepth(12);
                     cloudEffect.play('cloud-thunder-strike');
+                    this.activeAttackEffects.push(cloudEffect);
 
                     // Physics body covering the entire 32x240 column from cloud top down to ground
                     this.scene.physics.add.existing(cloudEffect);
@@ -738,25 +1018,21 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                     });
 
                     // Stepping on or touching the targeted 32x32 ground tile while struck kills the player
-                    const groundCheckTimer = this.scene.time.addEvent({
-                        delay: 40,
-                        repeat: 12,
-                        callback: () => {
-                            if (!this.player || this.player.isDying) return;
-                            const pBody = this.player.body as Phaser.Physics.Arcade.Body;
-                            if (pBody) {
-                                const pRect = new Phaser.Geom.Rectangle(pBody.x, pBody.y, pBody.width, pBody.height);
-                                const tRect = new Phaser.Geom.Rectangle(tileX, tileY - 4, tileW, tileH + 8);
-                                if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, tRect)) {
-                                    this.player.die('electric');
-                                }
+                    const groundCheckTimer = this.addBossTimer(40, () => {
+                        if (!this.player || this.player.isDying) return;
+                        const pBody = this.player.body as Phaser.Physics.Arcade.Body;
+                        if (pBody) {
+                            const pRect = new Phaser.Geom.Rectangle(pBody.x, pBody.y, pBody.width, pBody.height);
+                            const tRect = new Phaser.Geom.Rectangle(tileX, tileY - 4, tileW, tileH + 8);
+                            if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, tRect)) {
+                                this.player.die('electric');
                             }
                         }
-                    });
+                    }, false, 12);
 
                     this.soundManager?.playEnemyShoot();
 
-                    this.scene.time.delayedCall(550, () => {
+                    this.addBossTimer(550, () => {
                         if (strikeCollider) strikeCollider.destroy();
                         if (groundCheckTimer) groundCheckTimer.destroy();
                         if (cloudEffect && cloudEffect.active) cloudEffect.destroy();
@@ -767,7 +1043,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         });
 
         // Return to normal
-        this.scene.time.delayedCall(delay + 1000, () => {
+        this.addBossTimer(delay + 1000, () => {
+            if (!this.hasStarted || this.isDead) return;
             this.setTexture('elecking-power');
             this.setVisible(true);
             this.setBossFrame(0);
@@ -788,22 +1065,32 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.isInvulnerable = false;
         this.phase2ThunderTimer = 15000;
         
-        // Show health bar
+        // Show phase transition banner & Top-Screen Boss Health Bar
         this.uiManager.showFloatingText(this.x, this.y - 40, 'PHASE 2 - VULNERABLE', '#FF0000');
+        this.uiManager.showBossHealthBar('⚡ ELECKING ⚡', 50, this.hp);
         
+        // Directly equip player with the Blaster Gun and enable all gun sprites/animations
+        if (this.inventoryManager) {
+            this.inventoryManager.addGun();
+        } else if ((this.scene as any).inventoryManager) {
+            (this.scene as any).inventoryManager.addGun();
+        } else {
+            this.player.hasGun = true;
+        }
+
+        this.uiManager.showFloatingText(this.player.x, this.player.y - 30, 'BLASTER GUN EQUIPPED!', '#38BDF8', 2000);
+        this.uiManager.spawnParticles(this.player.x, this.player.y, 0x38BDF8);
+        this.soundManager?.playPowerup();
+
         // Descend to ground
         this.startGroundedPatrol();
 
         // Start shooting Orbs of Rage
-        this.scene.time.addEvent({
-            delay: 2000,
-            loop: true,
-            callback: () => {
-                if (this.phase === 2 && this.bossState === 'patrolling' && !this.isDead) {
-                    this.fireOrbOfRage();
-                }
+        this.addBossTimer(2000, () => {
+            if (this.phase === 2 && this.bossState === 'patrolling' && !this.isDead) {
+                this.fireOrbOfRage();
             }
-        });
+        }, true);
     }
 
     private startGroundedPatrol() {
@@ -836,10 +1123,12 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
         this.hp -= 1;
         this.setTint(0xFF0000);
-        this.scene.time.delayedCall(100, () => this.clearTint());
+        this.scene.time.delayedCall(100, () => {
+            if (this && this.active) this.clearTint();
+        });
 
-        // Update health bar UI (implement in UIManager if needed)
-        this.uiManager.showFloatingText(this.x, this.y - 20, `${this.hp} HP`, '#FF0000');
+        // Update Boss Health Bar
+        this.uiManager.updateBossHealthBar(this.hp, 50);
 
         // Check summoning thresholds
         if (this.summonThresholds.includes(this.hp)) {
@@ -861,19 +1150,22 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         for (let i = 0; i < count; i++) {
             const offsetX = Phaser.Math.Between(-30, 30);
             const initialDir = offsetX > 0 ? 1 : -1;
+            const texKey = initialDir === 1 ? 'mob-sandal-r' : 'mob-sandal-l';
+            const validTex = this.scene.textures.exists(texKey) ? texKey : (this.scene.textures.exists('mob-sandal-r') ? 'mob-sandal-r' : 'mob-sandal');
             
-            // Sandal mob uses specific texture frame according to EnemyManager
-            const minion = this.enemyManager.groundMobs.create(this.x + offsetX, this.y, 'walk-r', 0) as Phaser.Physics.Arcade.Sprite;
+            const minion = this.enemyManager.groundMobs.create(this.x + offsetX, this.y, validTex, 0) as Phaser.Physics.Arcade.Sprite;
             minion.setDepth(4).setOrigin(0.5, 1);
             
             const body = minion.body as Phaser.Physics.Arcade.Body;
-            body.setSize(22, 22);
-            body.setOffset(5, 10);
-            body.setCollideWorldBounds(true);
+            if (body) {
+                body.setSize(22, 22);
+                body.setOffset(5, 10);
+                body.setCollideWorldBounds(true);
+            }
             
-            const animKey = initialDir === 1 ? 'walk-r' : 'walk-l';
+            const animKey = initialDir === 1 ? 'mob-sandal-walk-r' : 'mob-sandal-walk-l';
             if (this.scene.anims.exists(animKey)) {
-                minion.play(animKey);
+                minion.play(animKey, true);
             }
             
             minion.setData('uniqueKey', `boss_minion_${this.scene.time.now}_${i}`);
@@ -885,12 +1177,13 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             minion.setData('type', 'sandal');
             minion.setData('canShoot', false);
             minion.setData('allowOneWay', true);
+            minion.setData('scale', 1.0);
             minion.setData('isBossMinion', true);
         }
 
         this.uiManager.showFloatingText(this.x, this.y - 40, 'SUMMONING!', '#8B5CF6');
         
-        this.scene.time.delayedCall(2000, () => {
+        this.addBossTimer(2000, () => {
             if (this.phase === 2 && !this.isDead) this.startGroundedPatrol();
         });
     }
@@ -900,6 +1193,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.setVisible(false);
         (this.body as Phaser.Physics.Arcade.Body).setEnable(false);
         if (this.soundManager) this.soundManager.stopMusic();
+
+        // Hide Boss Health Bar
+        this.uiManager.hideBossHealthBar();
 
         // Boss explosion
         for (let i = 0; i < 20; i++) {
@@ -986,14 +1282,14 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             cloud.setData('state', 'vanished');
             cloud.setVisible(false);
             const cBody = cloud.body as Phaser.Physics.Arcade.Body;
-            if (cBody) cBody.setEnable(false);
+            if (cBody) cBody.checkCollision.none = true;
 
             const respawnDelay = cloud.getData('respawnDelayMs') || 2500;
             this.scene.time.delayedCall(respawnDelay, () => {
                 if (!cloud.active) return;
                 cloud.setFrame(3);
                 cloud.setVisible(true);
-                if (cBody) cBody.setEnable(true);
+                if (cBody) cBody.checkCollision.none = false;
                 cloud.setData('state', 'idle');
             });
         });
@@ -1002,19 +1298,28 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     public update(_time: number, delta: number) {
         if (this.isDead) return;
 
-        // Frozen until player crosses BossFightEntrance or enters the arena
+        if (!this.isEntranceRevealed && this.isPlayerTouchingEntrance()) {
+            this.isEntranceRevealed = true;
+            if (this.arenaCover) {
+                this.arenaCover.setVisible(false);
+            }
+            if (this.envManager) {
+                this.envManager.triggerRevealLayer('', true);
+                this.envManager.triggerRevealLayer('DungeonFill', true);
+                this.envManager.triggerRevealLayer('1', true);
+            }
+        }
+
+        // Keep plainGround cover visible unless player has touched BossFightEntrance
+        if (this.arenaCover) {
+            this.arenaCover.setVisible(!this.isEntranceRevealed);
+        }
+
+        const inArena = this.isPlayerInArena();
+
+        // Frozen until player enters the arena
         if (!this.hasStarted) {
-            const px = this.player.x;
-            const py = this.player.y;
-            const pRect = new Phaser.Geom.Rectangle(this.player.x - 16, this.player.y - 16, 32, 32);
-
-            const crossedEntrance = this.bossEntranceZone && (
-                Phaser.Geom.Rectangle.Contains(this.bossEntranceZone, px, py) ||
-                Phaser.Geom.Intersects.RectangleToRectangle(this.bossEntranceZone, pRect)
-            );
-            const inArena = this.isPlayerInArena();
-
-            if (crossedEntrance || inArena) {
+            if (inArena) {
                 this.activateEncounter();
             } else {
                 // Keep boss & all moving platforms completely frozen outside
@@ -1025,23 +1330,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                     const cBody = cloud.body as Phaser.Physics.Arcade.Body;
                     if (cBody) cBody.setVelocity(0, 0);
                 });
-                if (this.arenaCover) {
-                    this.arenaCover.setVisible(true);
-                }
-                if (this.entranceCover) {
-                    this.entranceCover.setVisible(true);
-                }
                 return;
             }
-        }
-
-        const inArena = this.isPlayerInArena();
-
-        if (this.arenaCover) {
-            this.arenaCover.setVisible(false);
-        }
-        if (this.entranceCover) {
-            this.entranceCover.setVisible(false);
         }
 
         if (!inArena) {
@@ -1075,11 +1365,6 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         if (this.bossRespawnPoint) {
             this.player.activeSpawnX = this.bossRespawnPoint.x;
             this.player.activeSpawnY = this.bossRespawnPoint.y;
-        }
-
-        // Lethal Body Contact
-        if (this.bossState !== 'vanished' && this.scene.physics.overlap(this.player, this as unknown as Phaser.GameObjects.GameObject)) {
-            this.player.die();
         }
 
         // Projectile overlap
@@ -1149,9 +1434,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             }
         }
 
-        // Moving Cloud Platforms Patrol
+        // Moving Cloud Platforms Patrol - continues pathing even when vanished
         this.tempClouds.forEach(cloud => {
-            if (!cloud.active || cloud.getData('state') === 'vanished') return;
+            if (!cloud.active) return;
             const speed = cloud.getData('speed') as number;
             const distance = cloud.getData('distance') as number;
             if (!speed || !distance) return;

@@ -249,6 +249,108 @@ export class UIManager {
         menuBtnContainer.add([btnBg, btnText]);
     }
 
+    // Boss Health Bar UI Container & Elements
+    private bossHealthContainer?: Phaser.GameObjects.Container;
+    private bossHealthBarGraphics?: Phaser.GameObjects.Graphics;
+    private bossHealthNameText?: Phaser.GameObjects.Text;
+    private readonly bossBarWidth: number = 340;
+    private readonly bossBarHeight: number = 12;
+    private bossBarTweenObj = { pct: 1 };
+
+    public showBossHealthBar(bossName: string = '⚡ ELECKING ⚡', maxHp: number = 50, currentHp: number = 50) {
+        if (!this.bossHealthContainer) {
+            const screenCenterX = this.scene.scale.width / 2;
+            const topY = 56;
+
+            this.bossHealthContainer = this.scene.add.container(screenCenterX, topY).setScrollFactor(0).setDepth(20);
+
+            // Boss Title / Name on top of the health bar
+            this.bossHealthNameText = this.scene.add.text(0, -12, bossName, {
+                fontSize: '13px',
+                fontFamily: 'Arial',
+                color: '#fca5a5',
+                stroke: '#000000',
+                strokeThickness: 3,
+                fontStyle: 'bold'
+            }).setOrigin(0.5);
+
+            // Health Bar Graphics (Rounded health bar with track and dynamic fill, no border, no background card)
+            this.bossHealthBarGraphics = this.scene.add.graphics();
+
+            this.bossHealthContainer.add([this.bossHealthBarGraphics, this.bossHealthNameText]);
+        }
+
+        if (this.bossHealthNameText) this.bossHealthNameText.setText(bossName);
+        this.bossBarTweenObj.pct = Math.min(1, Math.max(0, currentHp / maxHp));
+        this.renderBossHealthBar(this.bossBarTweenObj.pct);
+        this.bossHealthContainer.setAlpha(0);
+        this.bossHealthContainer.setVisible(true);
+
+        this.scene.tweens.add({
+            targets: this.bossHealthContainer,
+            alpha: 1,
+            y: 56,
+            duration: 300,
+            ease: 'Cubic.easeOut'
+        });
+    }
+
+    private renderBossHealthBar(pct: number) {
+        if (!this.bossHealthBarGraphics) return;
+        this.bossHealthBarGraphics.clear();
+
+        const x = -this.bossBarWidth / 2;
+        const y = 2;
+        const radius = 6;
+
+        // Dark track for empty health portion
+        this.bossHealthBarGraphics.fillStyle(0x0f172a, 0.7);
+        this.bossHealthBarGraphics.fillRoundedRect(x, y, this.bossBarWidth, this.bossBarHeight, radius);
+
+        const safePct = Math.min(1, Math.max(0, pct));
+        const fillWidth = this.bossBarWidth * safePct;
+
+        if (fillWidth > 0) {
+            // Color shift: bright red -> orange -> crimson on low hp
+            const color = safePct <= 0.3 ? 0xdc2626 : (safePct <= 0.6 ? 0xf97316 : 0xef4444);
+            this.bossHealthBarGraphics.fillStyle(color, 1);
+            const fillRadius = fillWidth < radius * 2 ? Math.floor(fillWidth / 2) : radius;
+            this.bossHealthBarGraphics.fillRoundedRect(x, y, fillWidth, this.bossBarHeight, fillRadius);
+        }
+    }
+
+    public updateBossHealthBar(currentHp: number, maxHp: number = 50) {
+        if (!this.bossHealthContainer || !this.bossHealthBarGraphics) return;
+
+        const safeHp = Math.max(0, currentHp);
+        const targetPct = Math.min(1, Math.max(0, safeHp / maxHp));
+
+        this.scene.tweens.killTweensOf(this.bossBarTweenObj);
+        this.scene.tweens.add({
+            targets: this.bossBarTweenObj,
+            pct: targetPct,
+            duration: 180,
+            ease: 'Cubic.easeOut',
+            onUpdate: () => {
+                this.renderBossHealthBar(this.bossBarTweenObj.pct);
+            }
+        });
+    }
+
+    public hideBossHealthBar() {
+        if (this.bossHealthContainer && this.bossHealthContainer.visible) {
+            this.scene.tweens.add({
+                targets: this.bossHealthContainer,
+                alpha: 0,
+                duration: 250,
+                ease: 'Linear',
+                onComplete: () => {
+                    if (this.bossHealthContainer) this.bossHealthContainer.setVisible(false);
+                }
+            });
+        }
+    }
+
     updateHUD(formattedTime: string, coins: number, kills: number, deaths: number) {
         this.hudText.setText(`TIME: ${formattedTime}   |   DEATHS: ${deaths}   |   COINS: ${coins}   |   KILLS: ${kills}`);
     }
@@ -293,6 +395,7 @@ export class UIManager {
     }
 
     spawnParticles(x: number, y: number, color: number) {
+        if (x === undefined || y === undefined || isNaN(x) || isNaN(y)) return;
         const particles = this.scene.add.particles(x, y, 'particle', { 
             speed: { min: 50, max: 150 }, scale: { start: 1, end: 0 }, tint: color, lifespan: 600, blendMode: 'ADD', emitting: false 
         });

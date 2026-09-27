@@ -19,8 +19,6 @@ export class InventoryManager {
     private savedCheckpointHasGun: boolean = false;
     private savedCheckpointHasTotem: boolean = false;
 
-    private keyE!: Phaser.Input.Keyboard.Key;
-
     // Dynamic Equipment Badges Container
     private hudContainer!: Phaser.GameObjects.Container;
     private gunBadgeContainer!: Phaser.GameObjects.Container;
@@ -40,7 +38,6 @@ export class InventoryManager {
         this.uiManager = uiManager;
         this.soundManager = soundManager;
 
-        this.setupInputs();
         this.createEquipmentUI();
         this.saveCheckpointSnapshot();
     }
@@ -58,11 +55,6 @@ export class InventoryManager {
         this.player.hasGun = this.savedCheckpointHasGun;
         this.player.hasTotem = this.savedCheckpointHasTotem;
         this.updateUI();
-    }
-
-    private setupInputs() {
-        if (!this.scene.input.keyboard) return;
-        this.keyE = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     }
 
     private createEquipmentUI() {
@@ -92,7 +84,7 @@ export class InventoryManager {
             .setOrigin(0.5);
         const totemIcon = this.scene.add.image(-badgeWidth / 2 + 18, 0, 'totem')
             .setDisplaySize(20, 20);
-        this.totemText = this.scene.add.text(-badgeWidth / 2 + 34, 0, '[E] Activate Totem', {
+        this.totemText = this.scene.add.text(-badgeWidth / 2 + 34, 0, 'Totem: ACTIVE', {
             fontSize: '11px', fontFamily: 'Arial', color: '#FFD700', fontStyle: 'bold'
         }).setOrigin(0, 0.5);
 
@@ -112,7 +104,19 @@ export class InventoryManager {
 
     public addTotem() {
         this.totemCount++;
+        this.player.hasTotem = true;
+        this.updatePlayerTint();
+        this.uiManager.showFloatingText(this.player.x, this.player.y - 20, 'TOTEM SHIELD ACTIVATED!', '#FFD700', 1200);
+        this.uiManager.spawnParticles(this.player.x, this.player.y, 0xFFD700);
+        this.scene.cameras.main.shake(150, 0.006);
         this.soundManager?.playPowerup();
+        this.updateUI();
+    }
+
+    public consumeTotem() {
+        this.totemCount = 0;
+        this.player.hasTotem = false;
+        this.updatePlayerTint();
         this.updateUI();
     }
 
@@ -126,21 +130,14 @@ export class InventoryManager {
     public activateShield() {
         if (this.player.isDying || this.player.isTeleporting) return;
 
-        if (this.player.hasTotem) {
-            // Silently do nothing when totem is already active (no redundant notifications)
-            return;
-        }
-
-        if (this.totemCount > 0) {
-            this.totemCount--;
+        if (!this.player.hasTotem && this.totemCount > 0) {
             this.player.hasTotem = true;
             this.updatePlayerTint();
-            this.uiManager.showFloatingText(this.player.x, this.player.y - 20, 'TOTEM ACTIVATED!', '#FFD700', 1200);
+            this.uiManager.showFloatingText(this.player.x, this.player.y - 20, 'TOTEM SHIELD ACTIVATED!', '#FFD700', 1200);
             this.uiManager.spawnParticles(this.player.x, this.player.y, 0xFFD700);
             this.scene.cameras.main.shake(150, 0.006);
             this.soundManager?.playPowerup();
         }
-        // When totemCount === 0: silently do nothing
 
         this.updateUI();
     }
@@ -151,15 +148,12 @@ export class InventoryManager {
     }
 
     public update() {
-        if (this.player.isNearDoor || this.player.isDying || this.player.isTeleporting) return;
-        if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
-            this.activateShield();
-        }
+        // Totems activate automatically upon collection
     }
 
     public updateUI() {
         const hasGun = Boolean(this.player.hasGun || this.gunCount > 0);
-        const hasTotem = Boolean(this.player.hasTotem || this.totemCount > 0);
+        const hasTotem = Boolean(this.player.hasTotem && this.totemCount > 0);
 
         const centerX = this.scene.scale.width / 2;
         const posY = this.scene.scale.height - 38;
@@ -181,12 +175,7 @@ export class InventoryManager {
         }
 
         this.gunText.setText('[L-Click / Ctrl] Shoot');
-
-        if (this.player.hasTotem) {
-            this.totemText.setText(this.totemCount > 0 ? `Totem: ACTIVE (+${this.totemCount})` : 'Totem: ACTIVE');
-        } else {
-            this.totemText.setText(this.totemCount > 1 ? `[E] Activate Totem (${this.totemCount})` : '[E] Activate Totem');
-        }
+        this.totemText.setText('Totem: ACTIVE');
 
         this.updatePlayerTint();
     }

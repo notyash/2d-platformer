@@ -348,6 +348,12 @@ export class EnvironmentManager {
         rawMapObjects.forEach((obj: any) => {
             const rawName = String(obj.name || '').trim();
             const lowerName = rawName.toLowerCase();
+
+            // Exclude BossArenaZone / BossLimit from being direct reveal triggers (revealed via BossFightEntrance)
+            if (lowerName === 'bossarenazone' || lowerName === 'bossarena' || lowerName === 'bosslimit' || lowerName === 'bossfightzone') {
+                return;
+            }
+
             const isBoss = lowerName.includes('boss');
             const isTrigger = isBoss || 
                 lowerName.includes('reveal') || 
@@ -423,7 +429,7 @@ export class EnvironmentManager {
     setupRevealTileLayers(map: Phaser.Tilemaps.Tilemap, allTilesets: Phaser.Tilemaps.Tileset[]) {
         const standardLayerNames = [
             'Sky', 'Trees', 'Background', 'Transparent', 
-            'Ground', 'OneWayPlatforms', 'SmashGround', 
+            'Ground', 'OneWayPlatforms', 'SmashGround', 'Well', 'well',
             'Hazards', 'Foreground'
         ];
 
@@ -764,8 +770,11 @@ export class EnvironmentManager {
 
         this.scene.physics.add.collider(this.player.bullets, this.wells, (bulletObj) => {
             const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
-            this.uiManager.spawnParticles(bullet.x, bullet.y, 0x808080);
+            if (!bullet || !bullet.active) return;
+            const bx = bullet.x;
+            const by = bullet.y;
             bullet.destroy();
+            this.uiManager.spawnParticles(bx, by, 0x808080);
         });
     }
 
@@ -925,7 +934,10 @@ export class EnvironmentManager {
                         'new lava': 'new lava',
                         'gravity orb': 'gravity-orb',
                         'attack tiles': 'attack-tiles',
-                        'temp platforms': 'temp-platforms'
+                        'temp platforms': 'temp-platforms',
+                        'dungeon background1': 'dungeon background1',
+                        'dungeon-background1': 'dungeon-background1',
+                        'dungeon background 1': 'dungeon background1'
                     };
 
                     const resolvedKey = tilesetKeyMap[tileset.name] || tileset.name;

@@ -82,12 +82,8 @@ export class CollectiblesManager {
             this.soundManager?.playPowerup();
         });
 
-        this.totemSprites = this.createGroup('Totem', 'totem', '', (t) => {
-            this.uiManager.showFloatingText(t.x, t.y - 10, '+1 SHIELD [SLOT 2]', '#FFD700');
-            this.uiManager.spawnParticles(t.x, t.y, 0xFFD700);
-            this.scene.cameras.main.shake(150, 0.006); 
+        this.totemSprites = this.createGroup('Totem', 'totem', '', (_t) => {
             this.inventoryManager.addTotem();
-            this.soundManager?.playPowerup();
         });
     }
 
