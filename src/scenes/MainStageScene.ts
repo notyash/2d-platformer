@@ -341,11 +341,6 @@ export class MainStageScene extends Phaser.Scene {
         if (this.envManager.movingPlatforms.length > 0) {
             this.physics.add.collider(this.enemyManager.groundMobs, this.envManager.movingPlatforms);
         }
-        if (this.envManager.bridges.length > 0) {
-            this.envManager.bridges.forEach(b => {
-                this.physics.add.collider(this.enemyManager.groundMobs, b.sprite, undefined, () => !b.broken);
-            });
-        }
         
         this.collectiblesManager.setupCollectibles(map);
 
@@ -942,7 +937,7 @@ export class MainStageScene extends Phaser.Scene {
         const wellRectObjs = rawMapObjects.filter((obj: any) => {
             const name = String(obj.name || '').trim().toLowerCase();
             const type = String(obj.type || '').trim().toLowerCase();
-            return (name === 'well' || type === 'well' || name === 'smashground' || name === 'smash') && 
+            return (name === 'well' || name.startsWith('well') || type === 'well' || type.startsWith('well')) && 
                 obj.gid === undefined && 
                 (obj.width || 0) > 0 && 
                 (obj.height || 0) > 0;

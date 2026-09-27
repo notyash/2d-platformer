@@ -88,6 +88,7 @@ export class EnvironmentManager {
     public doorSprites: Phaser.GameObjects.Sprite[] = [];
     public wells?: Phaser.Physics.Arcade.StaticGroup;
     public wellObjects: { x: number, y: number, width: number, height: number, topY: number }[] = [];
+    public playerSmashAirborne: boolean = false;
 
     constructor(
         scene: Phaser.Scene, 
@@ -427,30 +428,30 @@ export class EnvironmentManager {
     }
 
     setupRevealTileLayers(map: Phaser.Tilemaps.Tilemap, allTilesets: Phaser.Tilemaps.Tileset[]) {
-        const standardLayerNames = [
-            'Sky', 'Trees', 'Background', 'Transparent', 
-            'Ground', 'OneWayPlatforms', 'SmashGround', 'Well', 'well',
-            'Hazards', 'Foreground'
+        const nonRevealLayers = [
+            'sky', 'trees', 'mountain', 'mountains', 'background', 'transparent', 
+            'ground', 'onewayplatforms', 'oneway', 'smashground', 'well',
+            'hazards', 'hazard', 'foreground'
         ];
 
         map.layers.forEach(layerData => {
             const name = layerData.name;
-            if (standardLayerNames.includes(name)) return;
+            const lowerName = name.toLowerCase().trim();
+            if (nonRevealLayers.includes(lowerName)) return;
 
-            const lowerName = name.toLowerCase();
-            let keepRevealed = lowerName.includes('boss') || lowerName.includes('fill') || lowerName.includes('dungeon');
-
-            // Calculate depth based on Tiled layer stack index or standard (below player 5, above ground 3)
+            // Check custom properties on the tile layer in Tiled
+            const rawProps = (layerData as any).properties;
+            let id = '';
             let depth = 4;
             const layerIndex = map.layers.indexOf(layerData);
             if (layerIndex !== -1) {
                 depth = layerIndex;
             }
 
-            // Check custom properties on the tile layer in Tiled
-            const rawProps = (layerData as any).properties;
-            let collides = true;
-            let id = '';
+            let keepRevealed = lowerName.includes('boss') || lowerName.includes('fill') || lowerName.includes('dungeon');
+            let collides = false;
+            let hasExplicitRevealProp = false;
+
             if (rawProps && Array.isArray(rawProps)) {
                 const idProp = rawProps.find((p: any) => 
                     p.name && (
@@ -459,8 +460,9 @@ export class EnvironmentManager {
                         p.name.toLowerCase() === 'triggerid'
                     )
                 );
-                if (idProp && idProp.value !== undefined) {
+                if (idProp && idProp.value !== undefined && String(idProp.value).trim() !== '') {
                     id = String(idProp.value).trim();
+                    hasExplicitRevealProp = true;
                 }
 
                 const depthProp = rawProps.find((p: any) => 
@@ -499,6 +501,21 @@ export class EnvironmentManager {
                 }
             }
 
+            // Only register as reveal layer if it has an id property or is named like a reveal/fill/cover/secret layer
+            const isRevealLayer = hasExplicitRevealProp || 
+                lowerName.includes('fill') || 
+                lowerName.includes('reveal') || 
+                lowerName.includes('secret') || 
+                lowerName.includes('cover') ||
+                lowerName.includes('dungeon');
+
+            if (!isRevealLayer) return;
+
+            // Solid / Fill layers collide by default
+            if (lowerName.includes('fill') || lowerName.includes('ground') || lowerName.includes('wall') || lowerName.includes('dungeon')) {
+                collides = true;
+            }
+
             const layer = layerData.tilemapLayer || (map.createLayer(name, allTilesets, 0, 0) as Phaser.Tilemaps.TilemapLayer);
             if (layer && 'setDepth' in layer) {
                 layer.setDepth(depth);
@@ -507,7 +524,7 @@ export class EnvironmentManager {
                 layer.setAlpha(initVis ? (layerData.alpha ?? (layerData as any).opacity ?? 1) : 0);
 
                 let collider: Phaser.Physics.Arcade.Collider | undefined;
-                if (collides || lowerName.includes('fill') || lowerName.includes('ground') || lowerName.includes('wall') || lowerName.includes('dungeon')) {
+                if (collides) {
                     layer.setCollisionByExclusion([-1], true);
                     collider = this.scene.physics.add.collider(this.player, layer, undefined, (_p, tile) => {
                         return (this.scene as any).checkTileWellCollision 
@@ -1128,7 +1145,9 @@ export class EnvironmentManager {
         const smashObjs = (rawMapObjects || []).filter((obj: any) => {
             const name = String(obj.name || '').trim().toLowerCase();
             const type = String(obj.type || '').trim().toLowerCase();
-            return name.includes('smash') || type.includes('smash');
+            return name.includes('smash') || type.includes('smash') ||
+                   name.includes('bridgebreak') || type.includes('bridgebreak') ||
+                   name.includes('breakzone') || type.includes('breakzone');
         });
 
         if (smashObjs.length > 0) {
@@ -1147,7 +1166,10 @@ export class EnvironmentManager {
             if (objectLayer) {
                 objectLayer.objects.filter((obj: any) => {
                     const name = String(obj.name || '').trim().toLowerCase();
-                    return name.includes('smash');
+                    const type = String(obj.type || '').trim().toLowerCase();
+                    return name.includes('smash') || type.includes('smash') ||
+                           name.includes('bridgebreak') || type.includes('bridgebreak') ||
+                           name.includes('breakzone') || type.includes('breakzone');
                 }).forEach((obj: any) => {
                     const zone = this.scene.add.zone(obj.x! + (obj.width! / 2), obj.y! + (obj.height! / 2), obj.width!, obj.height!);
                     this.scene.physics.add.existing(zone, true);
@@ -1160,21 +1182,16 @@ export class EnvironmentManager {
     setupBridges(_map: Phaser.Tilemaps.Tilemap, rawMapObjects: any[]) {
         this.bridges = [];
 
-        // 1. Locate all Bridge objects from map object layer
-        let bridgeObjs = rawMapObjects.filter((obj: any) => {
+        // Locate only actual Bridge platform objects (exclude trigger/break zones like BridgeBreakZone)
+        const bridgeObjs = rawMapObjects.filter((obj: any) => {
             const name = String(obj.name || '').trim().toLowerCase();
             const type = String(obj.type || '').trim().toLowerCase();
-            return name === 'bridge' || name.startsWith('bridge') || type === 'bridge';
+            if (name.includes('zone') || name.includes('break') || name.includes('trigger') ||
+                type.includes('zone') || type.includes('break') || type.includes('trigger')) {
+                return false;
+            }
+            return name === 'bridge' || /^bridge\d*$/i.test(name) || type === 'bridge';
         });
-
-        // 2. Fallback in case tilemap on disk hasn't saved the object layer yet:
-        // Populate standard smash ground locations at (2464, 736) and (4640, 768)
-        if (bridgeObjs.length === 0) {
-            bridgeObjs = [
-                { name: 'Bridge', x: 2464, y: 736, width: 96, height: 32 },
-                { name: 'Bridge', x: 4640, y: 768, width: 96, height: 32 }
-            ];
-        }
 
         bridgeObjs.forEach((obj: any) => {
             const hasGid = obj.gid !== undefined;
@@ -1216,8 +1233,8 @@ export class EnvironmentManager {
                     const pBody = this.player.body as Phaser.Physics.Arcade.Body;
                     const bridgeTop = sprite.y;
 
-                    // Bridge ONLY breaks when falling from a SmashTrigger (this.player.canSmash is active)
-                    if (pBody.velocity.y > 0 && this.player.canSmash) {
+                    // Bridge ONLY breaks when falling from a BridgeBreakZone/SmashTrigger (this.player.canSmash is active)
+                    if (pBody.velocity.y >= 0 && this.player.canSmash) {
                         this.breakBridge(bridgeData);
                         this.player.canSmash = false;
                         return false; // Break through without collision obstruction
@@ -1624,40 +1641,73 @@ export class EnvironmentManager {
             }
         }
 
-        // Handle Smash Triggers
+        // Handle Smash / BridgeBreak Triggers
         let touchingTrigger = false;
+        const pRect = new Phaser.Geom.Rectangle(pBody.x, pBody.y, pBody.width, pBody.height);
+        
+        // 1. Check all explicit BridgeBreakZone objects (with horizontal leeway to cover the entire ledge & shaft)
         this.smashTriggers.forEach(zone => {
-            if (zone.getData('used')) return;
-            const pRect = new Phaser.Geom.Rectangle(pBody.x, pBody.y, pBody.width, pBody.height);
-            if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, zone.getBounds())) {
+            const zb = zone.getBounds();
+            const expanded = new Phaser.Geom.Rectangle(zb.x - 140, zb.y - 40, zb.width + 180, zb.height + 80);
+            if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, expanded)) {
                 touchingTrigger = true;
-                zone.setData('used', true);
             }
         });
 
-        if (touchingTrigger) {
-            this.player.canSmash = true;
-        } else if (this.player.canSmash) {
-            // If the fall is stopped anyhow before reaching the bridge:
-            // e.g. landed on ground/platform, velocity reversed (jumped/bounced), teleporting, or dying
-            const isFalling = pBody.velocity.y > 0;
-            const landedElsewhere = (pBody.blocked.down || pBody.touching.down || this.player.isOnPlatform) && !this.isPlayerTouchingBridge();
-
-            if (!isFalling || landedElsewhere || this.player.isDying || this.player.isTeleporting) {
-                this.player.canSmash = false;
+        // 2. Also check if the player is in the air in the vertical drop column directly above any bridge
+        for (const bridge of this.bridges) {
+            if (!bridge.broken && bridge.sprite && bridge.sprite.active) {
+                const b = bridge.sprite.getBounds();
+                const dropColumn = new Phaser.Geom.Rectangle(b.x - 32, 0, b.width + 160, b.y - 120);
+                if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, dropColumn)) {
+                    touchingTrigger = true;
+                }
             }
         }
 
-        // Proactive check: if player is falling downwards through/into any bridge zone WITH canSmash
-        if (pBody.velocity.y > 0 && this.player.canSmash) {
-            for (const bridge of this.bridges) {
-                if (!bridge.broken && bridge.sprite && bridge.sprite.active) {
-                    const b = bridge.sprite.getBounds();
-                    const pRect = new Phaser.Geom.Rectangle(pBody.x, pBody.y, pBody.width, pBody.height);
-                    const bridgeZone = new Phaser.Geom.Rectangle(b.x - 4, b.y - 10, b.width + 8, b.height + 20);
-                    if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, bridgeZone)) {
+        if (touchingTrigger) {
+            this.player.canSmash = true;
+            this.playerSmashAirborne = false;
+        } else if (this.player.canSmash) {
+            const isAirborne = !pBody.blocked.down && !pBody.touching.down && !this.player.isOnPlatform;
+            if (isAirborne) {
+                this.playerSmashAirborne = true;
+            }
+
+            // Only cancel if player was airborne and then landed on solid ground FAR away from all bridges:
+            if (this.playerSmashAirborne && (pBody.blocked.down || pBody.touching.down || this.player.isOnPlatform)) {
+                let nearAnyBridge = false;
+                for (const bridge of this.bridges) {
+                    if (!bridge.broken && bridge.sprite && bridge.sprite.active) {
+                        const b = bridge.sprite.getBounds();
+                        if (pBody.bottom >= b.y - 48 && pBody.bottom <= b.y + b.height + 48) {
+                            nearAnyBridge = true;
+                            break;
+                        }
+                    }
+                }
+                if (!nearAnyBridge) {
+                    this.player.canSmash = false;
+                    this.playerSmashAirborne = false;
+                }
+            }
+
+            if (this.player.isDying || this.player.isTeleporting) {
+                this.player.canSmash = false;
+                this.playerSmashAirborne = false;
+            }
+        }
+
+        // Proactive check: if player is touching/inside any bridge zone while canSmash is active OR falling from height
+        for (const bridge of this.bridges) {
+            if (!bridge.broken && bridge.sprite && bridge.sprite.active) {
+                const b = bridge.sprite.getBounds();
+                const bridgeZone = new Phaser.Geom.Rectangle(b.x - 8, b.y - 16, b.width + 16, b.height + 32);
+                if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, bridgeZone)) {
+                    if (this.player.canSmash || pBody.velocity.y > 100) {
                         this.breakBridge(bridge);
                         this.player.canSmash = false;
+                        this.playerSmashAirborne = false;
                     }
                 }
             }

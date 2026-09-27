@@ -1214,14 +1214,6 @@ export class EnemyManager {
             if (wellTile && wellTile.index !== -1) return true;
         }
 
-        if (this.envManager?.bridges) {
-            for (const b of this.envManager.bridges) {
-                if (!b.broken && b.sprite && b.sprite.active && b.sprite.getBounds().contains(checkX, checkY)) {
-                    return true;
-                }
-            }
-        }
-
         if (this.envManager?.wellObjects) {
             for (const well of this.envManager.wellObjects) {
                 const wBounds = new Phaser.Geom.Rectangle(well.x - well.width / 2, well.topY - 4, well.width, well.height + 8);

@@ -1,4 +1,12 @@
 { "compressionlevel":-1,
+ "editorsettings":
+    {
+     "export":
+        {
+         "format":"json",
+         "target":"harder-main-stage.json"
+        }
+    },
  "height":45,
  "infinite":false,
  "layers":[
@@ -289,15 +297,15 @@
                  "y":320.667
                 }, 
                 {
-                 "height":129.083,
+                 "height":129.05175,
                  "id":50,
-                 "name":"SmashTrigger",
+                 "name":"BridgeBreakZone",
                  "opacity":1,
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":159.174,
-                 "x":2560.4,
+                 "width":159.64275,
+                 "x":2559.93125,
                  "y":191.031
                 }, 
                 {
@@ -1068,7 +1076,7 @@
                  "type":"",
                  "visible":true,
                  "width":31.3636,
-                 "x":2496,
+                 "x":2400,
                  "y":704
                 }, 
                 {
@@ -1836,7 +1844,7 @@
                  "y":736
                 }, 
                 {
-                 "height":806.881,
+                 "height":773.881,
                  "id":163,
                  "name":"ShootThroughWallsZone",
                  "opacity":1,
@@ -1960,19 +1968,6 @@
                  "width":24,
                  "x":3876.18181818182,
                  "y":256
-                }, 
-                {
-                 "capsule":true,
-                 "height":0,
-                 "id":170,
-                 "name":"GunPowerup",
-                 "opacity":1,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":0,
-                 "x":3536.45454545455,
-                 "y":754.212121212121
                 }, 
                 {
                  "gid":1653,
@@ -2126,8 +2121,8 @@
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":837.39393939393,
-                 "y":193.473484848485
+                 "x":2656,
+                 "y":192
                 }, 
                 {
                  "height":31.93,
@@ -3184,8 +3179,7 @@
                  "width":32,
                  "x":3360,
                  "y":768
-                },
-            
+                }, 
                 {
                  "gid":1667,
                  "height":32,
@@ -3198,7 +3192,8 @@
                  "width":32,
                  "x":3680,
                  "y":768
-                }, 
+                },
+            
                 {
                  "gid":1667,
                  "height":32,
@@ -4323,6 +4318,63 @@
                  "width":96,
                  "x":4640,
                  "y":672.363636363636
+                }, 
+                {
+                 "gid":1645,
+                 "height":24,
+                 "id":492,
+                 "name":"Coin",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"scale",
+                         "type":"float",
+                         "value":2.1
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":24,
+                 "x":3492,
+                 "y":768
+                }, 
+                {
+                 "gid":1645,
+                 "height":24,
+                 "id":493,
+                 "name":"Coin",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"scale",
+                         "type":"float",
+                         "value":2.1
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":24,
+                 "x":3524,
+                 "y":768
+                }, 
+                {
+                 "gid":1645,
+                 "height":24,
+                 "id":494,
+                 "name":"Coin",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"scale",
+                         "type":"float",
+                         "value":2.1
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":24,
+                 "x":3556,
+                 "y":768
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -4407,7 +4459,7 @@
          "y":0
         }],
  "nextlayerid":14,
- "nextobjectid":492,
+ "nextobjectid":495,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.12.2",
