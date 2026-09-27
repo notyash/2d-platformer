@@ -105,6 +105,11 @@ export class EnemyManager {
         // Mobs vs Ground Layer collision
         this.scene.physics.add.collider(this.groundMobs, this.groundLayer);
 
+        // Mobs vs Wells collision (treat Wells as solid ground)
+        if (this.envManager && this.envManager.wells) {
+            this.scene.physics.add.collider(this.groundMobs, this.envManager.wells);
+        }
+
         // Mobs vs Smash Ground collision
         if (this.smashLayer) {
             this.scene.physics.add.collider(this.groundMobs, this.smashLayer);
@@ -150,6 +155,19 @@ export class EnemyManager {
             eBullet.destroy();
             this.soundManager?.playStomp();
         });
+
+        // Enemy Bullets vs Wells collision
+        if (this.envManager && this.envManager.wells) {
+            this.scene.physics.add.collider(
+                this.enemyBullets, 
+                this.envManager.wells, 
+                (bulletObj) => {
+                    const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
+                    this.uiManager.spawnParticles(bullet.x, bullet.y, 0x94A3B8);
+                    bullet.destroy();
+                }
+            );
+        }
 
         // Enemy Bullets vs Ground Layer (Process callback returns false to phase straight through walls inside IgnoreLOSZone)
         this.scene.physics.add.collider(
@@ -1142,9 +1160,59 @@ export class EnemyManager {
         return false;
     }
 
+    public isPlayerInsideOrBehindWell(): boolean {
+        if (!this.player || !this.player.body || !this.envManager) return false;
+        if (this.player.isTeleporting) return true;
+        const pBody = this.player.body as Phaser.Physics.Arcade.Body;
+        const pRect = new Phaser.Geom.Rectangle(pBody.x, pBody.y, pBody.width, pBody.height);
+        if (this.envManager.wellObjects) {
+            for (const well of this.envManager.wellObjects) {
+                const wBounds = new Phaser.Geom.Rectangle(well.x - well.width / 2, well.topY, well.width, well.height);
+                if (Phaser.Geom.Intersects.RectangleToRectangle(pRect, wBounds)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private isSolidFloorAt(checkX: number, checkY: number, allowOneWay: boolean, groundLayer: Phaser.Tilemaps.TilemapLayer, oneWayLayer: Phaser.Tilemaps.TilemapLayer): boolean {
+        const tile = groundLayer.getTileAtWorldXY(checkX, checkY);
+        if (tile && tile.index !== -1) return true;
+
+        if (allowOneWay) {
+            const oneWayTile = oneWayLayer.getTileAtWorldXY(checkX, checkY);
+            if (oneWayTile && oneWayTile.index !== -1) return true;
+        }
+
+        if (this.smashLayer) {
+            const smashTile = this.smashLayer.getTileAtWorldXY(checkX, checkY);
+            if (smashTile && smashTile.index !== -1) return true;
+        }
+
+        if (this.envManager?.bridges) {
+            for (const b of this.envManager.bridges) {
+                if (!b.broken && b.sprite && b.sprite.active && b.sprite.getBounds().contains(checkX, checkY)) {
+                    return true;
+                }
+            }
+        }
+
+        if (this.envManager?.wellObjects) {
+            for (const well of this.envManager.wellObjects) {
+                const wBounds = new Phaser.Geom.Rectangle(well.x - well.width / 2, well.topY - 4, well.width, well.height + 8);
+                if (wBounds.contains(checkX, checkY)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private hasLineOfSight(mobX: number, mobY: number, targetX: number, targetY: number): boolean {
-        // If player is standing inside / within smash ground blocks, block all detection
-        if (this.isPlayerInsideOrBehindSmashGround()) return false;
+        // If player is standing inside / within smash ground blocks or inside well, block all detection
+        if (this.isPlayerInsideOrBehindSmashGround() || this.isPlayerInsideOrBehindWell()) return false;
 
         this.losLine.setTo(mobX, mobY, targetX, targetY);
 
@@ -1155,6 +1223,15 @@ export class EnemyManager {
                     if (Phaser.Geom.Intersects.LineToRectangle(this.losLine, bBounds)) {
                         return false;
                     }
+                }
+            }
+        }
+
+        if (this.envManager && this.envManager.wellObjects) {
+            for (const well of this.envManager.wellObjects) {
+                const wBounds = new Phaser.Geom.Rectangle(well.x - well.width / 2, well.topY, well.width, well.height);
+                if (Phaser.Geom.Intersects.LineToRectangle(this.losLine, wBounds)) {
+                    return false;
                 }
             }
         }
@@ -1190,7 +1267,7 @@ export class EnemyManager {
             }
         }
 
-        // Raycast step check to guarantee zero line-of-sight leaking through tile seams
+        // Raycast step check to guarantee zero line-of-sight leaking through tile seams / well bounds
         const dist = Phaser.Math.Distance.Between(mobX, mobY, targetX, targetY);
         const steps = Math.max(2, Math.ceil(dist / 12));
         for (let i = 1; i < steps; i++) {
@@ -1203,6 +1280,12 @@ export class EnemyManager {
             if (this.smashLayer) {
                 const sTile = this.smashLayer.getTileAtWorldXY(sampleX, sampleY);
                 if (sTile && sTile.index !== -1) return false;
+            }
+            if (this.envManager && this.envManager.wellObjects) {
+                for (const well of this.envManager.wellObjects) {
+                    const wBounds = new Phaser.Geom.Rectangle(well.x - well.width / 2, well.topY, well.width, well.height);
+                    if (wBounds.contains(sampleX, sampleY)) return false;
+                }
             }
         }
 
@@ -1387,11 +1470,7 @@ export class EnemyManager {
                 if (testX < spawnX && rangeLeft !== undefined && (spawnX - testX) > rangeLeft) continue;
                 if (testX > spawnX && rangeRight !== undefined && (testX - spawnX) > rangeRight) continue;
 
-                const gTile = groundLayer.getTileAtWorldXY(testX, testY);
-                const owTile = allowOneWay ? oneWayLayer.getTileAtWorldXY(testX, testY) : null;
-                const smashTile = this.smashLayer ? this.smashLayer.getTileAtWorldXY(testX, testY) : null;
-                const bridgeFloor = this.envManager?.bridges ? this.envManager.bridges.some(b => !b.broken && b.sprite.active && b.sprite.getBounds().contains(testX, testY)) : false;
-                const hasSolidFloor = (gTile && gTile.index !== -1) || (owTile && owTile.index !== -1) || (smashTile && smashTile.index !== -1) || bridgeFloor;
+                const hasSolidFloor = this.isSolidFloorAt(testX, testY, allowOneWay, groundLayer, oneWayLayer);
 
                 if (!hasSolidFloor) continue;
 
@@ -1648,11 +1727,7 @@ export class EnemyManager {
                             const checkX = dir === 1 ? body.right + lookaheadDist : body.left - lookaheadDist;
                             const checkY = body.bottom + 6;
 
-                            const tile = groundLayer.getTileAtWorldXY(checkX, checkY);
-                            const oneWayTile = allowOneWay ? oneWayLayer.getTileAtWorldXY(checkX, checkY) : null;
-                            const smashTile = this.smashLayer ? this.smashLayer.getTileAtWorldXY(checkX, checkY) : null;
-                            const bridgeFloor = this.envManager?.bridges ? this.envManager.bridges.some(b => !b.broken && b.sprite.active && b.sprite.getBounds().contains(checkX, checkY)) : false;
-                            const hasFloor = (tile && tile.index !== -1) || (oneWayTile && oneWayTile.index !== -1) || (smashTile && smashTile.index !== -1) || bridgeFloor;
+                            const hasFloor = this.isSolidFloorAt(checkX, checkY, allowOneWay, groundLayer, oneWayLayer);
 
                             let isFloorHazard = false;
                             let isWallHazard = false;
@@ -1723,11 +1798,7 @@ export class EnemyManager {
                             const checkX = dir === 1 ? body.right + lookaheadDist : body.left - lookaheadDist;
                             const checkY = body.bottom + 6;
                             
-                            const tile = groundLayer.getTileAtWorldXY(checkX, checkY);
-                            const oneWayTile = allowOneWay ? oneWayLayer.getTileAtWorldXY(checkX, checkY) : null;
-                            const smashTile = this.smashLayer ? this.smashLayer.getTileAtWorldXY(checkX, checkY) : null;
-                            const bridgeFloor = this.envManager?.bridges ? this.envManager.bridges.some(b => !b.broken && b.sprite.active && b.sprite.getBounds().contains(checkX, checkY)) : false;
-                            const hasFloor = (tile && tile.index !== -1) || (oneWayTile && oneWayTile.index !== -1) || (smashTile && smashTile.index !== -1) || bridgeFloor;
+                            const hasFloor = this.isSolidFloorAt(checkX, checkY, allowOneWay, groundLayer, oneWayLayer);
                             
                             let isFloorHazard = false;
                             let isWallHazard = false;
@@ -1741,11 +1812,7 @@ export class EnemyManager {
 
                             if (!hasFloor || isFloorHazard || isWallHazard) {
                                 const oppCheckX = dir === 1 ? body.left - lookaheadDist : body.right + lookaheadDist;
-                                const oppTile = groundLayer.getTileAtWorldXY(oppCheckX, checkY);
-                                const oppOneWay = allowOneWay ? oneWayLayer.getTileAtWorldXY(oppCheckX, checkY) : null;
-                                const oppSmash = this.smashLayer ? this.smashLayer.getTileAtWorldXY(oppCheckX, checkY) : null;
-                                const oppBridgeFloor = this.envManager?.bridges ? this.envManager.bridges.some(b => !b.broken && b.sprite.active && b.sprite.getBounds().contains(oppCheckX, checkY)) : false;
-                                const oppHasFloor = (oppTile && oppTile.index !== -1) || (oppOneWay && oppOneWay.index !== -1) || (oppSmash && oppSmash.index !== -1) || oppBridgeFloor;
+                                const oppHasFloor = this.isSolidFloorAt(oppCheckX, checkY, allowOneWay, groundLayer, oneWayLayer);
 
                                 if (!oppHasFloor) {
                                     mob.setVelocityX(0);
@@ -1873,11 +1940,7 @@ export class EnemyManager {
                         const checkX = dir === 1 ? body.right + lookaheadDist : body.left - lookaheadDist;
                         const checkY = body.bottom + 6;
                         
-                        const tile = groundLayer.getTileAtWorldXY(checkX, checkY);
-                        const oneWayTile = allowOneWay ? oneWayLayer.getTileAtWorldXY(checkX, checkY) : null;
-                        const smashTile = this.smashLayer ? this.smashLayer.getTileAtWorldXY(checkX, checkY) : null;
-                        const bridgeFloor = this.envManager?.bridges ? this.envManager.bridges.some(b => !b.broken && b.sprite.active && b.sprite.getBounds().contains(checkX, checkY)) : false;
-                        const hasFloor = (tile && tile.index !== -1) || (oneWayTile && oneWayTile.index !== -1) || (smashTile && smashTile.index !== -1) || bridgeFloor;
+                        const hasFloor = this.isSolidFloorAt(checkX, checkY, allowOneWay, groundLayer, oneWayLayer);
                         
                         // Check if floor or body height ahead contains a hazard tile
                         let isFloorHazard = false;
@@ -1893,11 +1956,7 @@ export class EnemyManager {
                         if (!hasFloor || isFloorHazard || isWallHazard) {
                             // Check opposite side floor to detect isolated 1-tile ledges
                             const oppCheckX = dir === 1 ? body.left - lookaheadDist : body.right + lookaheadDist;
-                            const oppTile = groundLayer.getTileAtWorldXY(oppCheckX, checkY);
-                            const oppOneWay = allowOneWay ? oneWayLayer.getTileAtWorldXY(oppCheckX, checkY) : null;
-                            const oppSmash = this.smashLayer ? this.smashLayer.getTileAtWorldXY(oppCheckX, checkY) : null;
-                            const oppBridgeFloor = this.envManager?.bridges ? this.envManager.bridges.some(b => !b.broken && b.sprite.active && b.sprite.getBounds().contains(oppCheckX, checkY)) : false;
-                            const oppHasFloor = (oppTile && oppTile.index !== -1) || (oppOneWay && oppOneWay.index !== -1) || (oppSmash && oppSmash.index !== -1) || oppBridgeFloor;
+                            const oppHasFloor = this.isSolidFloorAt(oppCheckX, checkY, allowOneWay, groundLayer, oneWayLayer);
 
                             if (!oppHasFloor) {
                                 mob.setVelocityX(0);

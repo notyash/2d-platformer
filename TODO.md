@@ -123,15 +123,17 @@
 - [x] **8. New Bullet Sprite**: Integrated `new bullet sprite.png` (64x64) with directional animations (row 1 left frames 0-1, row 2 right frames 2-3) and updated collision box.
 - [ ] **9. Redesign Stage Below First Smash Ground**: Overhaul and rebalance the level design in the lower stage section beneath the first smash ground.
 - [ ] **10. Totem Respawn Animation**: Add dedicated activation and revival animation sequence for the Totem of Undying.
-- [ ] **11. Gun Movement Effects (Walking & Falling)**: Add specialized walking and airborne/falling animation frames while holding the Blaster Gun.
-- [ ] **12. Multi-Layer Background Parallax**: Implement seamless layered parallax scrolling for all background scenery assets and skyboxes without tile detachment.
-- [ ] **13. Performance Optimization (Eliminate Stuttering)**: Optimize tile rendering, particle emitters, texture filtering, and update loops to ensure silky smooth 60+ FPS without frame drops.
-- [ ] **14. UI Polish & Visual Glassmorphism**:
+- [x] **11. Gun Movement Effects (Walking, Falling & Jumping)**: Integrated specialized gun animations (`Player-Gun-Fall.png`, `Player-Gun-Walk-R.png`/`-L`, `Player-Jump-Gun-R.png`/`-L`) for walking, jumping, and falling while holding the Blaster Gun.
+- [ ] **12. Limited Blaster Ammo**: Implement limited ammunition for the Blaster Gun with real-time HUD ammo counter, shot depletion, and ammo pickups/replenishment.
+- [ ] **13. Well Teleport Emergence Animation**: Animate the teleporter transition so the player visibly climbs out of the well upon arrival (ascending emergence tween from inside the well).
+- [ ] **14. Multi-Layer Background Parallax**: Implement seamless layered parallax scrolling for all background scenery assets and skyboxes without tile detachment.
+- [ ] **15. Performance Optimization (Eliminate Stuttering)**: Optimize tile rendering, particle emitters, texture filtering, and update loops to ensure silky smooth 60+ FPS without frame drops.
+- [ ] **16. UI Polish & Visual Glassmorphism**:
   - Modernize HUD design with crisp retro glassmorphism, responsive status bars, and vibrant equipment status cards.
   - Refine pause menu and overlay layouts, improving button hover effects, typography, and spacing.
   - Add micro-animations and smooth transition effects for banners (checkpoint notifications, respawn alerts, timer cues).
-- [ ] **15. Cloudflare Turnstile Verification Widget**: Add free Turnstile bot protection widget to start-run UI and validate Turnstile tokens in `SurrealService.startRun()`.
-- [ ] **16. Web3 Wallet Connection (EIP-712 / SIWE)**: Connect browser wallet (MetaMask, Phantom, Wagmi) to authenticate sessions and sign run verification proofs.
+- [ ] **17. Cloudflare Turnstile Verification Widget**: Add free Turnstile bot protection widget to start-run UI and validate Turnstile tokens in `SurrealService.startRun()`.
+- [ ] **18. Web3 Wallet Connection (EIP-712 / SIWE)**: Connect browser wallet (MetaMask, Phantom, Wagmi) to authenticate sessions and sign run verification proofs.
 
 ---
 

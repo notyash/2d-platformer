@@ -124,6 +124,8 @@ export class InventoryManager {
     }
 
     public activateShield() {
+        if (this.player.isDying || this.player.isTeleporting) return;
+
         if (this.player.hasTotem) {
             this.uiManager.showFloatingText(this.player.x, this.player.y - 20, 'TOTEM ALREADY ACTIVE!', '#FFD700', 1200);
             return;
@@ -149,7 +151,7 @@ export class InventoryManager {
     }
 
     public update() {
-        if (this.player.isNearDoor) return;
+        if (this.player.isNearDoor || this.player.isDying || this.player.isTeleporting) return;
         if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
             this.activateShield();
         }

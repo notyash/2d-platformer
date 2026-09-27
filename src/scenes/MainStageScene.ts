@@ -85,7 +85,10 @@ export class MainStageScene extends Phaser.Scene {
         this.load.image('gravity orb', 'assets/sprites/boss/gravity orb.png');
         this.load.image('attack tiles', 'assets/sprites/boss/attack tiles.png');
         this.load.spritesheet('dandelion', 'assets/sprites/background/dandelion flower sprite.png', { frameWidth: 32, frameHeight: 32 });
-        this.load.image('well', 'assets/sprites/blocks/well.png');
+        this.load.image('well', 'assets/sprites/blocks/well2.png');
+        this.load.image('Well', 'assets/sprites/blocks/well2.png');
+        this.load.image('well2', 'assets/sprites/blocks/well2.png');
+        this.load.image('Well2', 'assets/sprites/blocks/well2.png');
         this.load.image('water', 'assets/sprites/blocks/water.png');
         this.load.image('lava', 'assets/sprites/blocks/lava.png');
         this.load.image('new lava', 'assets/sprites/blocks/new lava.png');
@@ -146,6 +149,13 @@ export class MainStageScene extends Phaser.Scene {
         this.load.spritesheet('player-fall', 'assets/sprites/player/Player-Falling.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('walk-r', 'assets/sprites/player/Player-Walk-R.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('walk-l', 'assets/sprites/player/Player-Walk-L.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('player-gun-fall', 'assets/sprites/player/Player-Gun-Fall.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('player-gun-walk-r', 'assets/sprites/player/Player-Gun-Walk-R.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('player-gun-walk-l', 'assets/sprites/player/Player-Gun-Walk-L.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('player-jump-gun-r', 'assets/sprites/player/Player-Jump-Gun-R.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('player-jump-gun-l', 'assets/sprites/player/Player-Jump-Gun-L.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('player-gun-idle-r', 'assets/sprites/player/Player-Gun-Idle-R.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('player-gun-idle-l', 'assets/sprites/player/Player-Gun-Idle-L.png', { frameWidth: 32, frameHeight: 32 });
 
         // Effects
         this.load.spritesheet('electric-death', 'assets/sprites/effects/electric death sprite.png', { frameWidth: 32, frameHeight: 32 });
@@ -278,11 +288,12 @@ export class MainStageScene extends Phaser.Scene {
         this.envManager.setupRevealTileLayers(map, this.allTilesets);
         this.envManager.setupWindZones(rawMapObjects);
         this.envManager.setupDoors(rawMapObjects);
+        this.envManager.setupWells(map, rawMapObjects);
         this.envManager.setupGunDisarmZones(rawMapObjects);
         this.envManager.setupMovingPlatforms(map, rawMapObjects);
         this.envManager.setupJumpPads(map, rawMapObjects);
         this.envManager.setupFirebars(rawMapObjects);
-        this.envManager.setupSmashTriggers(map);
+        this.envManager.setupSmashTriggers(map, rawMapObjects);
         this.envManager.setupBridges(map, rawMapObjects);
         this.envManager.setupDandelions(rawMapObjects);
         this.envManager.setupStartTutorialCues(rawMapObjects, spawnX, spawnY);
@@ -682,7 +693,8 @@ export class MainStageScene extends Phaser.Scene {
         const cbTemplateTileset = map.addTilesetImage('cb template', 'cb template');
         const dirtAndGrassRemadeTileset = map.addTilesetImage('DIRT AND GRASS REMADE', 'DIRT AND GRASS REMADE');
         const bridgeExtraTileset = map.addTilesetImage('bridge extra', 'bridge extra');
-        const wellTileset = map.addTilesetImage('well', 'well');
+        const wellTileset = map.addTilesetImage('well', 'well') || map.addTilesetImage('Well', 'well');
+        const well2Tileset = map.addTilesetImage('Well2', 'well2') || map.addTilesetImage('well2', 'well2') || map.addTilesetImage('Well2', 'well') || map.addTilesetImage('well2', 'well');
         const waterTileset = map.addTilesetImage('water', 'water');
         const lavaTileset = map.addTilesetImage('lava', 'lava');
         const bushTileset = map.addTilesetImage('bush', 'bush');
@@ -746,6 +758,7 @@ export class MainStageScene extends Phaser.Scene {
             dirtAndGrassRemadeTileset,
             bridgeExtraTileset,
             wellTileset,
+            well2Tileset,
             waterTileset,
             lavaTileset,
             newLavaTileset,
@@ -1093,6 +1106,17 @@ export class MainStageScene extends Phaser.Scene {
         this.anims.create({ key: 'walk-l-anim', frames: this.anims.generateFrameNumbers('walk-l', { start: 0, end: 3 }), frameRate: 8, repeat: -1 });
         this.anims.create({ key: 'fall-l-anim', frames: this.anims.generateFrameNumbers('player-fall', { start: 0, end: 2 }), frameRate: 8, repeat: -1 });
         this.anims.create({ key: 'fall-r-anim', frames: this.anims.generateFrameNumbers('player-fall', { start: 3, end: 5 }), frameRate: 8, repeat: -1 });
+
+        // Gun Movement Animations
+        this.anims.create({ key: 'gun-walk-r-anim', frames: this.anims.generateFrameNumbers('player-gun-walk-r', { start: 0, end: 3 }), frameRate: 8, repeat: -1 });
+        this.anims.create({ key: 'gun-walk-l-anim', frames: this.anims.generateFrameNumbers('player-gun-walk-l', { start: 0, end: 3 }), frameRate: 8, repeat: -1 });
+        this.anims.create({ key: 'gun-fall-l-anim', frames: this.anims.generateFrameNumbers('player-gun-fall', { start: 0, end: 3 }), frameRate: 8, repeat: -1 });
+        this.anims.create({ key: 'gun-fall-r-anim', frames: this.anims.generateFrameNumbers('player-gun-fall', { start: 8, end: 11 }), frameRate: 8, repeat: -1 });
+        this.anims.create({ key: 'gun-jump-r-anim', frames: this.anims.generateFrameNumbers('player-jump-gun-r', { start: 0, end: 2 }), frameRate: 10, repeat: 0 });
+        this.anims.create({ key: 'gun-jump-l-anim', frames: this.anims.generateFrameNumbers('player-jump-gun-l', { start: 0, end: 2 }), frameRate: 10, repeat: 0 });
+        this.anims.create({ key: 'gun-idle-r-anim', frames: this.anims.generateFrameNumbers('player-gun-idle-r', { start: 0, end: 1 }), frameRate: 4, repeat: -1 });
+        this.anims.create({ key: 'gun-idle-l-anim', frames: this.anims.generateFrameNumbers('player-gun-idle-l', { start: 0, end: 1 }), frameRate: 4, repeat: -1 });
+
         this.anims.create({ key: 'coin-spin', frames: this.anims.generateFrameNumbers('coin', { start: 0, end: 5 }), frameRate: 10, repeat: -1 });
 
         // Electric Death Effect (Right: top row 0..7 left-to-right; Left: bottom row 23..16 right-to-left)

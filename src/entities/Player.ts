@@ -22,6 +22,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     public ignoreGroundJumpUntil: number = 0;
     public isOnPlatform: boolean = false;
     public isNearDoor: boolean = false;
+    public isTeleporting: boolean = false;
     public canSmash: boolean = false;
 
     // States
@@ -115,8 +116,19 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.canJump = true;
     }
 
+    public onTeleportComplete() {
+        this.isTeleporting = false;
+        this.setVelocity(0, 0);
+        const body = this.body as Phaser.Physics.Arcade.Body;
+        if (body) {
+            body.allowGravity = true;
+            body.setVelocity(0, 0);
+        }
+        this.updateAnimationState(true);
+    }
+
     update() {
-        if (this.isDying) {
+        if (this.isDying || this.isTeleporting) {
             this.setVelocity(0, 0);
             return;
         }
@@ -194,6 +206,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     private shootBullet() {
+        if (this.isDying || this.isTeleporting || !this.hasGun) return;
+
         const isRight = this.facing === 'right';
         this.shootRecoilUntil = this.scene.time.now + 160;
         const spawnX = isRight ? this.x + 14 : this.x - 14;
@@ -231,38 +245,57 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     private updateAnimationState(isGrounded: boolean) {
         const body = this.body as Phaser.Physics.Arcade.Body;
         const isMovingHorizontally = body.velocity.x !== 0;
-        const isShootingRecoil = this.scene.time.now < this.shootRecoilUntil;
-
-        // When shooting recoil is active, display muzzle flash frame
-        if (isShootingRecoil) {
-            const shootFrame = this.facing === 'right' ? 2 : 1;
-            if (this.anims.isPlaying) this.anims.stop();
-            if (this.texture.key !== 'player-shoot' || this.frame.name !== String(shootFrame)) {
-                this.setTexture('player-shoot', shootFrame);
-            }
-            return;
-        }
 
         if (!isGrounded) {
             if (body.velocity.y < 0) {
-                // Jumping / Rising (Frame 1: Left Jump, Frame 2: Right Jump)
-                if (this.anims.isPlaying) this.anims.stop();
-                const frame = this.facing === 'right' ? 2 : 1;
-                if (this.texture.key !== 'player-jump' || this.frame.name !== String(frame)) {
-                    this.setTexture('player-jump', frame);
-                }
-            } else {
-                // Falling / Descending
-                const fallAnimKey = this.facing === 'right' ? 'fall-r-anim' : 'fall-l-anim';
-                if (this.scene.anims.exists(fallAnimKey)) {
-                    if (!this.anims.isPlaying || this.anims.currentAnim?.key !== fallAnimKey) {
-                        this.anims.play(fallAnimKey, true);
+                // Jumping / Rising
+                if (this.hasGun) {
+                    const jumpAnimKey = this.facing === 'right' ? 'gun-jump-r-anim' : 'gun-jump-l-anim';
+                    if (this.scene.anims.exists(jumpAnimKey)) {
+                        if (this.anims.currentAnim?.key !== jumpAnimKey) {
+                            this.anims.play(jumpAnimKey);
+                        }
+                    } else {
+                        if (this.anims.isPlaying) this.anims.stop();
+                        const frame = this.facing === 'right' ? 2 : 1;
+                        if (this.texture.key !== 'player-jump' || this.frame.name !== String(frame)) {
+                            this.setTexture('player-jump', frame);
+                        }
                     }
                 } else {
                     if (this.anims.isPlaying) this.anims.stop();
-                    const frame = this.facing === 'right' ? 3 : 0;
-                    if (this.texture.key !== 'player-fall' || this.frame.name !== String(frame)) {
-                        this.setTexture('player-fall', frame);
+                    const frame = this.facing === 'right' ? 2 : 1;
+                    if (this.texture.key !== 'player-jump' || this.frame.name !== String(frame)) {
+                        this.setTexture('player-jump', frame);
+                    }
+                }
+            } else {
+                // Falling / Descending
+                if (this.hasGun) {
+                    const fallAnimKey = this.facing === 'right' ? 'gun-fall-r-anim' : 'gun-fall-l-anim';
+                    if (this.scene.anims.exists(fallAnimKey)) {
+                        if (!this.anims.isPlaying || this.anims.currentAnim?.key !== fallAnimKey) {
+                            this.anims.play(fallAnimKey, true);
+                        }
+                    } else {
+                        if (this.anims.isPlaying) this.anims.stop();
+                        const frame = this.facing === 'right' ? 3 : 0;
+                        if (this.texture.key !== 'player-fall' || this.frame.name !== String(frame)) {
+                            this.setTexture('player-fall', frame);
+                        }
+                    }
+                } else {
+                    const fallAnimKey = this.facing === 'right' ? 'fall-r-anim' : 'fall-l-anim';
+                    if (this.scene.anims.exists(fallAnimKey)) {
+                        if (!this.anims.isPlaying || this.anims.currentAnim?.key !== fallAnimKey) {
+                            this.anims.play(fallAnimKey, true);
+                        }
+                    } else {
+                        if (this.anims.isPlaying) this.anims.stop();
+                        const frame = this.facing === 'right' ? 3 : 0;
+                        if (this.texture.key !== 'player-fall' || this.frame.name !== String(frame)) {
+                            this.setTexture('player-fall', frame);
+                        }
                     }
                 }
             }
@@ -270,16 +303,37 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }
         
         if (isMovingHorizontally) {
-            const key = this.facing === 'right' ? 'walk-r-anim' : 'walk-l-anim';
-            if (!this.anims.isPlaying || this.anims.currentAnim?.key !== key) {
-                this.anims.play(key, true);
+            if (this.hasGun) {
+                const key = this.facing === 'right' ? 'gun-walk-r-anim' : 'gun-walk-l-anim';
+                if (this.scene.anims.exists(key)) {
+                    if (!this.anims.isPlaying || this.anims.currentAnim?.key !== key) {
+                        this.anims.play(key, true);
+                    }
+                } else {
+                    const fallbackKey = this.facing === 'right' ? 'walk-r-anim' : 'walk-l-anim';
+                    if (!this.anims.isPlaying || this.anims.currentAnim?.key !== fallbackKey) {
+                        this.anims.play(fallbackKey, true);
+                    }
+                }
+            } else {
+                const key = this.facing === 'right' ? 'walk-r-anim' : 'walk-l-anim';
+                if (!this.anims.isPlaying || this.anims.currentAnim?.key !== key) {
+                    this.anims.play(key, true);
+                }
             }
         } else {
             if (this.hasGun) {
-                const gunHoldFrame = this.facing === 'right' ? 3 : 0;
-                if (this.anims.isPlaying) this.anims.stop();
-                if (this.texture.key !== 'player-shoot' || this.frame.name !== String(gunHoldFrame)) {
-                    this.setTexture('player-shoot', gunHoldFrame);
+                const gunIdleKey = this.facing === 'right' ? 'gun-idle-r-anim' : 'gun-idle-l-anim';
+                if (this.scene.anims.exists(gunIdleKey)) {
+                    if (!this.anims.isPlaying || this.anims.currentAnim?.key !== gunIdleKey) {
+                        this.anims.play(gunIdleKey, true);
+                    }
+                } else {
+                    const fallbackTexture = this.facing === 'right' ? 'player-gun-idle-r' : 'player-gun-idle-l';
+                    if (this.anims.isPlaying) this.anims.stop();
+                    if (this.texture.key !== fallbackTexture) {
+                        this.setTexture(fallbackTexture, 0);
+                    }
                 }
             } else {
                 const idleAnimKey = this.facing === 'right' ? 'idle-r-anim' : 'idle-l-anim';
