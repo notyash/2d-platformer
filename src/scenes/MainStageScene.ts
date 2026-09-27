@@ -158,7 +158,8 @@ export class MainStageScene extends Phaser.Scene {
         this.load.spritesheet('player-gun-idle-r', 'assets/sprites/player/Player-Gun-Idle-R.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('player-gun-idle-l', 'assets/sprites/player/Player-Gun-Idle-L.png', { frameWidth: 32, frameHeight: 32 });
 
-        // Effects
+        // Effects & Revive
+        this.load.spritesheet('totem-revive', 'assets/sprites/player/totem revive sprite.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('electric-death', 'assets/sprites/effects/electric death sprite.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('simple-death', 'assets/sprites/effects/simple death sprite.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('lava-death-l', 'assets/sprites/effects/lava death sprite-l.png', { frameWidth: 32, frameHeight: 32 });
@@ -1125,6 +1126,33 @@ export class MainStageScene extends Phaser.Scene {
         this.anims.create({ key: 'gun-idle-l-anim', frames: this.anims.generateFrameNumbers('player-gun-idle-l', { start: 0, end: 1 }), frameRate: 4, repeat: -1 });
 
         this.anims.create({ key: 'coin-spin', frames: this.anims.generateFrameNumbers('coin', { start: 0, end: 5 }), frameRate: 10, repeat: -1 });
+
+        // Totem Revive Effect (Right: top row 0..10 left-to-right; Left: bottom row 32..22 right-to-left)
+        this.anims.create({
+            key: 'totem-revive-r-anim',
+            frames: this.anims.generateFrameNumbers('totem-revive', { start: 0, end: 10 }),
+            frameRate: 14,
+            repeat: 0
+        });
+
+        this.anims.create({
+            key: 'totem-revive-l-anim',
+            frames: [
+                { key: 'totem-revive', frame: 32 },
+                { key: 'totem-revive', frame: 31 },
+                { key: 'totem-revive', frame: 30 },
+                { key: 'totem-revive', frame: 29 },
+                { key: 'totem-revive', frame: 28 },
+                { key: 'totem-revive', frame: 27 },
+                { key: 'totem-revive', frame: 26 },
+                { key: 'totem-revive', frame: 25 },
+                { key: 'totem-revive', frame: 24 },
+                { key: 'totem-revive', frame: 23 },
+                { key: 'totem-revive', frame: 22 }
+            ],
+            frameRate: 14,
+            repeat: 0
+        });
 
         // Electric Death Effect (Right: top row 0..7 left-to-right; Left: bottom row 23..16 right-to-left)
         this.anims.create({

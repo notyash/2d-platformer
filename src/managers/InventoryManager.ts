@@ -127,7 +127,7 @@ export class InventoryManager {
         if (this.player.isDying || this.player.isTeleporting) return;
 
         if (this.player.hasTotem) {
-            this.uiManager.showFloatingText(this.player.x, this.player.y - 20, 'TOTEM ALREADY ACTIVE!', '#FFD700', 1200);
+            // Silently do nothing when totem is already active (no redundant notifications)
             return;
         }
 
@@ -183,7 +183,7 @@ export class InventoryManager {
         this.gunText.setText('[L-Click / Ctrl] Shoot');
 
         if (this.player.hasTotem) {
-            this.totemText.setText(this.totemCount > 0 ? `[E] Totem ON (+${this.totemCount})` : '[E] Totem: ACTIVE');
+            this.totemText.setText(this.totemCount > 0 ? `Totem: ACTIVE (+${this.totemCount})` : 'Totem: ACTIVE');
         } else {
             this.totemText.setText(this.totemCount > 1 ? `[E] Activate Totem (${this.totemCount})` : '[E] Activate Totem');
         }

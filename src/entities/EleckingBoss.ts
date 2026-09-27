@@ -340,8 +340,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 cBody.checkCollision.left = true;
                 cBody.checkCollision.right = true;
                 cBody.checkCollision.up = true;
-                cBody.setSize(c.width || 64, c.height || 32);
-                cBody.setOffset(0, 0);
+                cBody.setSize(46, 12);
+                cBody.setOffset(9, 10);
             }
 
             // Custom Properties for Fading & Movement
@@ -404,38 +404,27 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
             if (o.gid) {
                 const cleanGid = o.gid & 0x1FFFFFFF;
-                const tileset = map.tilesets.find((t: any) => cleanGid >= t.firstgid && cleanGid < t.firstgid + t.total);
-                const localFrame = tileset ? cleanGid - tileset.firstgid : 0;
+                const tileset = map.tilesets.find((t: any) => cleanGid >= t.firstgid && cleanGid < t.firstgid + (t.total || 10));
+                let localFrame = 0;
+                if (cleanGid >= 2465 && cleanGid < 2475) {
+                    localFrame = cleanGid - 2465;
+                } else if (tileset && tileset.firstgid) {
+                    localFrame = cleanGid - tileset.firstgid;
+                }
+
                 let texKey = 'attack-tiles';
                 if (this.scene.textures.exists('attack-tiles')) {
                     texKey = 'attack-tiles';
                 } else if (this.scene.textures.exists('attack tiles')) {
                     texKey = 'attack tiles';
-                } else if (tileset && tileset.name && this.scene.textures.exists(tileset.name)) {
-                    texKey = tileset.name;
                 }
 
-                const tex = this.scene.textures.get(texKey);
-                const frameKey = String(localFrame);
-                if (tex && !tex.has(frameKey) && !tex.has(String(localFrame))) {
-                    const tileW = (tileset && tileset.tileWidth) || 32;
-                    const tileH = (tileset && tileset.tileHeight) || 32;
-                    const srcImg = tex.getSourceImage() as HTMLImageElement;
-                    const imgW = (srcImg && srcImg.width) ? srcImg.width : (tileset?.columns ? tileset.columns * tileW : 160);
-                    const cols = (tileset && tileset.columns) || Math.max(1, Math.floor(imgW / tileW));
-                    const col = localFrame % cols;
-                    const row = Math.floor(localFrame / cols);
-                    tex.add(frameKey, 0, col * tileW, row * tileH, tileW, tileH);
-                }
-
-                const finalFrame = (tex && tex.has(String(localFrame))) ? localFrame : (tex && tex.has(frameKey) ? frameKey : 0);
-
-                // Render solid block sprite (origin bottom-left in Tiled)
-                const sprite = this.dotBlocks.create(o.x, o.y, texKey, finalFrame) as Phaser.Physics.Arcade.Sprite;
+                // Render solid block sprite (origin bottom-left in Tiled) at depth 3.5
+                const sprite = this.dotBlocks.create(o.x, o.y, texKey, localFrame) as Phaser.Physics.Arcade.Sprite;
                 sprite.setOrigin(0, 1);
                 sprite.setDisplaySize(o.width || 32, o.height || 32);
                 sprite.refreshBody();
-                sprite.setDepth(2);
+                sprite.setDepth(3.5);
 
                 this.thunderTiles.get(dot)!.push({
                     pixelX: o.x,

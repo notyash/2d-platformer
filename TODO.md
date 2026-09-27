@@ -122,24 +122,36 @@
 - [x] **7. New Obstacles**: Implement new environmental hazards and platforming obstacles across the stage.
 - [x] **8. New Bullet Sprite**: Integrated `new bullet sprite.png` (64x64) with directional animations (row 1 left frames 0-1, row 2 right frames 2-3) and updated collision box.
 - [ ] **9. Redesign Stage Below First Smash Ground**: Overhaul and rebalance the level design in the lower stage section beneath the first smash ground.
-- [ ] **10. Totem Respawn Animation**: Add dedicated activation and revival animation sequence for the Totem of Undying.
+- [x] **10. Totem Respawn Animation**:
+  - Integrated `totem revive sprite.png` (352x96, 32x32 frames) with directional resurrection sequences.
+  - Facing right plays top row left-to-right (`0..10`), facing left plays bottom row right-to-left (`32..22`).
+  - Seamlessly emerges player with temporary invulnerability flicker and clean key lift enforcement.
 - [x] **11. Gun Movement Effects (Walking, Falling & Jumping)**: Integrated specialized gun animations (`Player-Gun-Fall.png`, `Player-Gun-Walk-R.png`/`-L`, `Player-Jump-Gun-R.png`/`-L`) for walking, jumping, and falling while holding the Blaster Gun.
 - [ ] **12. Limited Blaster Ammo**: Implement limited ammunition for the Blaster Gun with real-time HUD ammo counter, shot depletion, and ammo pickups/replenishment.
 - [x] **13. Well Teleport Emergence Animation & Solid Mechanics**:
   - Refactored teleporter transition so player visibly emerges upward from deep inside the Well object upon arrival.
   - Well objects treated as solid ground for player, mobs (LOS, raycasting, ledge detection), and projectiles.
-- [x] **14. Moving Platform Precision Hitbox**: Tightened physics body size and vertical offsets to snugly match visible wooden plank pixels, eliminating air-walking past platform boundaries.
+- [x] **SmashGround Layer One-Time Pass-Through & Solid Ground Conversion**:
+  - Falling from `SmashTrigger` allows the player to fall seamlessly through `SmashGround` tiles.
+  - While passing through, `SmashGround` tiles render in the foreground (depth 8.0) so the player visibly falls behind them.
+  - Once the player clears the SmashGround layer below, tiles dynamically register as solid collision ground (behaving like the standard `Ground` layer).
+- [x] **Boss Arena Zone & Entrance Visual Occlusion**:
+  - Covered `BossArenaZone` with `plainGround.png` tile blocks.
+  - Overlaid `plainWell.png` at `BossFightEntrance` exclusively over the overlapping area of `BossArenaZone`.
+- [x] **Temporary Platforms Pixel-Perfect Hitbox**:
+  - Calibrated `TemporaryCloud` (`temp platforms.png`) physics hitbox size (`46x12`) and offset `(9, 10)` to match the exact visible sprite pixels, eliminating the 10px floating gap.
 - [x] **15. DungeonFill Reveal Trigger & Attack Tiles Frame Slicing**:
   - Fixed `DungeonFill` tile layer reveal toggling upon player crossing `BossFightEntrance` (id matching and layer duplication removal).
   - Fixed `attack tiles` object rendering to display individual 32x32 frames rather than squishing the full 160x64 tileset into placed blocks.
-- [ ] **16. Multi-Layer Background Parallax**: Implement seamless layered parallax scrolling for all background scenery assets and skyboxes without tile detachment.
-- [ ] **17. Performance Optimization (Eliminate Stuttering)**: Optimize tile rendering, particle emitters, texture filtering, and update loops to ensure silky smooth 60+ FPS without frame drops.
-- [ ] **18. UI Polish & Visual Glassmorphism**:
+- [x] **16. Temporary Platforms Pixel Hitbox**: Aligned `temp platforms` bounding box to visible pixels (46x12 at offset 9,10).
+- [ ] **17. Multi-Layer Background Parallax**: Implement seamless layered parallax scrolling for all background scenery assets and skyboxes without tile detachment.
+- [ ] **18. Performance Optimization (Eliminate Stuttering)**: Optimize tile rendering, particle emitters, texture filtering, and update loops to ensure silky smooth 60+ FPS without frame drops.
+- [ ] **19. UI Polish & Visual Glassmorphism**:
   - Modernize HUD design with crisp retro glassmorphism, responsive status bars, and vibrant equipment status cards.
   - Refine pause menu and overlay layouts, improving button hover effects, typography, and spacing.
   - Add micro-animations and smooth transition effects for banners (checkpoint notifications, respawn alerts, timer cues).
-- [ ] **19. Cloudflare Turnstile Verification Widget**: Add free Turnstile bot protection widget to start-run UI and validate Turnstile tokens in `SurrealService.startRun()`.
-- [ ] **20. Web3 Wallet Connection (EIP-712 / SIWE)**: Connect browser wallet (MetaMask, Phantom, Wagmi) to authenticate sessions and sign run verification proofs.
+- [ ] **20. Cloudflare Turnstile Verification Widget**: Add free Turnstile bot protection widget to start-run UI and validate Turnstile tokens in `SurrealService.startRun()`.
+- [ ] **21. Web3 Wallet Connection (EIP-712 / SIWE)**: Connect browser wallet (MetaMask, Phantom, Wagmi) to authenticate sessions and sign run verification proofs.
 
 ---
 

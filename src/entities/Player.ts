@@ -350,6 +350,44 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }
     }
 
+    public disableGameInputs() {
+        const keys = [
+            this.keyW, this.keyA, this.keyS, this.keyD, this.keyE,
+            this.cursors.left, this.cursors.right, this.cursors.up, this.cursors.down,
+            this.spaceKey, this.enterKey, this.ctrlKey
+        ];
+        keys.forEach(k => {
+            if (k) {
+                k.enabled = false;
+                k.isDown = false;
+                k.isUp = true;
+                k.reset();
+            }
+        });
+        this.requireKeyLift.left = false;
+        this.requireKeyLift.right = false;
+        this.requireKeyLift.jump = false;
+        this.requireKeyLift.mouse = false;
+        this.requireKeyLift.ctrl = false;
+        this.lastMouseDown = false;
+        this.lastCtrlDown = false;
+    }
+
+    public enableGameInputs() {
+        const keys = [
+            this.keyW, this.keyA, this.keyS, this.keyD, this.keyE,
+            this.cursors.left, this.cursors.right, this.cursors.up, this.cursors.down,
+            this.spaceKey, this.enterKey, this.ctrlKey
+        ];
+        keys.forEach(k => {
+            if (k) {
+                k.enabled = true;
+                k.reset();
+            }
+        });
+        this.enforceKeyLift();
+    }
+
     public cancelDeathEffect() {
         if (this.activeDeathSprite && this.activeDeathSprite.active) {
             this.scene.tweens.killTweensOf(this.activeDeathSprite);
@@ -363,6 +401,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }
         this.setVisible(true);
         this.setAlpha(1);
+        this.enableGameInputs();
     }
 
     public finishRespawn() {
@@ -385,41 +424,92 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }
         this.hasGun = false;
         this.clearTint();
-        this.enforceKeyLift();
+        this.enableGameInputs();
         this.scene.events.emit('player-respawn');
     }
 
     die(reason: 'default' | 'lava' | 'electric' | 'lightning' | string = 'default') {
         if (this.isInvincible || this.isDying) return;
 
-        // If player has Totem Shield: absorb death without resetting stage
+        // If player has Totem Shield: absorb death with totem revive animation without resetting stage
         if (this.hasTotem) {
             this.hasTotem = false; 
             this.isInvincible = true;
-            this.setPosition(this.lastSafeX, this.lastSafeY); 
+            this.disableGameInputs();
+            const reviveX = this.lastSafeX;
+            const reviveY = this.lastSafeY;
+            this.setPosition(reviveX, reviveY); 
             this.setVelocity(0, 0); 
             this.clearTint();
             this.soundManager?.playDeath();
-            this.enforceKeyLift();
-            
-            // Clean invincibility alpha flicker (no colored screen or sprite tint)
-            this.scene.tweens.add({
-                targets: this,
-                alpha: 0.35,
-                duration: 100,
-                yoyo: true,
-                repeat: 14,
-                onComplete: () => {
-                    this.alpha = 1;
-                    this.isInvincible = false;
-                    this.clearTint();
+
+            const isRight = this.facing === 'right';
+            const spriteKey = 'totem-revive';
+            const animKey = isRight ? 'totem-revive-r-anim' : 'totem-revive-l-anim';
+
+            if (this.scene.textures.exists(spriteKey)) {
+                this.setVisible(false);
+                const body = this.body as Phaser.Physics.Arcade.Body;
+                if (body) body.setEnable(false);
+
+                const reviveSprite = this.scene.add.sprite(reviveX, reviveY, spriteKey, isRight ? 0 : 32);
+                reviveSprite.setDepth(10);
+                reviveSprite.setOrigin(0.5, 0.5);
+                this.activeDeathSprite = reviveSprite;
+
+                let completed = false;
+                const finishRevival = () => {
+                    if (completed) return;
+                    completed = true;
+                    if (reviveSprite.active) reviveSprite.destroy();
+                    if (this.activeDeathSprite === reviveSprite) this.activeDeathSprite = undefined;
+                    this.setVisible(true);
+                    if (body) body.setEnable(true);
+                    this.enableGameInputs();
+
+                    // Clean invincibility alpha flicker (no colored screen or sprite tint)
+                    this.scene.tweens.add({
+                        targets: this,
+                        alpha: 0.35,
+                        duration: 100,
+                        yoyo: true,
+                        repeat: 8,
+                        onComplete: () => {
+                            this.alpha = 1;
+                            this.isInvincible = false;
+                            this.clearTint();
+                        }
+                    });
+                };
+
+                if (this.scene.anims.exists(animKey)) {
+                    reviveSprite.play(animKey);
                 }
-            });
+
+                reviveSprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, finishRevival);
+                this.scene.time.delayedCall(850, finishRevival);
+            } else {
+                this.enableGameInputs();
+                // Clean invincibility alpha flicker fallback
+                this.scene.tweens.add({
+                    targets: this,
+                    alpha: 0.35,
+                    duration: 100,
+                    yoyo: true,
+                    repeat: 14,
+                    onComplete: () => {
+                        this.alpha = 1;
+                        this.isInvincible = false;
+                        this.clearTint();
+                    }
+                });
+            }
             return;
         }
 
         // Full Death: play death effect sprite, then smoothly respawn at spawn point
         this.isDying = true;
+        this.disableGameInputs();
         const deathX = this.x;
         const deathY = this.y;
 

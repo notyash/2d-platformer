@@ -1507,15 +1507,16 @@ export class EnvironmentManager {
         }
         this.player.isNearDoor = isPlayerInDoor;
 
-        const enterPressed = Phaser.Input.Keyboard.JustDown(this.player.keyE) ||
-                             Phaser.Input.Keyboard.JustDown(this.player.enterKey) ||
-                             Phaser.Input.Keyboard.JustDown(this.player.cursors.up) ||
-                             (this.player.keyW && Phaser.Input.Keyboard.JustDown(this.player.keyW));
+        if (isPlayerInDoor && this.doorExitX !== 0 && !this.player.isTeleporting && !this.player.isDying) {
+            const enterPressed = Phaser.Input.Keyboard.JustDown(this.player.keyE) ||
+                                 Phaser.Input.Keyboard.JustDown(this.player.enterKey) ||
+                                 Phaser.Input.Keyboard.JustDown(this.player.cursors.up) ||
+                                 (this.player.keyW && Phaser.Input.Keyboard.JustDown(this.player.keyW));
 
-        if (isPlayerInDoor && enterPressed && this.doorExitX !== 0 && !this.player.isTeleporting && !this.player.isDying) {
-            this.player.isNearDoor = false;
-            this.player.isTeleporting = true;
-            this.player.setVelocity(0, 0);
+            if (enterPressed) {
+                this.player.isNearDoor = false;
+                this.player.isTeleporting = true;
+                this.player.setVelocity(0, 0);
 
             if (pBody) {
                 pBody.allowGravity = false;
@@ -1590,6 +1591,7 @@ export class EnvironmentManager {
                     }
                 });
             });
+            }
         }
 
         // Handle Gun Disarm Zones
