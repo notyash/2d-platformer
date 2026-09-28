@@ -1,6 +1,15 @@
 import Phaser from 'phaser';
 import { MainStageScene } from './scenes/MainStageScene';
 
+// Suppress harmless Phaser tilemap dimension warnings for single backdrop images
+const originalWarn = console.warn;
+console.warn = (...args: any[]) => {
+  if (typeof args[0] === 'string' && args[0].includes('Image tile area not tile size multiple in:')) {
+    return;
+  }
+  originalWarn(...args);
+};
+
 const BASE_HEIGHT = 480; // 15 vertical tiles x 32px
 
 export function isMobileDevice(): boolean {

@@ -967,7 +967,6 @@ export class EnvironmentManager {
                         'smallTree': 'smallTree',
                         'largeTree': 'largeTree',
                         'grass': 'grass',
-                        'cherry blossom': 'cherry blossom',
                         'well': 'well',
                         'Well': 'well',
                         'well2': 'well2',
@@ -1859,7 +1858,6 @@ export class EnvironmentManager {
                 if (reveal.collider) {
                     reveal.collider.active = true;
                 }
-                console.log(`[EnvironmentManager] Revealed layer '${reveal.name}' (id: ${reveal.id})`);
             }
         }
     }

@@ -1,4 +1,12 @@
 { "compressionlevel":-1,
+ "editorsettings":
+    {
+     "export":
+        {
+         "format":"json",
+         "target":"harder-main-stage.json"
+        }
+    },
  "height":45,
  "infinite":false,
  "layers":[
@@ -2113,8 +2121,8 @@
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":152.999999999999,
-                 "y":185.833333333333
+                 "x":4689,
+                 "y":509.833333333333
                 }, 
                 {
                  "height":31.93,
@@ -4561,19 +4569,6 @@
          "tilecount":8,
          "tileheight":24,
          "tilewidth":24
-        }, 
-        {
-         "columns":40,
-         "firstgid":1653,
-         "image":"..\/sprites\/All_Fire_Bullet_Pixel_16x16_04.png",
-         "imageheight":400,
-         "imagewidth":640,
-         "margin":0,
-         "name":"All_Fire_Bullet_Pixel_16x16_04",
-         "spacing":0,
-         "tilecount":0,
-         "tileheight":16,
-         "tilewidth":16
         }, 
         {
          "columns":1,

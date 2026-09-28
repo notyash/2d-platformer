@@ -65,7 +65,6 @@ export class MainStageScene extends Phaser.Scene {
         this.load.image('plain-dungeon', 'assets/sprites/background/plainDungeon.png');
         this.load.image('plainDungeon', 'assets/sprites/background/plainDungeon.png');
 
-        this.load.image('cherry blossom', 'assets/sprites/background/cherry blossom.png');
         this.load.image('cherry blossom 2', 'assets/sprites/background/cherry blossom 2.png');
         this.load.image('cherry blossom 3', 'assets/sprites/background/cherry blossom 3.png');
         this.load.image('cherry blossom tree', 'assets/sprites/background/cherry blossom tree.png');
@@ -98,8 +97,8 @@ export class MainStageScene extends Phaser.Scene {
         this.load.image('bush', 'assets/sprites/background/bush.png');
         this.load.image('mountain', 'assets/sprites/background/mountain.png');
         this.load.spritesheet('32 files dungeon', 'assets/sprites/boss/32 files dungeon.png', { frameWidth: 32, frameHeight: 32 });
-        this.load.spritesheet('64 files dungeon', 'assets/sprites/boss/64 files dungeon.png', { frameWidth: 32, frameHeight: 32 });
         this.load.image('cloud variation', 'assets/sprites/boss/cloud variation.png');
+        this.load.image('moving-platform', 'assets/sprites/misc/wooden moving platform.png');
         this.load.image('moving-platform-img', 'assets/sprites/misc/wooden moving platform.png');
         this.load.image('wooden moving platform', 'assets/sprites/misc/wooden moving platform.png');
         this.load.image('spike', 'assets/sprites/misc/spike.png');
@@ -111,7 +110,6 @@ export class MainStageScene extends Phaser.Scene {
         this.load.spritesheet('bullet-sprite', 'assets/sprites/misc/new bullet sprite.png', { frameWidth: 32, frameHeight: 32 });
         this.load.image('checkpoint-sprite', 'assets/sprites/misc/checkpoint sprite.png');
         this.load.image('door', 'assets/sprites/misc/door.png');
-        this.load.spritesheet('fire-bullets', 'assets/sprites/All_Fire_Bullet_Pixel_16x16_04.png', { frameWidth: 16, frameHeight: 16 });
         this.load.spritesheet('firebar-sprite', 'assets/sprites/misc/firebar sprite.png', { frameWidth: 32, frameHeight: 64 });
         this.load.spritesheet('enemy-fireball', 'assets/sprites/misc/fireball sprite.png', { frameWidth: 32, frameHeight: 32 });
 
@@ -473,7 +471,11 @@ export class MainStageScene extends Phaser.Scene {
             }
             bullet.setActive(false);
             bullet.setVisible(false);
-            bullet.destroy();
+            if (bullet.scene) {
+                bullet.scene.time.delayedCall(0, () => {
+                    if (bullet && bullet.scene) bullet.destroy();
+                });
+            }
             this.uiManager.spawnParticles(bx, by, 0xFF8C00);
         }, (bulletObj, tile) => {
             const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
@@ -730,55 +732,58 @@ export class MainStageScene extends Phaser.Scene {
     }
 
     private createLayers(map: Phaser.Tilemaps.Tilemap) {
-        const levelObjectsTileset = map.addTilesetImage('LevelObjectTiles', 'levelobjects');
-        const landTileset = map.addTilesetImage('LandTiles_32_32', 'landtiles');
-        const skyTileset = map.addTilesetImage('sky', 'sky');
-        const clouds1Tileset = map.addTilesetImage('clouds1', 'clouds1');
-        const cloud2Tileset = map.addTilesetImage('cloud2', 'cloud2');
-        const smallTreeTileset = map.addTilesetImage('smallTree', 'smallTree');
-        const largeTreeTileset = map.addTilesetImage('largeTree', 'largeTree');
-        const grassTileset = map.addTilesetImage('grass', 'grass');
-        const cherryBlossomTileset = map.addTilesetImage('cherry blossom', 'cherry blossom');
-        const cherryBlossomBlocksTileset = map.addTilesetImage('cherry blossom blocks', 'cherry blossom blocks');
-        const grassTemplateTileset = map.addTilesetImage('grass template', 'grass template');
-        const cbTemplateTileset = map.addTilesetImage('cb template', 'cb template');
-        const dirtAndGrassRemadeTileset = map.addTilesetImage('DIRT AND GRASS REMADE', 'DIRT AND GRASS REMADE');
-        const bridgeExtraTileset = map.addTilesetImage('bridge extra', 'bridge extra');
-        const wellTileset = map.addTilesetImage('well', 'well') || map.addTilesetImage('Well', 'well');
-        const well2Tileset = map.addTilesetImage('Well2', 'well2') || map.addTilesetImage('well2', 'well2') || map.addTilesetImage('Well2', 'well') || map.addTilesetImage('well2', 'well');
-        const waterTileset = map.addTilesetImage('water', 'water');
-        const lavaTileset = map.addTilesetImage('lava', 'lava');
-        const bushTileset = map.addTilesetImage('bush', 'bush');
-        const dandelionTileset = map.addTilesetImage('dandelion flower sprite', 'dandelion');
-        const movingPlatformTileset = map.addTilesetImage('moving-platform', 'moving-platform');
-        const woodenPlatformTileset = map.addTilesetImage('wooden moving platform', 'wooden moving platform');
-        const jumpPadTileset = map.addTilesetImage('jump-pad', 'jump-pad-img') || map.addTilesetImage('jumppad sprite', 'jump-pad-img');
-        const mountainTileset = map.addTilesetImage('mountain', 'mountain');
-        const dungeon32Tileset = map.addTilesetImage('32 files dungeon', '32 files dungeon');
-        const dungeon64Tileset = map.addTilesetImage('64 files dungeon', '64 files dungeon');
-        const cloudVariationTileset = map.addTilesetImage('cloud variation', 'cloud variation');
-        const tempPlatformsTileset = map.addTilesetImage('temp platforms', 'temp platforms');
-        const gravityOrbTileset = map.addTilesetImage('gravity orb', 'gravity orb');
-        const attackTilesTileset = map.addTilesetImage('attack tiles', 'attack tiles');
-        const cherryBlossomTreeTileset = map.addTilesetImage('cherry blossom tree', 'cherry blossom tree');
-        const newLavaTileset = map.addTilesetImage('new lava', 'new lava');
-        const dungeonBg1Tileset = map.addTilesetImage('dungeon background1', 'dungeon background1') || map.addTilesetImage('dungeon background1', 'dungeon-background1') || map.addTilesetImage('dungeon background1', 'dungeon background 1');
-        const plainDungeonTileset = map.addTilesetImage('plainDungeon', 'plainDungeon') || map.addTilesetImage('plain-dungeon', 'plain-dungeon');
-        const plainGroundTileset = map.addTilesetImage('plainGround', 'plainGround') || map.addTilesetImage('plain-ground', 'plain-ground');
-        const spikeTileset = map.addTilesetImage('spike', 'spike');
-        const japaneseBuildingTileset = map.addTilesetImage('japanese building', 'japanese building');
-        const japaneseBuilding3Tileset = map.addTilesetImage('japanese_building_3', 'japanese_building_3') || map.addTilesetImage('japanese building 3', 'japanese_building_3');
-        const cherryBlossom2Tileset = map.addTilesetImage('cherry blossom 2', 'cherry blossom 2');
-        const cherryBlossom3Tileset = map.addTilesetImage('cherry blossom 3', 'cherry blossom 3');
-        const tree1Tileset = map.addTilesetImage('tree 1', 'tree 1');
-        const tree2Tileset = map.addTilesetImage('tree 2', 'tree 2');
-        const tree3Tileset = map.addTilesetImage('tree 3', 'tree 3');
-        const tree4Tileset = map.addTilesetImage('tree 4', 'tree 4');
-        const flowerBushTileset = map.addTilesetImage('flower bush', 'flower bush');
-        const grass1Tileset = map.addTilesetImage('grass 1', 'grass 1');
-        const grass2Tileset = map.addTilesetImage('grass 2', 'grass 2');
-        const bigWellTileset = map.addTilesetImage('big ahh well', 'big ahh well');
-        const obstaclesTileset = map.addTilesetImage('obstacles sprite', 'obstacles sprite');
+        const addTileset = (tilesetName: string, textureKey: string) => {
+            if (map.tilesets && map.tilesets.some(t => t.name === tilesetName) && this.textures.exists(textureKey)) {
+                return map.addTilesetImage(tilesetName, textureKey);
+            }
+            return null;
+        };
+
+        const levelObjectsTileset = addTileset('LevelObjectTiles', 'levelobjects');
+        const landTileset = addTileset('LandTiles_32_32', 'landtiles');
+        const skyTileset = addTileset('sky', 'sky');
+        const clouds1Tileset = addTileset('clouds1', 'clouds1');
+        const cloud2Tileset = addTileset('cloud2', 'cloud2');
+        const smallTreeTileset = addTileset('smallTree', 'smallTree');
+        const largeTreeTileset = addTileset('largeTree', 'largeTree');
+        const grassTileset = addTileset('grass', 'grass');
+        const cherryBlossomBlocksTileset = addTileset('cherry blossom blocks', 'cherry blossom blocks');
+        const grassTemplateTileset = addTileset('grass template', 'grass template');
+        const cbTemplateTileset = addTileset('cb template', 'cb template');
+        const dirtAndGrassRemadeTileset = addTileset('DIRT AND GRASS REMADE', 'DIRT AND GRASS REMADE');
+        const bridgeExtraTileset = addTileset('bridge extra', 'bridge extra');
+        const wellTileset = addTileset('well', 'well');
+        const well2Tileset = addTileset('well2', 'well2');
+        const waterTileset = addTileset('water', 'water');
+        const lavaTileset = addTileset('lava', 'lava');
+        const bushTileset = addTileset('bush', 'bush');
+        const dandelionTileset = addTileset('dandelion flower sprite', 'dandelion');
+        const woodenPlatformTileset = addTileset('wooden moving platform', 'wooden moving platform');
+        const jumpPadTileset = addTileset('jumppad sprite', 'jump-pad-img');
+        const mountainTileset = addTileset('mountain', 'mountain');
+        const dungeon32Tileset = addTileset('32 files dungeon', '32 files dungeon');
+        const cloudVariationTileset = addTileset('cloud variation', 'cloud variation');
+        const tempPlatformsTileset = addTileset('temp platforms', 'temp platforms');
+        const gravityOrbTileset = addTileset('gravity orb', 'gravity orb');
+        const attackTilesTileset = addTileset('attack tiles', 'attack tiles');
+        const cherryBlossomTreeTileset = addTileset('cherry blossom tree', 'cherry blossom tree');
+        const newLavaTileset = addTileset('new lava', 'new lava');
+        const dungeonBg1Tileset = addTileset('dungeon background1', 'dungeon background1');
+        const spikeTileset = addTileset('spike', 'spike');
+        const japaneseBuildingTileset = addTileset('japanese building', 'japanese building');
+        const japaneseBuilding3Tileset = addTileset('japanese_building_3', 'japanese_building_3');
+        const cherryBlossom2Tileset = addTileset('cherry blossom 2', 'cherry blossom 2');
+        const cherryBlossom3Tileset = addTileset('cherry blossom 3', 'cherry blossom 3');
+        const tree1Tileset = addTileset('tree 1', 'tree 1');
+        const tree2Tileset = addTileset('tree 2', 'tree 2');
+        const tree3Tileset = addTileset('tree 3', 'tree 3');
+        const tree4Tileset = addTileset('tree 4', 'tree 4');
+        const flowerBushTileset = addTileset('flower bush', 'flower bush');
+        const grass1Tileset = addTileset('grass 1', 'grass 1');
+        const grass2Tileset = addTileset('grass 2', 'grass 2');
+        const bigWellTileset = addTileset('big ahh well', 'big ahh well');
+        const obstaclesTileset = addTileset('obstacles sprite', 'obstacles sprite');
+        const doorTileset = addTileset('door', 'door');
 
         const allTilesets = [
             levelObjectsTileset,
@@ -789,7 +794,6 @@ export class MainStageScene extends Phaser.Scene {
             smallTreeTileset,
             largeTreeTileset,
             grassTileset,
-            cherryBlossomTileset,
             cherryBlossom2Tileset,
             cherryBlossom3Tileset,
             cherryBlossomTreeTileset,
@@ -816,20 +820,17 @@ export class MainStageScene extends Phaser.Scene {
             newLavaTileset,
             bushTileset,
             dandelionTileset,
-            movingPlatformTileset,
             woodenPlatformTileset,
             jumpPadTileset,
             mountainTileset,
             dungeon32Tileset,
-            dungeon64Tileset,
             cloudVariationTileset,
             tempPlatformsTileset,
             gravityOrbTileset,
             attackTilesTileset,
             dungeonBg1Tileset,
-            plainDungeonTileset,
-            plainGroundTileset,
-            spikeTileset
+            spikeTileset,
+            doorTileset
         ].filter(Boolean) as Phaser.Tilemaps.Tileset[];
 
         // Automatically link any tilesets referenced in map.tilesets that match loaded textures
@@ -1172,7 +1173,7 @@ export class MainStageScene extends Phaser.Scene {
         const canvas = document.createElement('canvas');
         canvas.width = sourceImage.width;
         canvas.height = sourceImage.height;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         if (!ctx) return;
 
         ctx.drawImage(sourceImage, 0, 0);
@@ -1355,9 +1356,6 @@ export class MainStageScene extends Phaser.Scene {
             frameRate: 8,
             repeat: -1
         });
-
-        // Bullet Fire Animation (fallback)
-        this.anims.create({ key: 'fire-bullet-anim', frames: this.anims.generateFrameNumbers('fire-bullets', { start: 40, end: 43 }), frameRate: 14, repeat: -1 });
 
         // Enemy Shooter Fireball (32x32: 0..3 Left, 4..7 Right)
         this.anims.create({ key: 'enemy-fireball-l', frames: this.anims.generateFrameNumbers('enemy-fireball', { start: 0, end: 3 }), frameRate: 10, repeat: -1 });

@@ -96,7 +96,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         body.setOffset(12, 0);
         body.setImmovable(true);
 
-        scene.physics.add.overlap(this.player.bullets, this, (bulletObj, _bossObj) => {
+        scene.physics.add.overlap(this, this.player.bullets, (_bossObj, bulletObj) => {
             const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
             if (!bullet || !bullet.active || !bullet.scene) return;
             
@@ -108,7 +108,11 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             }
             bullet.setActive(false);
             bullet.setVisible(false);
-            bullet.destroy();
+            if (bullet.scene) {
+                bullet.scene.time.delayedCall(0, () => {
+                    if (bullet && bullet.scene) bullet.destroy();
+                });
+            }
             this.uiManager.spawnParticles(bx, by, 0xF59E0B);
 
             // Phase 1: Zero damage, no state changes, no game freeze

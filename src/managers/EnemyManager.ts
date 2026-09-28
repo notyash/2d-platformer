@@ -139,7 +139,11 @@ export class EnemyManager {
                 }
                 bullet.setActive(false);
                 bullet.setVisible(false);
-                bullet.destroy();
+                if (bullet.scene) {
+                    bullet.scene.time.delayedCall(0, () => {
+                        if (bullet && bullet.scene) bullet.destroy();
+                    });
+                }
             }
             const mob = mobObj as Phaser.Physics.Arcade.Sprite;
             if (mob && mob.active) this.killMob(mob, 'shoot');
@@ -153,7 +157,11 @@ export class EnemyManager {
                 }
                 bullet.setActive(false);
                 bullet.setVisible(false);
-                bullet.destroy();
+                if (bullet.scene) {
+                    bullet.scene.time.delayedCall(0, () => {
+                        if (bullet && bullet.scene) bullet.destroy();
+                    });
+                }
             }
             const mob = mobObj as Phaser.Physics.Arcade.Sprite;
             if (mob && mob.active) this.killMob(mob, 'shoot');
@@ -171,7 +179,11 @@ export class EnemyManager {
             }
             bullet.setActive(false);
             bullet.setVisible(false);
-            bullet.destroy();
+            if (bullet.scene) {
+                bullet.scene.time.delayedCall(0, () => {
+                    if (bullet && bullet.scene) bullet.destroy();
+                });
+            }
             this.uiManager.spawnParticles(bx, by, 0xEF4444);
             this.player.die();
         });
@@ -189,7 +201,11 @@ export class EnemyManager {
                 }
                 eBullet.setActive(false);
                 eBullet.setVisible(false);
-                eBullet.destroy();
+                if (eBullet.scene) {
+                    eBullet.scene.time.delayedCall(0, () => {
+                        if (eBullet && eBullet.scene) eBullet.destroy();
+                    });
+                }
                 this.uiManager.spawnParticles(ex, ey, 0xF59E0B);
             }
             if (pBullet && pBullet.active && pBullet.scene) {
@@ -199,7 +215,11 @@ export class EnemyManager {
                 }
                 pBullet.setActive(false);
                 pBullet.setVisible(false);
-                pBullet.destroy();
+                if (pBullet.scene) {
+                    pBullet.scene.time.delayedCall(0, () => {
+                        if (pBullet && pBullet.scene) pBullet.destroy();
+                    });
+                }
             }
             this.soundManager?.playStomp();
         });
@@ -212,7 +232,13 @@ export class EnemyManager {
                 (bulletObj) => {
                     const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
                     this.uiManager.spawnParticles(bullet.x, bullet.y, 0x94A3B8);
-                    bullet.destroy();
+                    bullet.setActive(false);
+                    bullet.setVisible(false);
+                    if (bullet.scene) {
+                        bullet.scene.time.delayedCall(0, () => {
+                            if (bullet && bullet.scene) bullet.destroy();
+                        });
+                    }
                 }
             );
         }
@@ -224,7 +250,13 @@ export class EnemyManager {
             (bulletObj) => {
                 const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
                 this.uiManager.spawnParticles(bullet.x, bullet.y, 0x94A3B8);
-                bullet.destroy();
+                bullet.setActive(false);
+                bullet.setVisible(false);
+                if (bullet.scene) {
+                    bullet.scene.time.delayedCall(0, () => {
+                        if (bullet && bullet.scene) bullet.destroy();
+                    });
+                }
             },
             (bulletObj, tile) => {
                 const t = tile as Phaser.Tilemaps.Tile;
@@ -249,7 +281,13 @@ export class EnemyManager {
                 (bulletObj) => {
                     const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
                     this.uiManager.spawnParticles(bullet.x, bullet.y, 0x94A3B8);
-                    bullet.destroy();
+                    bullet.setActive(false);
+                    bullet.setVisible(false);
+                    if (bullet.scene) {
+                        bullet.scene.time.delayedCall(0, () => {
+                            if (bullet && bullet.scene) bullet.destroy();
+                        });
+                    }
                 },
                 (bulletObj, tile) => {
                     const t = tile as Phaser.Tilemaps.Tile;
@@ -904,7 +942,15 @@ export class EnemyManager {
             const restingY = monster.getData('restingY') as number;
             if (monster.y <= restingY - 6) {
                 const bullet = bulletObj as Phaser.Physics.Arcade.Sprite;
-                if (bullet && bullet.active) bullet.destroy();
+                if (bullet && bullet.active) {
+                    bullet.setActive(false);
+                    bullet.setVisible(false);
+                    if (bullet.scene) {
+                        bullet.scene.time.delayedCall(0, () => {
+                            if (bullet && bullet.scene) bullet.destroy();
+                        });
+                    }
+                }
                 this.killPipeMonster(monster);
             }
         });
