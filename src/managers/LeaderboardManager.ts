@@ -166,7 +166,7 @@ export class LeaderboardManager {
     }
 
     const { width, height } = scene.scale;
-    const container = scene.add.container(width / 2, height / 2).setDepth(200);
+    const container = scene.add.container(width / 2, height / 2).setDepth(350);
     this.currentModalContainer = container;
 
     // Semi-transparent backdrop overlay

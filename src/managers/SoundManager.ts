@@ -96,6 +96,24 @@ export class SoundManager {
         this.scene.time.delayedCall(195, () => this.playTone(1046.50, 1046.50, 'sine', 0.18, 0.3));
     }
 
+    public playVictory() {
+        if (this.isMuted) return;
+        this.ensureContext();
+        this.stopMusic();
+
+        // 8-bit celebratory victory fanfare (C5 -> E5 -> G5 -> C6 -> G5 -> Grand C Major Chord)
+        this.playTone(523.25, 523.25, 'triangle', 0.12, 0.28, true);
+        this.scene.time.delayedCall(130, () => this.playTone(659.25, 659.25, 'triangle', 0.12, 0.28, true));
+        this.scene.time.delayedCall(260, () => this.playTone(783.99, 783.99, 'triangle', 0.12, 0.3, true));
+        this.scene.time.delayedCall(390, () => this.playTone(1046.50, 1046.50, 'sine', 0.22, 0.35, true));
+        this.scene.time.delayedCall(560, () => this.playTone(783.99, 783.99, 'triangle', 0.14, 0.3, true));
+        this.scene.time.delayedCall(700, () => {
+            this.playTone(1046.50, 1046.50, 'triangle', 0.85, 0.35, true);
+            this.playTone(1318.51, 1318.51, 'sine', 0.85, 0.3, true);
+            this.playTone(1567.98, 1567.98, 'sine', 0.85, 0.25, true);
+        });
+    }
+
     public playStomp() {
         if (this.isMuted) return;
         this.ensureContext();

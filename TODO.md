@@ -113,6 +113,7 @@
 ---
 
 ### ⏳ Active Development & Asset Pipeline
+- [ ] **Glowing Attack Tiles Asset**: Create new assets for attack tiles that glow to visually telegraph where thunder will strike instead of having particles.
 - [ ] **1. Complete Boss Fight & Minions**:
   - Add skeleton bomb minion mob spawned by Elecking Boss on the ground during battle (max 2 waves per fight).
   - Fixed boss tile clipping by factoring attack tiles into solid floor detection and aligning origin to ground level (`groundY - 48`).
@@ -122,13 +123,13 @@
 - [x] **4. New Checkpoint Asset**: Placed `checkpoint sprite.png` from `misc` on the ground at Checkpoint 1, 2, 3, and 4 locations with interactive activation tweens.
 - [x] **7. New Obstacles**: Implement new environmental hazards and platforming obstacles across the stage.
 - [x] **8. New Bullet Sprite**: Integrated `new bullet sprite.png` (64x64) with directional animations (row 1 left frames 0-1, row 2 right frames 2-3) and updated collision box.
-- [ ] **9. Redesign Stage Below First Smash Ground**: Overhaul and rebalance the level design in the lower stage section beneath the first smash ground.
+- [x] **9. Redesign Stage Below First Smash Ground**: Overhaul and rebalance the level design in the lower stage section beneath the first smash ground.
 - [x] **10. Totem Respawn Animation**:
   - Integrated `totem revive sprite.png` (352x96, 32x32 frames) with directional resurrection sequences.
   - Facing right plays top row left-to-right (`0..10`), facing left plays bottom row right-to-left (`32..22`).
   - Seamlessly emerges player with temporary invulnerability flicker and clean key lift enforcement.
 - [x] **11. Gun Movement Effects (Walking, Falling & Jumping)**: Integrated specialized gun animations (`Player-Gun-Fall.png`, `Player-Gun-Walk-R.png`/`-L`, `Player-Jump-Gun-R.png`/`-L`) for walking, jumping, and falling while holding the Blaster Gun.
-- [ ] **12. Limited Blaster Ammo**: Implement limited ammunition for the Blaster Gun with real-time HUD ammo counter, shot depletion, and ammo pickups/replenishment.
+- [x] **12. Limited Blaster Ammo**: Implement limited ammunition for the Blaster Gun with real-time HUD ammo counter, shot depletion, and ammo pickups/replenishment.
 - [x] **13. Well Teleport Emergence Animation & Solid Mechanics**:sho
   - Refactored teleporter transition so player visibly emerges upward from deep inside the Well object upon arrival.
   - Well objects treated as solid ground for player, mobs (LOS, raycasting, ledge detection), and projectiles.

@@ -1096,6 +1096,12 @@ export class EnemyManager {
         const mob = _mobObj as Phaser.Physics.Arcade.Sprite;
         if (!mob.active || !this.player.active) return;
 
+        // Any physical contact with boss minions kills the player (must shoot with Blaster Gun)
+        if (mob.getData('isBossMinion')) {
+            this.player.die();
+            return;
+        }
+
         const pBody = this.player.body as Phaser.Physics.Arcade.Body;
         const mBody = mob.body as Phaser.Physics.Arcade.Body;
 
@@ -1742,6 +1748,24 @@ export class EnemyManager {
             const ignoreLOS = (mob.getData('ignoreLOS') as boolean) || false;
             const allowOneWay = (mob.getData('allowOneWay') as boolean) ?? true;
             const body = mob.body as Phaser.Physics.Arcade.Body;
+            const isBossMinion = Boolean(mob.getData('isBossMinion'));
+
+            if (isBossMinion) {
+                if (!body) return;
+                // Boss minion actively tracks and follows the player across the boss arena floor
+                const targetDir = this.player.x > mob.x + 4 ? 1 : (this.player.x < mob.x - 4 ? -1 : dir);
+                dir = targetDir;
+                mob.setData('direction', dir);
+
+                const minionSpeed = (mob.getData('speed') as number) || 80;
+                mob.setVelocityX(minionSpeed * dir);
+
+                const animKey = dir === 1 ? 'mob-sandal-walk-r' : 'mob-sandal-walk-l';
+                if ((!mob.anims.isPlaying || mob.anims.currentAnim?.key !== animKey) && this.scene.anims.exists(animKey)) {
+                    mob.play(animKey, true);
+                }
+                return;
+            }
 
             if (mobType === 'shiro-onna') {
                 mob.setVelocityX(0);

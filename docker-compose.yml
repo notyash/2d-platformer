@@ -1,50 +1,48 @@
 # ==============================================================================
 # ONION BOY GAME: DOCKER COMPOSE ORCHESTRATION
-# Boots up SurrealDB Backend/Database and Frontend Game with One Command
+# Boots up SurrealDB Backend & Database and Frontend Game with One Command
 # ==============================================================================
-
-version: '3.8'
 
 services:
   # ----------------------------------------------------------------------------
-  # 1. SurrealDB Backend & Database Engine
+  # 1. SurrealDB Backend & Database Engine (SurrealDB 2.x)
   # ----------------------------------------------------------------------------
   surrealdb:
     image: surrealdb/surrealdb:latest
-    container_name: onion-boy-surrealdb
+    container_name: 2d-platformer-NFT-surrealdb
+    user: root
     restart: unless-stopped
     ports:
       - "8000:8000"
-    command: start --user root --pass root file:/data/database.db
+    command: start --log info -b 0.0.0.0:8000 -u root -p root --allow-all surrealkv:/data/database
     volumes:
       - surreal_data:/data
-    healthcheck:
-      test: ["CMD-SHELL", "/surreal is-ready http://localhost:8000 || exit 0"]
-      interval: 3s
-      timeout: 3s
-      retries: 5
-      start_period: 2s
 
   # ----------------------------------------------------------------------------
-  # 2. Schema Auto-Migration Service (Applies all .surql tables & functions)
+  # 2. Schema Auto-Migration Service (Applies all .surql tables, access & functions)
   # ----------------------------------------------------------------------------
   schema-init:
-    image: surrealdb/surrealdb:latest
-    container_name: onion-boy-schema-init
+    image: alpine:3.20
+    container_name: 2d-platformer-NFT-schema-init
     depends_on:
-      surrealdb:
-        condition: service_healthy
+      - surrealdb
     volumes:
       - ./src/db:/schema:ro
-    entrypoint:
+    command:
       - /bin/sh
       - -c
       - |
-        echo "Waiting for SurrealDB..."
-        sleep 2
-        echo "Applying SurrealQL Schema, Access & Backend Functions..."
-        cat /schema/init.surql /schema/tables/*.surql /schema/access/*.surql /schema/functions/*.surql | /surreal import --conn http://surrealdb:8000 --user root --pass root --ns onion_game --db development -
-        echo "SurrealDB Schema Initialization Complete!"
+        apk add --no-cache curl > /dev/null 2>&1
+        echo "[Schema-Init] Waiting for SurrealDB engine at http://surrealdb:8000/health..."
+        while ! curl -s http://surrealdb:8000/health > /dev/null 2>&1; do
+          sleep 1
+        done
+        echo "[Schema-Init] SurrealDB is online! Bundling schemas, tables, access models & functions..."
+        cat /schema/init.surql /schema/tables/*.surql /schema/access/*.surql /schema/functions/*.surql > /tmp/bundle.surql
+        echo "[Schema-Init] Applying bundle via SurrealDB REST API..."
+        curl -s -X POST -u "root:root" -H "Accept: application/json" --data-binary @/tmp/bundle.surql http://surrealdb:8000/sql
+        echo ""
+        echo "[Schema-Init] ✅ SurrealDB Schema Initialization Complete!"
     restart: "no"
 
   # ----------------------------------------------------------------------------
@@ -54,7 +52,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: onion-boy-frontend
+    container_name: 2d-platformer-NFT-frontend
     restart: unless-stopped
     ports:
       - "5173:5173"
@@ -70,3 +68,5 @@ services:
 volumes:
   surreal_data:
     driver: local
+
+

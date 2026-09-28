@@ -36,6 +36,7 @@ export class MainStageScene extends Phaser.Scene {
     private initialSpawnY: number = 100;
     private activeRunTimeMs: number = 0;
     public isGamePaused: boolean = false;
+    public isGameComplete: boolean = false;
     public totalDeaths: number = 0;
     private lastRPressTime: number = 0;
     private escKey!: Phaser.Input.Keyboard.Key;
@@ -266,6 +267,7 @@ export class MainStageScene extends Phaser.Scene {
         this.uiManager = new UIManager(this, this.soundManager);
         this.uiManager.createHUD(
             () => {
+                if (this.isGameComplete) return;
                 if (this.isGamePaused) {
                     this.resumeGame();
                 } else {
@@ -369,8 +371,8 @@ export class MainStageScene extends Phaser.Scene {
             SecurityManager.getInstance().recordEvent('DEATH', { x: this.player.x, y: this.player.y, deaths: this.totalDeaths });
             
             const isInsideBossArena = Boolean(this.eleckingBoss?.isPlayerInArena());
-            if (isInsideBossArena) {
-                this.eleckingBoss?.resetAll();
+            if (isInsideBossArena || (this.eleckingBoss && this.eleckingBoss.hasReachedPhase2)) {
+                this.eleckingBoss?.resetAll(false);
             }
             this.player.bullets.clear(true, true);
         });
@@ -387,6 +389,9 @@ export class MainStageScene extends Phaser.Scene {
         if (this.input.keyboard) {
             this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
             this.escKey.on('down', () => {
+                if (this.isGameComplete) {
+                    return; // Sticky: ESC cannot unpause or resume game once victory orb is collected
+                }
                 if (this.isGamePaused) {
                     this.resumeGame();
                 } else {
@@ -645,8 +650,8 @@ export class MainStageScene extends Phaser.Scene {
         this.player.setPosition(this.player.activeSpawnX, this.player.activeSpawnY);
         this.player.setVelocity(0, 0);
         const isInsideBossArena = Boolean(this.eleckingBoss?.isPlayerInArena());
-        if (isInsideBossArena) {
-            this.eleckingBoss?.resetAll();
+        if (isInsideBossArena || (this.eleckingBoss && this.eleckingBoss.hasReachedPhase2)) {
+            this.eleckingBoss?.resetAll(false);
         }
         this.player.bullets.clear(true, true);
 
@@ -657,11 +662,12 @@ export class MainStageScene extends Phaser.Scene {
 
         const isBossPhase2 = Boolean(
             this.eleckingBoss && 
-            this.eleckingBoss.phase === 2 && 
+            (this.eleckingBoss.phase === 2 || this.eleckingBoss.hasReachedPhase2) && 
             !this.eleckingBoss.isDead
         );
         if (isBossPhase2) {
             this.player.hasGun = true;
+            this.inventoryManager.addGun();
         }
 
         const gunIdleKey = this.player.facing === 'right' ? 'gun-idle-r-anim' : 'gun-idle-l-anim';
@@ -681,9 +687,15 @@ export class MainStageScene extends Phaser.Scene {
     }
 
     private restartFullRun() {
+        this.isGameComplete = false;
+        this.uiManager.hideVictoryMenu();
         if (this.isGamePaused) {
             this.resumeGame();
         }
+        this.physics.resume();
+        this.anims.resumeAll();
+        this.tweens.resumeAll();
+        this.time.paused = false;
         this.player.cancelDeathEffect();
         this.uiManager.hideDeathScreen();
         this.uiManager.hidePauseMenu();
@@ -710,7 +722,7 @@ export class MainStageScene extends Phaser.Scene {
         this.inventoryManager.resetAll();
         this.envManager.resetAll();
         this.envManager.resetCheckpoints();
-        this.eleckingBoss?.resetAll();
+        this.eleckingBoss?.resetAll(true);
         SecurityManager.getInstance().startNewRun('stage1');
         InputRecorder.getInstance().reset();
         SurrealService.getInstance().startRun();
@@ -1502,6 +1514,12 @@ export class MainStageScene extends Phaser.Scene {
     }
 
     public onStageComplete() {
+        if (this.isGameComplete) return;
+        this.isGameComplete = true;
+
+        this.physics.pause();
+        this.player.setVelocity(0, 0);
+
         const netDurationMs = Math.round(this.getElapsedMilliseconds());
         const payload = SecurityManager.getInstance().finishRun(
             this.collectiblesManager.coinsCollected,
@@ -1510,6 +1528,17 @@ export class MainStageScene extends Phaser.Scene {
             netDurationMs
         );
         LeaderboardManager.getInstance().submitRun(payload, 'Speedy Onion');
-        LeaderboardManager.getInstance().showLeaderboardModal(this, this.soundManager);
+        this.soundManager?.playVictory();
+
+        const formattedTime = this.getFormattedElapsedTime();
+        this.uiManager.showVictoryMenu(
+            () => this.restartFullRun(),
+            {
+                time: formattedTime,
+                deaths: this.totalDeaths,
+                coins: this.collectiblesManager.coinsCollected,
+                kills: this.enemyManager.enemiesKilled
+            }
+        );
     }
 }

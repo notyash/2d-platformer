@@ -25,7 +25,7 @@ export class SurrealService {
   private isConnecting: boolean = false;
 
   private endpoint: string = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SURREAL_URL) || 'http://127.0.0.1:8000';
-  private namespace: string = 'onion_game';
+  private namespace: string = '2d_nft_game';
   private database: string = 'development';
 
   constructor() {

@@ -44,6 +44,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     public soundManager?: SoundManager;
 
     public shootRecoilUntil: number = 0;
+    public lastShootTime: number = 0;
+    public readonly shootCooldownMs: number = 200;
     private lastMouseDown: boolean = false;
     private lastCtrlDown: boolean = false;
 
@@ -207,9 +209,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     private shootBullet() {
         if (this.isDying || this.isTeleporting || !this.hasGun) return;
+        const now = this.scene.time.now;
+        if (now - this.lastShootTime < this.shootCooldownMs) {
+            return;
+        }
+        this.lastShootTime = now;
 
         const isRight = this.facing === 'right';
-        this.shootRecoilUntil = this.scene.time.now + 160;
+        this.shootRecoilUntil = now + 160;
         const spawnX = isRight ? this.x + 14 : this.x - 14;
         const spawnY = this.y - 2;
 
@@ -230,7 +237,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }
 
         const bulletSpeed = 500;
-        const bulletLifespanMs = 600;
+        const bulletLifespanMs = 800; // 500 px/s * 0.8s = 400px range
 
         bullet.setVelocityX(isRight ? bulletSpeed : -bulletSpeed);
         this.soundManager?.playShoot();
@@ -426,7 +433,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
         const isBossPhase2 = Boolean(
             (this.scene as any).eleckingBoss && 
-            (this.scene as any).eleckingBoss.phase === 2 && 
+            ((this.scene as any).eleckingBoss.phase === 2 || (this.scene as any).eleckingBoss.hasReachedPhase2) && 
             !(this.scene as any).eleckingBoss.isDead
         );
         if (isBossPhase2) {
@@ -461,6 +468,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             this.hasTotem = false; 
             if ((this.scene as any).inventoryManager) {
                 (this.scene as any).inventoryManager.consumeTotem();
+            }
+            if ((this.scene as any).collectiblesManager) {
+                (this.scene as any).collectiblesManager.onTotemConsumed();
             }
             this.isInvincible = true;
             this.disableGameInputs();

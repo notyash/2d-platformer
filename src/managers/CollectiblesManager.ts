@@ -23,6 +23,7 @@ export class CollectiblesManager {
     // Checkpoint Snapshots
     private savedCheckpointCollectedKeys: Set<string> = new Set();
     private savedCheckpointCoins: number = 0;
+    private consumedTotemKeys: Set<string> = new Set();
 
     constructor(
         scene: Phaser.Scene, 
@@ -42,6 +43,14 @@ export class CollectiblesManager {
         this.coinsCollected += amount;
     }
 
+    public onTotemConsumed() {
+        for (const key of this.collectedItemKeys) {
+            if (key.startsWith('Totem_')) {
+                this.consumedTotemKeys.add(key);
+            }
+        }
+    }
+
     setupCollectibles(map: Phaser.Tilemaps.Tilemap) {
         this.map = map;
         this.spawnAllCollectibles();
@@ -55,6 +64,9 @@ export class CollectiblesManager {
 
     public rollbackToCheckpoint() {
         this.collectedItemKeys = new Set(this.savedCheckpointCollectedKeys);
+        for (const key of this.consumedTotemKeys) {
+            this.collectedItemKeys.add(key);
+        }
         this.coinsCollected = this.savedCheckpointCoins;
         if (this.map) {
             this.spawnAllCollectibles();
@@ -92,6 +104,7 @@ export class CollectiblesManager {
         this.savedCheckpointCoins = 0;
         this.collectedItemKeys.clear();
         this.savedCheckpointCollectedKeys.clear();
+        this.consumedTotemKeys.clear();
         if (this.map) {
             this.spawnAllCollectibles();
         }

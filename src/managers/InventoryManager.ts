@@ -116,6 +116,11 @@ export class InventoryManager {
     public consumeTotem() {
         this.totemCount = 0;
         this.player.hasTotem = false;
+        this.savedCheckpointTotemCount = 0;
+        this.savedCheckpointHasTotem = false;
+        if ((this.scene as any).collectiblesManager) {
+            (this.scene as any).collectiblesManager.onTotemConsumed();
+        }
         this.updatePlayerTint();
         this.updateUI();
     }
@@ -148,7 +153,18 @@ export class InventoryManager {
     }
 
     public update() {
-        // Totems activate automatically upon collection
+        if (this.gunBadgeContainer && this.gunBadgeContainer.visible && this.player.hasGun) {
+            const now = this.scene.time.now;
+            const remaining = (this.player.lastShootTime + this.player.shootCooldownMs) - now;
+            if (remaining > 0) {
+                const secs = (remaining / 1000).toFixed(1);
+                this.gunText.setText(`[Reloading ${secs}s]`);
+                this.gunText.setColor('#94a3b8');
+            } else {
+                this.gunText.setText('[L-Click / Ctrl] Shoot');
+                this.gunText.setColor('#00FFFF');
+            }
+        }
     }
 
     public updateUI() {
