@@ -10,7 +10,7 @@ DEFINE TABLE OVERWRITE whitelist SCHEMAFULL
 
 -- Typed Record Pointers
 DEFINE FIELD OVERWRITE player          ON whitelist TYPE record<player>;
-DEFINE FIELD OVERWRITE session         ON whitelist TYPE record<run_session>;
+DEFINE FIELD OVERWRITE run_session     ON whitelist TYPE record<run_session>;
 
 -- String Identifiers & Proof Data
 DEFINE FIELD OVERWRITE wallet          ON whitelist TYPE string

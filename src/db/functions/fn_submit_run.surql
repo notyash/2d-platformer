@@ -19,12 +19,12 @@ DEFINE FUNCTION OVERWRITE fn::submit_run(
 ) {
     -- 1. Check if session exists and is valid (O(1) Direct Key-Value fetch)
     LET $session_id = type::record('run_session', $run_id);
-    LET $session = (SELECT * FROM ONLY $session_id);
-    IF $session == NONE {
+    LET $session_record = (SELECT * FROM ONLY $session_id);
+    IF $session_record == NONE {
         RETURN { success: false, message: 'Invalid run session ID' };
     };
 
-    IF $session.is_finalized == true {
+    IF $session_record.is_finalized == true {
         RETURN { success: false, message: 'Run session has already been finalized' };
     };
 
@@ -34,27 +34,27 @@ DEFINE FUNCTION OVERWRITE fn::submit_run(
     LET $player_id = type::record('player', $actual_wallet);
 
     -- Anti-Hijack Guard: Player can only submit their own run session
-    IF $session.wallet != $actual_wallet {
+    IF $session_record.wallet != $actual_wallet {
         RETURN { success: false, message: 'Unauthorized: Run session does not belong to this wallet' };
     };
 
     -- 2. Anti-Cheat: Minimum Theoretical Time Check (Speedhack protection)
     -- Stage 1 cannot physically be completed under 30 seconds
-    LET $is_speedhack = $duration_ms < 30000;
-    LET $flags = [];
-    IF $is_speedhack {
-        $flags = array::concat($flags, ['IMPOSSIBLE_SPEEDRUN_TIME']);
+    LET $flags = IF $duration_ms < 30000 {
+        ['IMPOSSIBLE_SPEEDRUN_TIME']
+    } ELSE {
+        []
     };
 
     LET $is_legitimate = (array::len($flags) == 0);
 
     -- 3. Update Session as finalized
     UPDATE $session_id SET
-        run_id           = $session.run_id,
+        run_id           = $session_record.run_id,
         player           = $player_id,
         wallet           = $actual_wallet,
-        stage            = $session.stage,
-        start_time       = $session.start_time,
+        stage            = $session_record.stage,
+        start_time       = $session_record.start_time,
         end_time         = time::unix(time::now()) * 1000,
         duration_ms      = $duration_ms,
         is_finalized     = true,
@@ -66,7 +66,7 @@ DEFINE FUNCTION OVERWRITE fn::submit_run(
         RETURN {
             success: false,
             verified: false,
-            message: string::concat('Verification failed: ', string::join(', ', $flags))
+            message: string::concat('Verification failed: ', array::join($flags, ', '))
         };
     };
 
@@ -75,22 +75,42 @@ DEFINE FUNCTION OVERWRITE fn::submit_run(
     LET $raw_score = ($coins * 50) + ($kills * 100) - ($deaths * 200) + $time_bonus;
     LET $final_score = math::max([0, $raw_score]);
 
-    -- 5. Record to Leaderboard with typed pointers (Score-First)
+    -- 5. O(1) Trigger Whitelist Allocation if Qualified (Requires connected Web3 wallet)
+    LET $is_real_wallet = ($actual_wallet != '0x0000000000000000000000000000000000000000' AND string::len($actual_wallet) == 42);
+    LET $whitelist_id = type::record('whitelist', $actual_wallet);
+    LET $existing_whitelist = (SELECT * FROM ONLY $whitelist_id);
+    LET $is_whitelist_granted = IF ($is_real_wallet AND $existing_whitelist == NONE) {
+        CREATE $whitelist_id SET
+            player          = $player_id,
+            run_session     = $session_id,
+            wallet          = $actual_wallet,
+            run_id          = $run_id,
+            completion_time = $duration_ms,
+            proof_hash      = $final_hash;
+        UPDATE $player_id SET is_whitelisted = true;
+        true
+    } ELSE {
+        false
+    };
+
+    -- 6. Record to Leaderboard with typed pointers & Whitelist Badge
+    LET $display_name = IF $is_real_wallet { $actual_username } ELSE { string::concat($actual_username, ' [Unminted]') };
     CREATE leaderboard SET
-        session        = $session_id,
+        run_session    = $session_id,
         player         = $player_id,
         run_id         = $run_id,
         wallet         = $actual_wallet,
-        username       = $actual_username,
+        username       = $display_name,
         duration_ms    = $duration_ms,
         formatted_time = $formatted_time,
         score          = $final_score,
         coins          = $coins,
         kills          = $kills,
         deaths         = $deaths,
-        verified       = true;
+        verified       = true,
+        is_whitelisted = ($is_whitelist_granted OR ($existing_whitelist != NONE));
 
-    -- 6. O(1) Update Player Best Time & Stats
+    -- 7. O(1) Update Player Best Time & Stats
     LET $player = (SELECT * FROM ONLY $player_id);
     IF $player != NONE {
         IF $player.best_time == NONE OR $duration_ms < $player.best_time {
@@ -98,25 +118,17 @@ DEFINE FUNCTION OVERWRITE fn::submit_run(
         };
     };
 
-    -- 7. O(1) Trigger Whitelist Allocation if Qualified
-    LET $is_whitelist_granted = false;
-    LET $whitelist_id = type::record('whitelist', $actual_wallet);
-    LET $existing_whitelist = (SELECT * FROM ONLY $whitelist_id);
-    IF $existing_whitelist == NONE {
-        CREATE $whitelist_id SET
-            player          = $player_id,
-            session         = $session_id,
-            wallet          = $actual_wallet,
-            run_id          = $run_id,
-            completion_time = $duration_ms,
-            proof_hash      = $final_hash;
-        UPDATE $player_id SET is_whitelisted = true;
-        $is_whitelist_granted = true;
-    };
-
     -- 8. Calculate Real-Time Global Rank (Speedrun-First: Duration ASC, Score DESC)
     LET $better_runs = count(SELECT id FROM leaderboard WHERE duration_ms < $duration_ms OR (duration_ms == $duration_ms AND score > $final_score));
     LET $rank = $better_runs + 1;
+
+    LET $message = IF $is_whitelist_granted {
+        string::concat('Run verified! Global Rank: #', type::string($rank), ' (Time: ', $formatted_time, ', Score: ', type::string($final_score), ') 🎉 Whitelist Granted!')
+    } ELSE IF !$is_real_wallet {
+        string::concat('Run verified! Global Rank: #', type::string($rank), ' (Time: ', $formatted_time, ', Score: ', type::string($final_score), ') ⚠️ Connect wallet to claim Whitelist!')
+    } ELSE {
+        string::concat('Run verified! Global Rank: #', type::string($rank), ' (Time: ', $formatted_time, ', Score: ', type::string($final_score), ')')
+    };
 
     RETURN {
         success: true,
@@ -126,6 +138,7 @@ DEFINE FUNCTION OVERWRITE fn::submit_run(
         duration_ms: $duration_ms,
         formatted_time: $formatted_time,
         is_whitelisted: $is_whitelist_granted,
-        message: string::concat('Run verified! Global Rank: #', type::string($rank), ' (Time: ', $formatted_time, ', Score: ', type::string($final_score), ')')
+        requires_wallet: !$is_real_wallet,
+        message: $message
     };
-};
+} PERMISSIONS FULL;

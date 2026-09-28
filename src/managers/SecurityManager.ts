@@ -77,6 +77,15 @@ export class SecurityManager {
     this.recordEvent('START', { stage, runId: this.runId });
   }
 
+  public setBackendRunId(runId: string, startTime?: number): void {
+    if (!runId) return;
+    this.runId = runId;
+    if (startTime && startTime > 0) {
+      this.startTime = startTime;
+    }
+    this.lastHash = this.simpleHash(`RUN_INIT_${this.runId}_${this.startTime}`);
+  }
+
   public recordEvent(type: SecurityEvent['type'], data: Record<string, any> = {}): void {
     const timestamp = Date.now();
     const payloadStr = JSON.stringify({ type, timestamp, data, prevHash: this.lastHash });

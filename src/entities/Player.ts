@@ -18,7 +18,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     public facing: Facing = 'right';
     public canJump: boolean = true;
-    public isNormalJump: boolean = false; 
+    public isNormalJump: boolean = false;
     public ignoreGroundJumpUntil: number = 0;
     public isOnPlatform: boolean = false;
     public isNearDoor: boolean = false;
@@ -28,7 +28,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // States
     public hasGun: boolean = false;
     public hasTotem: boolean = false;
-    public isInvincible: boolean = false; 
+    public isInvincible: boolean = false;
     public isDying: boolean = false;
     private activeDeathSprite?: Phaser.GameObjects.Sprite;
 
@@ -45,7 +45,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     public shootRecoilUntil: number = 0;
     public lastShootTime: number = 0;
-    public readonly shootCooldownMs: number = 200;
+    public readonly shootCooldownMs: number = 250;
     private lastMouseDown: boolean = false;
     private lastCtrlDown: boolean = false;
 
@@ -161,24 +161,24 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         const isRightDown = rawRightDown && !this.requireKeyLift.right;
         const isJumpDown = rawJumpDown && !this.requireKeyLift.jump;
 
-        if (isLeftDown) { 
-            this.setVelocityX(-speed); 
-            this.facing = 'left'; 
-        } else if (isRightDown) { 
-            this.setVelocityX(speed); 
-            this.facing = 'right'; 
+        if (isLeftDown) {
+            this.setVelocityX(-speed);
+            this.facing = 'left';
+        } else if (isRightDown) {
+            this.setVelocityX(speed);
+            this.facing = 'right';
         }
 
         if (isGrounded && !this.isInvincible) {
-            this.lastSafeX = this.x; 
-            this.lastSafeY = this.y - 10; 
+            this.lastSafeX = this.x;
+            this.lastSafeY = this.y - 10;
         }
 
         if (isGrounded) {
             if (isJumpDown && this.canJump && this.scene.time.now > this.ignoreGroundJumpUntil) {
-                this.setVelocityY(-jumpSpeed); 
-                this.canJump = false; 
-                this.isNormalJump = true; 
+                this.setVelocityY(-jumpSpeed);
+                this.canJump = false;
+                this.isNormalJump = true;
                 this.soundManager?.playJump();
             }
         } else {
@@ -187,8 +187,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
         // Variable Jump Height: releasing Space, Up, or W early cuts velocity into a short-hop
         if (this.isNormalJump && !isJumpDown && body.velocity.y < shortHopCap) {
-            this.setVelocityY(shortHopCap); 
-            this.isNormalJump = false; 
+            this.setVelocityY(shortHopCap);
+            this.isNormalJump = false;
         }
 
         // 3. Left Mouse Click or Left Ctrl shoots Blaster
@@ -202,9 +202,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }
 
         this.updateAnimationState(isGrounded);
-        
+
         // Reset per-frame platform evaluation
-        this.isOnPlatform = false; 
+        this.isOnPlatform = false;
     }
 
     private shootBullet() {
@@ -242,7 +242,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         bullet.setVelocityX(isRight ? bulletSpeed : -bulletSpeed);
         this.soundManager?.playShoot();
 
-        this.scene.time.delayedCall(bulletLifespanMs, () => { 
+        this.scene.time.delayedCall(bulletLifespanMs, () => {
             if (bullet && bullet.active && bullet.scene) {
                 if (bullet.body) {
                     bullet.body.enable = false;
@@ -250,7 +250,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
                 }
                 bullet.setActive(false);
                 bullet.setVisible(false);
-                bullet.destroy(); 
+                bullet.destroy();
             }
         });
     }
@@ -314,7 +314,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             }
             return;
         }
-        
+
         if (isMovingHorizontally) {
             if (this.hasGun) {
                 const key = this.facing === 'right' ? 'gun-walk-r-anim' : 'gun-walk-l-anim';
@@ -432,8 +432,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.scene.events.emit('player-respawn');
 
         const isBossPhase2 = Boolean(
-            (this.scene as any).eleckingBoss && 
-            ((this.scene as any).eleckingBoss.phase === 2 || (this.scene as any).eleckingBoss.hasReachedPhase2) && 
+            (this.scene as any).eleckingBoss &&
+            ((this.scene as any).eleckingBoss.phase === 2 || (this.scene as any).eleckingBoss.hasReachedPhase2) &&
             !(this.scene as any).eleckingBoss.isDead
         );
         if (isBossPhase2) {
@@ -465,7 +465,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
         // If player has Totem Shield: absorb death with totem revive animation without resetting stage
         if (this.hasTotem) {
-            this.hasTotem = false; 
+            this.hasTotem = false;
             if ((this.scene as any).inventoryManager) {
                 (this.scene as any).inventoryManager.consumeTotem();
             }
@@ -476,8 +476,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             this.disableGameInputs();
             const reviveX = this.lastSafeX;
             const reviveY = this.lastSafeY;
-            this.setPosition(reviveX, reviveY); 
-            this.setVelocity(0, 0); 
+            this.setPosition(reviveX, reviveY);
+            this.setVelocity(0, 0);
             this.clearTint();
             this.soundManager?.playDeath();
 

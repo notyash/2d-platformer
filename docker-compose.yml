@@ -40,7 +40,7 @@ services:
         echo "[Schema-Init] SurrealDB is online! Bundling schemas, tables, access models & functions..."
         cat /schema/init.surql /schema/tables/*.surql /schema/access/*.surql /schema/functions/*.surql > /tmp/bundle.surql
         echo "[Schema-Init] Applying bundle via SurrealDB REST API..."
-        curl -s -X POST -u "root:root" -H "Accept: application/json" --data-binary @/tmp/bundle.surql http://surrealdb:8000/sql
+        curl -X POST -u "root:root" -H "Content-Type: text/plain" -H "Accept: application/json" --data-binary @/tmp/bundle.surql http://surrealdb:8000/sql
         echo ""
         echo "[Schema-Init] ✅ SurrealDB Schema Initialization Complete!"
     restart: "no"

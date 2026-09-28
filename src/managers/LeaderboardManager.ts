@@ -16,6 +16,7 @@ export interface LeaderboardEntry {
   kills: number;
   score: number;
   verified: boolean;
+  isWhitelisted?: boolean;
   timestamp: number;
   runId: string;
 }
@@ -111,8 +112,11 @@ export class LeaderboardManager {
 
     const calculatedScore = (payload.totalCoins * 50) + (payload.totalKills * 100) - (payload.totalDeaths * 200) + Math.max(0, 5000 - Math.floor(payload.totalDurationMs / 100));
 
+    const isWalletConnected = Boolean(walletAddress && walletAddress !== '0x0000000000000000000000000000000000000000' && walletAddress.length === 42);
+    const displayName = isWalletConnected ? playerName.slice(0, 20) : `${playerName.slice(0, 12)} [Unminted]`;
+
     const newEntry: LeaderboardEntry = {
-      playerName: playerName.slice(0, 20),
+      playerName: displayName,
       walletAddress: walletAddress ? (walletAddress.slice(0, 6) + '...' + walletAddress.slice(-4)) : undefined,
       timeMs: payload.totalDurationMs,
       formattedTime: LeaderboardManager.formatTime(payload.totalDurationMs),
@@ -121,6 +125,7 @@ export class LeaderboardManager {
       kills: payload.totalKills,
       score: Math.max(0, calculatedScore),
       verified: payload.isLegitimate,
+      isWhitelisted: isWalletConnected,
       timestamp: Date.now(),
       runId: payload.runId
     };

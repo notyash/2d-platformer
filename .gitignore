@@ -166,3 +166,7 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 .vercel
+
+# FDE & Interview Study Materials
+SURREALDB_FDE_INTERVIEW_PREP.md
+

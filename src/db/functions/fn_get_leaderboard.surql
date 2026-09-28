@@ -16,6 +16,7 @@ DEFINE FUNCTION OVERWRITE fn::get_leaderboard($limit: number) {
             kills, 
             deaths, 
             verified, 
+            is_whitelisted, 
             created_at 
         FROM leaderboard 
         WHERE verified = true 
@@ -24,4 +25,4 @@ DEFINE FUNCTION OVERWRITE fn::get_leaderboard($limit: number) {
     );
 
     RETURN $top_entries;
-};
+} PERMISSIONS FULL;

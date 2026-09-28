@@ -9,7 +9,7 @@ DEFINE TABLE OVERWRITE player SCHEMAFULL
         FOR create, update, delete NONE;
 
 DEFINE FIELD OVERWRITE wallet ON player TYPE string
-    ASSERT string::is::alphanumeric(string::slice($value, 2)) AND string::starts_with($value, '0x');
+    ASSERT string::is_alphanum(string::slice($value, 2)) AND string::starts_with($value, '0x');
 
 DEFINE FIELD OVERWRITE username ON player TYPE string
     ASSERT string::len($value) >= 3 AND string::len($value) <= 24;

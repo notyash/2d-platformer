@@ -38,4 +38,4 @@ DEFINE FUNCTION OVERWRITE fn::start_run($wallet: string, $stage: string) {
         start_time: $now,
         stage: $stage
     };
-};
+} PERMISSIONS FULL;

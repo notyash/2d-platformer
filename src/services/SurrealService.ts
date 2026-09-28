@@ -1,6 +1,6 @@
 // src/services/SurrealService.ts
 import { Surreal } from 'surrealdb';
-import type { VerifiedRunPayload } from '../managers/SecurityManager';
+import { SecurityManager, type VerifiedRunPayload } from '../managers/SecurityManager';
 import type { LeaderboardEntry } from '../managers/LeaderboardManager';
 
 export interface SurrealRunSession {
@@ -25,7 +25,7 @@ export class SurrealService {
   private isConnecting: boolean = false;
 
   private endpoint: string = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SURREAL_URL) || 'http://127.0.0.1:8000';
-  private namespace: string = '2d_nft_game';
+  private namespace: string = 'nft_platformer';
   private database: string = 'development';
 
   constructor() {
@@ -107,12 +107,22 @@ export class SurrealService {
 
     if (this.isConnected) {
       try {
-        const res = await this.db.query<[SurrealRunSession]>(
+        const res = await this.db.query<[Record<string, any>]>(
           'RETURN fn::start_run($wallet, $stage);',
           { wallet, stage }
         );
-        if (res && res[0]) {
-          return res[0];
+        const data = res && res[0];
+        if (data) {
+          const runId = data.run_id || data.runId;
+          const startTime = data.start_time || data.startTime || Date.now();
+          if (runId) {
+            SecurityManager.getInstance().setBackendRunId(runId, startTime);
+            return {
+              runId,
+              startTime,
+              stage: data.stage || stage
+            };
+          }
         }
       } catch (err) {
         console.warn('[SurrealDB] fn::start_run failed, using client fallback:', err);
@@ -120,8 +130,10 @@ export class SurrealService {
     }
 
     // Client fallback session
+    const fallbackRunId = `run_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    SecurityManager.getInstance().setBackendRunId(fallbackRunId);
     return {
-      runId: `run_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      runId: fallbackRunId,
       startTime: Date.now(),
       stage
     };

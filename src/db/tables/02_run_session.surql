@@ -5,7 +5,7 @@
 
 DEFINE TABLE OVERWRITE run_session SCHEMAFULL
     PERMISSIONS
-        FOR select WHERE wallet = $auth.wallet
+        FOR select FULL
         FOR create, update, delete NONE;
 
 DEFINE FIELD OVERWRITE run_id ON run_session TYPE string

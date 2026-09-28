@@ -114,6 +114,7 @@
 
 ### ⏳ Active Development & Asset Pipeline
 - [ ] **Glowing Attack Tiles Asset**: Create new assets for attack tiles that glow to visually telegraph where thunder will strike instead of having particles.
+- [ ] **Boss Minion Gun Lock & Stomp Mechanic**: When boss minions are spawned, temporarily block/lock the Blaster Gun until the player eliminates all active minions by jumping on top of them (stomping), re-enabling the gun once cleared.
 - [ ] **1. Complete Boss Fight & Minions**:
   - Add skeleton bomb minion mob spawned by Elecking Boss on the ground during battle (max 2 waves per fight).
   - Fixed boss tile clipping by factoring attack tiles into solid floor detection and aligning origin to ground level (`groundY - 48`).
@@ -154,6 +155,11 @@
   - Add micro-animations and smooth transition effects for banners (checkpoint notifications, respawn alerts, timer cues).
 - [ ] **20. Cloudflare Turnstile Verification Widget**: Add free Turnstile bot protection widget to start-run UI and validate Turnstile tokens in `SurrealService.startRun()`.
 - [ ] **21. Web3 Wallet Connection (EIP-712 / SIWE)**: Connect browser wallet (MetaMask, Phantom, Wagmi) to authenticate sessions and sign run verification proofs.
+- [ ] **22. Comprehensive Anti-Cheat & Speedrun Validation Overhaul**:
+  - **Multi-Factor Server Checks in `fn::submit_run`**: Add audit flags for impossible coin totals, mob kill thresholds, death-count sanity, and theoretical minimum sector times.
+  - **Deterministic Input Stream Audit**: Verify keystroke ring buffer frames (`InputRecorder.ts`) to detect macro bots, impossible input frequencies, and speedhacks.
+  - **Cryptographic Run Proof Hashing**: Generate tamper-proof SHA-256 hash linking `run_id`, `wallet`, `duration_ms`, `score`, and inputs.
+  - **Anti-Hijack & Session Integrity**: Strict single-use token invalidation and player wallet binding.
 
 ---
 

@@ -9,7 +9,7 @@ DEFINE TABLE OVERWRITE leaderboard SCHEMAFULL
         FOR create, update, delete NONE;
 
 -- Typed Record Pointers
-DEFINE FIELD OVERWRITE session        ON leaderboard TYPE record<run_session>;
+DEFINE FIELD OVERWRITE run_session    ON leaderboard TYPE record<run_session>;
 DEFINE FIELD OVERWRITE player         ON leaderboard TYPE record<player>;
 
 -- String Identifiers & Denormalized Data
@@ -37,6 +37,9 @@ DEFINE FIELD OVERWRITE deaths         ON leaderboard TYPE number
 
 DEFINE FIELD OVERWRITE verified       ON leaderboard TYPE bool 
     DEFAULT true;
+
+DEFINE FIELD OVERWRITE is_whitelisted  ON leaderboard TYPE bool 
+    DEFAULT false;
 
 DEFINE FIELD OVERWRITE created_at     ON leaderboard TYPE datetime 
     VALUE $before.created_at OR time::now();
