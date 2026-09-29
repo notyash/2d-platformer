@@ -1844,6 +1844,7 @@ export class EnvironmentManager {
                 if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, zone.getBounds())) {
                     this.inventoryManager.disarmGun();
                     GameEventBus.getInstance().emit('toast:show', {
+                        id: 'gun-disarmed',
                         title: 'GUN DISARMED',
                         icon: 'gun',
                         variant: 'warning',

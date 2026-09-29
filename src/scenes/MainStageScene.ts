@@ -800,6 +800,7 @@ export class MainStageScene extends Phaser.Scene {
 
         GameEventBus.getInstance().resetCache();
         GameEventBus.getInstance().emit('toast:show', {
+            id: 'run-restarted',
             title: 'RUN RESTARTED',
             icon: 'restart',
             variant: 'info',

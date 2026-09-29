@@ -137,6 +137,7 @@ export class InventoryManager {
 
         // Structured control hint toast on pickup (ephemeral, not cached/replayed)
         GameEventBus.getInstance().emit('toast:show', {
+            id: 'gun-acquired',
             title: 'GUN ACQUIRED',
             iconSrc: '/assets/sprites/collectibles/gun_sprite.png',
             keys: ['CTRL', 'L-CLICK'],
@@ -159,6 +160,7 @@ export class InventoryManager {
 
         // Structured control hint toast on pickup (ephemeral, not cached/replayed)
         GameEventBus.getInstance().emit('toast:show', {
+            id: 'totem-acquired',
             title: 'TOTEM ACQUIRED',
             iconSrc: '/assets/sprites/collectibles/frog_doll_totem.png',
             keys: ['E'],

@@ -38,24 +38,25 @@
   font-weight: 700;
   text-transform: uppercase;
   color: var(--parchment);
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-bottom: 2px solid rgba(0, 0, 0, 0.6);
+  background: var(--bg-card);
+  border: 1px solid var(--border-line);
+  border-bottom: 2px solid var(--bg-void);
   border-radius: var(--radius-xs);
+  box-shadow: var(--shadow-panel);
   user-select: none;
   line-height: 1;
   transition: transform var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .kz-keycap--sm {
-  font-size: 0.55rem;
-  padding: 0.15rem 0.35rem;
+  font-size: 0.65rem;
+  padding: 0.18rem 0.4rem;
   letter-spacing: 0.04em;
 }
 
 .kz-keycap--md {
-  font-size: 0.7rem;
-  padding: 0.2rem 0.45rem;
+  font-size: 0.75rem;
+  padding: 0.22rem 0.5rem;
   letter-spacing: 0.06em;
 }
 
@@ -214,11 +215,19 @@
 .kz-slot-card__badge-count {
   position: absolute;
   top: 0.15rem;
-  right: 0.25rem;
+  right: 0.15rem;
   font-family: var(--font-mono);
-  font-size: 0.55rem;
+  font-size: 0.875rem;
   font-weight: 700;
   color: var(--gold);
+  background: var(--bg-void);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-xs);
+  padding: 0.05rem 0.3rem;
+  line-height: 1;
+  min-width: 0.85rem;
+  text-align: center;
+  box-shadow: var(--shadow-panel);
   z-index: 4;
 }
 
@@ -366,7 +375,7 @@
 .kz-toast-item {
   pointer-events: auto;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
   padding: 0.6rem 0.85rem;
   background: rgba(17, 19, 28, 0.96);
@@ -403,8 +412,12 @@
 }
 
 .kz-toast-item__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
   flex-shrink: 0;
-  margin-top: 1px;
 }
 
 .kz-toast-item__sprite {
@@ -460,12 +473,16 @@
 }
 
 .kz-toast-item__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   color: var(--parchment-dim);
   cursor: pointer;
   padding: 0;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .kz-toast-item__close:hover {

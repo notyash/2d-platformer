@@ -68,7 +68,7 @@ export const Toast: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
 
         return (
           <div key={t.id} className={`kz-toast-item kz-toast-item--${variant}`}>
-            {t.iconSrc ? (
+            {t.iconSrc && t.iconSrc.trim().length > 0 ? (
               <div className="kz-toast-item__icon">
                 <img src={t.iconSrc} alt="" className="kz-toast-item__sprite" />
               </div>

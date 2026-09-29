@@ -549,6 +549,7 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                   className="hud-btn hud-btn-crimson"
                   onClick={() =>
                     showToast({
+                      id: 'gun-acquired',
                       title: 'GUN ACQUIRED',
                       iconSrc: '/assets/sprites/collectibles/gun_sprite.png',
                       keys: ['CTRL', 'L-CLICK'],
@@ -564,6 +565,7 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                   className="hud-btn hud-btn-outline"
                   onClick={() =>
                     showToast({
+                      id: 'totem-acquired',
                       title: 'TOTEM ACQUIRED',
                       iconSrc: '/assets/sprites/collectibles/frog_doll_totem.png',
                       keys: ['E'],
@@ -579,6 +581,7 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                   className="hud-btn hud-btn-outline"
                   onClick={() =>
                     showToast({
+                      id: 'run-restarted',
                       title: 'RUN RESTARTED',
                       icon: 'restart',
                       variant: 'info',
@@ -593,6 +596,7 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                   className="hud-btn hud-btn-restart"
                   onClick={() =>
                     showToast({
+                      id: 'gun-disarmed',
                       title: 'GUN DISARMED',
                       icon: 'gun',
                       variant: 'warning',
@@ -621,6 +625,7 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                   className="hud-btn hud-btn-restart"
                   onClick={() =>
                     showToast({
+                      id: 'boss-invulnerable',
                       title: 'BOSS INVULNERABLE',
                       message: 'Collect all 7 Gravity Orbs to break the barrier!',
                       variant: 'danger',
@@ -634,6 +639,7 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                   className="hud-btn hud-btn-crimson"
                   onClick={() =>
                     showToast({
+                      id: 'stage-complete',
                       title: 'STAGE COMPLETE',
                       message: 'New best time: 01:24.80!',
                       variant: 'victory',

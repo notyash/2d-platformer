@@ -130,6 +130,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 if (!this.hasShownShieldedToast) {
                     this.hasShownShieldedToast = true;
                     GameEventBus.getInstance().emit('toast:show', {
+                        id: 'boss-shielded',
                         title: 'BOSS SHIELDED',
                         message: 'The boss is shielded. Collect the gravity orbs.',
                         variant: 'warning',
@@ -928,6 +929,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         if (!this.hasShownBossEncounterToast) {
             this.hasShownBossEncounterToast = true;
             GameEventBus.getInstance().emit('toast:show', {
+                id: 'boss-encounter',
                 title: 'BOSS ENCOUNTER',
                 message: 'The boss is shielded. Collect the gravity orbs.',
                 variant: 'warning',
