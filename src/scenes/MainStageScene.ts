@@ -40,9 +40,16 @@ export class MainStageScene extends Phaser.Scene {
     public isGameComplete: boolean = false;
     public totalDeaths: number = 0;
     private lastRPressTime: number = 0;
+    private lastFullscreenExitTime: number = 0;
     private escKey!: Phaser.Input.Keyboard.Key;
     private rKey!: Phaser.Input.Keyboard.Key;
     private cKey!: Phaser.Input.Keyboard.Key;
+
+    private onFullscreenChange = () => {
+        if (typeof document !== 'undefined' && !document.fullscreenElement) {
+            this.lastFullscreenExitTime = performance.now();
+        }
+    };
 
     constructor() {
         super('MainStageScene');
@@ -388,13 +395,8 @@ export class MainStageScene extends Phaser.Scene {
 
         // ESC, R, and C Key listeners
         if (this.input.keyboard) {
-            let lastFullscreenExitTime = 0;
             if (typeof document !== 'undefined') {
-                document.addEventListener('fullscreenchange', () => {
-                    if (!document.fullscreenElement) {
-                        lastFullscreenExitTime = performance.now();
-                    }
-                });
+                document.addEventListener('fullscreenchange', this.onFullscreenChange);
             }
 
             this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
@@ -402,8 +404,8 @@ export class MainStageScene extends Phaser.Scene {
                 if (this.isGameComplete) {
                     return; // Sticky: ESC cannot unpause or resume game once victory orb is collected
                 }
-                // When exiting fullscreen via Esc, do not open pause menu
-                if (document.fullscreenElement || (performance.now() - lastFullscreenExitTime < 300)) {
+                // When exiting fullscreen via Esc, browser exits fullscreen; ignore Esc for ~300ms so it doesn't also open pause menu
+                if (performance.now() - this.lastFullscreenExitTime < 300) {
                     return;
                 }
                 if (this.isGamePaused) {
@@ -488,10 +490,16 @@ export class MainStageScene extends Phaser.Scene {
             }
         });
 
-        this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
+        const cleanup = () => {
             window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+            if (typeof document !== 'undefined') {
+                document.removeEventListener('fullscreenchange', this.onFullscreenChange);
+            }
             unsubAction();
-        });
+        };
+
+        this.events.on(Phaser.Scenes.Events.SHUTDOWN, cleanup);
+        this.events.on(Phaser.Scenes.Events.DESTROY, cleanup);
 
         // World Colliders
         this.physics.add.collider(this.player, this.groundLayer, undefined, (_p, tile) => {
