@@ -4,7 +4,6 @@ import { Player } from '../entities/Player';
 import { UIManager } from './UIManager';
 import { InventoryManager } from './InventoryManager';
 import { SoundManager } from './SoundManager';
-import { TOKENS } from '../theme/tokens';
 import { GameEventBus } from '../services/GameEventBus';
 import type { Firebar } from '../types';
 
@@ -87,7 +86,6 @@ export class EnvironmentManager {
     public doorExitY: number = 0;
     public doorExitTopY: number = 0;
     public doorExitDeepY: number = 0;
-    public doorPrompts: Phaser.GameObjects.Container[] = [];
     public doorSprites: Phaser.GameObjects.Sprite[] = [];
     public wells?: Phaser.Physics.Arcade.StaticGroup;
     public wellObjects: { x: number, y: number, width: number, height: number, topY: number }[] = [];
@@ -654,8 +652,6 @@ export class EnvironmentManager {
         }
         
         this.doorZones = [];
-        this.doorPrompts.forEach(p => p.destroy());
-        this.doorPrompts = [];
 
         rawMapObjects.filter((obj: any) => obj.name === 'DoorZone' || obj.name === 'DoorEntrance').forEach((obj: any) => {
             const zW = obj.width || 32;
@@ -664,6 +660,9 @@ export class EnvironmentManager {
             const zY = obj.y + (obj.height ? obj.height / 2 : 24) - 32;
             const zone = this.scene.add.zone(zX, zY, zW, zH);
             this.scene.physics.add.existing(zone, true); 
+            (zone as any).promptWorldX = zX;
+            const topY = obj.gid !== undefined ? (obj.y - (obj.height || 32)) : (obj.y || (zY - zH / 2));
+            (zone as any).promptWorldY = topY - 14;
             this.doorZones.push(zone);
 
             const doorSpriteX = obj.x + (obj.width ? obj.width / 2 : 16);
@@ -674,89 +673,6 @@ export class EnvironmentManager {
                 dSprite.setDepth(2.5);
                 this.doorSprites.push(dSprite);
             }
-
-            // KamiZuki styled KeyCap interact badge
-            const promptX = zX;
-            const topY = obj.gid !== undefined ? (obj.y - (obj.height || 32)) : (obj.y || 0);
-            const promptY = topY - 14;
-
-            let promptWidth = 86;
-            const promptHeight = 24;
-
-            const bg = this.scene.add.graphics();
-            const navyFill = parseInt(TOKENS.colors.bgPanel.replace('#', '0x'), 16);
-            const crimsonBorder = parseInt(TOKENS.colors.crimson.replace('#', '0x'), 16);
-            const keyCapBg = parseInt(TOKENS.colors.bgCard.replace('#', '0x'), 16);
-
-            const renderBadgeGraphics = (w: number) => {
-                bg.clear();
-                // Navy panel fill
-                bg.fillStyle(navyFill, 0.95);
-                bg.fillRoundedRect(-w / 2, -promptHeight / 2, w, promptHeight, 5);
-                // Crimson border
-                bg.lineStyle(1.5, crimsonBorder, 0.9);
-                bg.strokeRoundedRect(-w / 2, -promptHeight / 2, w, promptHeight, 5);
-
-                // KeyCap inner box on left
-                bg.fillStyle(keyCapBg, 0.9);
-                bg.fillRoundedRect(-w / 2 + 4, -promptHeight / 2 + 3, 18, 18, 3);
-                bg.lineStyle(1, crimsonBorder, 0.6);
-                bg.strokeRoundedRect(-w / 2 + 4, -promptHeight / 2 + 3, 18, 18, 3);
-            };
-
-            renderBadgeGraphics(promptWidth);
-
-            // KeyCap text "E"
-            const keyTxt = this.scene.add.text(-promptWidth / 2 + 13, 0, 'E', {
-                fontSize: '11px',
-                fontFamily: TOKENS.fonts.mono,
-                color: TOKENS.colors.parchment,
-                fontStyle: 'bold'
-            }).setOrigin(0.5);
-
-            // Verb label "Activate"
-            const verbTxt = this.scene.add.text(-promptWidth / 2 + 28, 0, 'Activate', {
-                fontSize: '11px',
-                fontFamily: TOKENS.fonts.sans,
-                color: TOKENS.colors.parchment,
-                fontStyle: 'bold'
-            }).setOrigin(0, 0.5);
-
-            // Ensure web fonts are ready, redraw text and resize badge to match exact text bounds
-            if (typeof document !== 'undefined' && document.fonts) {
-                document.fonts.ready.then(() => {
-                    if (keyTxt && keyTxt.active && verbTxt && verbTxt.active && bg && bg.active) {
-                        keyTxt.setFontFamily(TOKENS.fonts.mono);
-                        keyTxt.updateText();
-                        verbTxt.setFontFamily(TOKENS.fonts.sans);
-                        verbTxt.updateText();
-
-                        const dynamicWidth = Math.max(86, Math.ceil(28 + verbTxt.width + 12));
-                        promptWidth = dynamicWidth;
-                        renderBadgeGraphics(promptWidth);
-                        keyTxt.setPosition(-promptWidth / 2 + 13, 0);
-                        verbTxt.setPosition(-promptWidth / 2 + 28, 0);
-                    }
-                }).catch(() => {});
-            }
-
-            const prompt = this.scene.add.container(promptX, promptY, [bg, keyTxt, verbTxt]);
-            prompt.setDepth(30);
-            prompt.setAlpha(0); // Hidden until player proximity
-            (prompt as any).targetAlpha = 0;
-
-            // Subtle crimson pulse animation
-            this.scene.tweens.add({
-                targets: prompt,
-                scaleX: 1.05,
-                scaleY: 1.05,
-                duration: 850,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            });
-
-            this.doorPrompts.push(prompt);
         });
     }
 
@@ -1726,30 +1642,27 @@ export class EnvironmentManager {
 
         // Handle Teleport Door (Entering door teleports player into Checkpoint2 well, climbing up)
         let isPlayerInDoor = false;
+        let activeDoorScreenPos: { x: number; y: number } | null = null;
         for (const zone of this.doorZones) {
             if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, zone.getBounds())) {
                 isPlayerInDoor = true;
+                const cam = this.scene.cameras.main;
+                const wx = (zone as any).promptWorldX ?? zone.x;
+                const wy = (zone as any).promptWorldY ?? (zone.y - zone.height / 2);
+                const screenX = ((wx - cam.scrollX) * cam.zoom / 854) * 100;
+                const screenY = ((wy - cam.scrollY) * cam.zoom / 480) * 100;
+                activeDoorScreenPos = { x: screenX, y: screenY };
                 break;
             }
         }
-        this.player.isNearDoor = isPlayerInDoor;
-
-        // Proximity fade for interact prompts
-        this.doorPrompts.forEach((prompt) => {
-            const targetAlpha = isPlayerInDoor ? 1 : 0;
-            if ((prompt as any).targetAlpha !== targetAlpha) {
-                (prompt as any).targetAlpha = targetAlpha;
-                if ((prompt as any).fadeTween) {
-                    (prompt as any).fadeTween.stop();
-                }
-                (prompt as any).fadeTween = this.scene.tweens.add({
-                    targets: prompt,
-                    alpha: targetAlpha,
-                    duration: targetAlpha === 1 ? 160 : 220,
-                    ease: 'Quad.easeOut',
-                });
-            }
-        });
+        if (this.player.isNearDoor !== isPlayerInDoor || isPlayerInDoor) {
+            this.player.isNearDoor = isPlayerInDoor;
+            GameEventBus.getInstance().emitDoorPromptIfChanged(
+                isPlayerInDoor && activeDoorScreenPos
+                    ? { active: true, x: activeDoorScreenPos.x, y: activeDoorScreenPos.y }
+                    : null
+            );
+        }
 
         if (isPlayerInDoor && this.doorExitX !== 0 && !this.player.isTeleporting && !this.player.isDying) {
             const enterPressed = Phaser.Input.Keyboard.JustDown(this.player.keyE) ||
@@ -1759,6 +1672,7 @@ export class EnvironmentManager {
 
             if (enterPressed) {
                 this.player.isNearDoor = false;
+                GameEventBus.getInstance().emitDoorPromptIfChanged(null);
                 this.player.isTeleporting = true;
                 this.player.setVelocity(0, 0);
 

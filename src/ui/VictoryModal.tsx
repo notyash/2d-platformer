@@ -1,12 +1,14 @@
-// src/ui/PauseModal.tsx
+// src/ui/VictoryModal.tsx
 import React, { useEffect, useState } from 'react';
 import { GameEventBus, type GameState, type GameStats } from '../services/GameEventBus';
 import { useMenuNavigation } from '../hooks/useMenuNavigation';
 import { Icon } from './kit/Icon';
+import './kit/kit.css';
 
-interface PauseModalProps {
+interface VictoryModalProps {
   gameState: GameState;
   stats: GameStats;
+  timeString?: string;
 }
 
 interface MenuEntry {
@@ -17,68 +19,41 @@ interface MenuEntry {
   variant?: 'primary' | 'crimson' | 'gold' | 'default';
 }
 
-export const PauseModal: React.FC<PauseModalProps> = ({ gameState, stats }) => {
-  const [hasCheckpoint, setHasCheckpoint] = useState<boolean>(false);
+export const VictoryModal: React.FC<VictoryModalProps> = ({ gameState, stats, timeString }) => {
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
-  const isOpen = gameState === 'PAUSED';
+  const isOpen = gameState === 'VICTORY';
 
   useEffect(() => {
     const bus = GameEventBus.getInstance();
-    const unsubCp = bus.on('checkpoint:status', (status) => {
-      setHasCheckpoint(status);
-    });
     const unsubSound = bus.on('sound:status', (enabled) => {
       setSoundEnabled(enabled);
     });
 
     return () => {
-      unsubCp();
       unsubSound();
     };
   }, []);
 
-  const handleResume = () => {
-    GameEventBus.getInstance().emit('action:trigger', { type: 'RESUME_GAME' });
-  };
-
-  const handleRespawnCheckpoint = () => {
-    GameEventBus.getInstance().emit('action:trigger', { type: 'RESPAWN_CHECKPOINT' });
-  };
-
   const handleRestart = () => {
     GameEventBus.getInstance().emit('action:trigger', { type: 'RESTART_RUN' });
-  };
-
-  const handleToggleSound = () => {
-    GameEventBus.getInstance().emit('action:trigger', { type: 'TOGGLE_SOUND' });
   };
 
   const handleOpenLeaderboard = () => {
     GameEventBus.getInstance().emit('action:trigger', { type: 'OPEN_LEADERBOARD' });
   };
 
-  // Construct dynamic menu entries list
+  const handleToggleSound = () => {
+    GameEventBus.getInstance().emit('action:trigger', { type: 'TOGGLE_SOUND' });
+  };
+
   const menuOptions: MenuEntry[] = [
     {
-      id: 'resume',
-      label: 'Resume Game',
-      subLabel: <Icon name="play" size={14} />,
-      variant: 'primary',
-      action: handleResume,
+      id: 'restart',
+      label: 'Restart Run',
+      subLabel: <Icon name="restart" size={14} />,
+      variant: 'crimson',
+      action: handleRestart,
     },
-  ];
-
-  if (hasCheckpoint) {
-    menuOptions.push({
-      id: 'respawn',
-      label: 'Respawn at Checkpoint',
-      subLabel: <Icon name="checkpoint" size={14} />,
-      variant: 'gold',
-      action: handleRespawnCheckpoint,
-    });
-  }
-
-  menuOptions.push(
     {
       id: 'leaderboard',
       label: 'Global Leaderboard',
@@ -93,14 +68,7 @@ export const PauseModal: React.FC<PauseModalProps> = ({ gameState, stats }) => {
       variant: 'default',
       action: handleToggleSound,
     },
-    {
-      id: 'restart',
-      label: 'Restart Run',
-      subLabel: <Icon name="restart" size={14} />,
-      variant: 'crimson',
-      action: handleRestart,
-    }
-  );
+  ];
 
   const { selectedIndex, getItemProps } = useMenuNavigation({
     isOpen,
@@ -111,23 +79,29 @@ export const PauseModal: React.FC<PauseModalProps> = ({ gameState, stats }) => {
         option.action();
       }
     },
-    onClose: handleResume,
+    onClose: handleRestart,
   });
 
   if (!isOpen) return null;
 
   return (
     <div className="pause-modal-backdrop react-interactive" role="dialog" aria-modal="true">
-      <div className="pause-modal-card">
+      <div className="pause-modal-card victory-modal-card">
         {/* Japanese + English Title Banner */}
         <div className="modal-header">
-          <span className="modal-kanji-tag">神月 • 一時停止</span>
-          <h2 className="modal-title">GAME PAUSED</h2>
-          <div className="modal-divider" />
+          <span className="modal-kanji-tag modal-kanji-tag--gold">神月 • 勝利</span>
+          <h2 className="modal-title modal-title--gold">STAGE COMPLETE!</h2>
+          <span className="modal-subtitle">Orb of Victory Secured • Run Submitted!</span>
+          <div className="modal-divider modal-divider--gold" />
         </div>
 
-        {/* Current Run Quick Stats */}
+        {/* Victory Run Stats Grid */}
         <div className="modal-stats-grid">
+          <div className="modal-stat-box">
+            <Icon name="trophy" size={16} />
+            <span className="stat-box-label">TIME</span>
+            <span className="stat-box-value gold">{timeString || '00:00.00'}</span>
+          </div>
           <div className="modal-stat-box">
             <Icon name="coin" size={16} />
             <span className="stat-box-label">COINS</span>

@@ -179,11 +179,11 @@ export const BossBar: React.FC<BossBarProps> = ({
             <div className="kz-boss-bar-ghost" style={{ width: `${ghostPercent}%` }} />
           )}
 
-          {/* Primary Health Fill: normal crimson fill, 100% width while shielded, hpPercent otherwise */}
-          {(invulnerable || safeHp > 0) && (
+          {/* Primary Health Fill: normal crimson fill, tracks actual hpPercent */}
+          {safeHp > 0 && (
             <div
               className="kz-boss-bar-fill"
-              style={{ width: `${invulnerable ? 100 : hpPercent}%` }}
+              style={{ width: `${hpPercent}%` }}
             />
           )}
 

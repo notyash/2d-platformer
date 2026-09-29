@@ -337,6 +337,13 @@ html, body {
   z-index: var(--z-hud);
 }
 
+.door-prompt-world-wrapper {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  z-index: var(--z-hud);
+}
+
 /* Coin Chip Bump Animation (Triggered on flying coin arrival) */
 @keyframes kzChipBump {
   0% {
@@ -488,6 +495,10 @@ html, body {
   letter-spacing: 0.12em;
 }
 
+.modal-kanji-tag--gold {
+  color: var(--gold);
+}
+
 .modal-title {
   font-family: var(--font-heading);
   font-size: 1.35rem;
@@ -498,11 +509,35 @@ html, body {
   margin: 0;
 }
 
+.modal-title--gold {
+  color: var(--gold);
+  text-shadow: 0 0 1rem var(--gold-glow);
+}
+
+.modal-subtitle {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--orb-mint);
+  text-shadow: 0 0 8px var(--orb-mint-glow);
+  margin-top: -0.1rem;
+}
+
 .modal-divider {
   width: 3.5rem;
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--crimson), transparent);
   margin-top: 0.25rem;
+}
+
+.modal-divider--gold {
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+.victory-modal-card {
+  border-color: var(--gold);
+  box-shadow: var(--shadow-panel), 0 0 2rem var(--gold-glow);
 }
 
 /* Stats Summary Row */

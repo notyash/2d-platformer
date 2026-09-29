@@ -419,6 +419,7 @@ export class MainStageScene extends Phaser.Scene {
 
             this.rKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
             this.rKey.on('down', () => {
+                if (this.isGamePaused || this.isGameComplete) return;
                 if (this.restartPromptActive && this.restartPromptElapsedMs < this.RESTART_WINDOW_MS) {
                     this.restartPromptActive = false;
                     this.restartPromptElapsedMs = 0;
@@ -433,6 +434,7 @@ export class MainStageScene extends Phaser.Scene {
 
             this.cKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
             this.cKey.on('down', () => {
+                if (this.isGamePaused || this.isGameComplete) return;
                 if (this.envManager.hasActiveCheckpoint()) {
                     this.respawnAtActiveCheckpoint();
                 } else {
@@ -698,9 +700,11 @@ export class MainStageScene extends Phaser.Scene {
         this.uiManager.hidePauseMenu();
         this.soundManager.playMenuSelect();
 
+        this.player?.enforceKeyLift();
+
         // Re-enable Phaser keyboard capture after 1 frame so activating keypress doesn't trigger in-game jump
         setTimeout(() => {
-            if (!this.isGamePaused && this.input && this.input.keyboard) {
+            if (!this.isGamePaused && !this.isGameComplete && this.input && this.input.keyboard) {
                 this.input.keyboard.enabled = true;
                 this.input.keyboard.resetKeys();
             }
@@ -763,6 +767,10 @@ export class MainStageScene extends Phaser.Scene {
         this.anims.resumeAll();
         this.tweens.resumeAll();
         this.time.paused = false;
+        if (this.input && this.input.keyboard) {
+            this.input.keyboard.enabled = true;
+            this.input.keyboard.resetKeys();
+        }
         this.player.cancelDeathEffect();
         this.uiManager.hideDeathScreen();
         this.uiManager.hidePauseMenu();
@@ -1521,8 +1529,10 @@ export class MainStageScene extends Phaser.Scene {
     }
 
     update(_time: number, delta: number) {
-        if (this.isGamePaused) {
-            this.uiManager.updatePauseMenu();
+        if (this.isGamePaused || this.isGameComplete) {
+            if (this.isGamePaused) {
+                this.uiManager.updatePauseMenu();
+            }
             return;
         }
 
@@ -1609,7 +1619,15 @@ export class MainStageScene extends Phaser.Scene {
         this.isGameComplete = true;
 
         this.physics.pause();
+        this.anims.pauseAll();
+        this.tweens.pauseAll();
+        this.time.paused = true;
         this.player.setVelocity(0, 0);
+
+        if (this.input && this.input.keyboard) {
+            this.input.keyboard.enabled = false;
+            this.input.keyboard.resetKeys();
+        }
 
         const netDurationMs = Math.round(this.getElapsedMilliseconds());
         const payload = SecurityManager.getInstance().finishRun(
@@ -1622,6 +1640,13 @@ export class MainStageScene extends Phaser.Scene {
         this.soundManager?.playVictory();
 
         const formattedTime = this.getFormattedElapsedTime();
+        this.uiManager.updateHUD(
+            formattedTime,
+            this.collectiblesManager.coinsCollected,
+            this.enemyManager.enemiesKilled,
+            this.totalDeaths
+        );
+
         this.uiManager.showVictoryMenu(
             () => this.restartFullRun(),
             {

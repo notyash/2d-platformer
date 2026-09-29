@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import { SoundManager } from './SoundManager';
-import { LeaderboardManager } from './LeaderboardManager';
 import { GameEventBus } from '../services/GameEventBus';
 import { TOKENS } from '../theme/tokens';
 
@@ -32,21 +31,8 @@ export class UIManager {
     private deathButtonLabels: Phaser.GameObjects.Text[] = [];
     private deathHighlight?: Phaser.GameObjects.Graphics;
 
-    // Victory Menu Container & State
-    private victoryContainer?: Phaser.GameObjects.Container;
+    // Victory State
     public isVictoryMenuOpen: boolean = false;
-    private selectedVictoryIndex: number = 0;
-    private victoryOptions: MenuOption[] = [];
-    private victoryButtonBoxes: Phaser.GameObjects.Rectangle[] = [];
-    private victoryButtonLabels: Phaser.GameObjects.Text[] = [];
-    private victoryHighlight?: Phaser.GameObjects.Graphics;
-    private victorySoundLabelRef?: Phaser.GameObjects.Text;
-    private victoryStartBtnY = 210;
-    private readonly victoryBtnGap = 44;
-    private readonly victoryBtnWidth = 300;
-    private readonly victoryBtnHeight = 36;
-    private get victoryModalX(): number { return this.scene.scale.width / 2; }
-    private get victoryModalY(): number { return this.scene.scale.height / 2; }
 
     private get deathModalX(): number { return this.scene.scale.width / 2; }
     private get deathModalY(): number { return this.scene.scale.height / 2; }
@@ -73,28 +59,6 @@ export class UIManager {
     }
 
     private handlePointerMove = (pointer: Phaser.Input.Pointer) => {
-        if (this.isVictoryMenuOpen) {
-            const px = pointer.x;
-            const py = pointer.y;
-            const halfW = this.victoryBtnWidth / 2;
-            const halfH = this.victoryBtnHeight / 2;
-
-            for (let i = 0; i < this.victoryOptions.length; i++) {
-                const btnY = this.victoryStartBtnY + (i * this.victoryBtnGap);
-                if (
-                    px >= this.victoryModalX - halfW && px <= this.victoryModalX + halfW &&
-                    py >= btnY - halfH && py <= btnY + halfH
-                ) {
-                    if (this.selectedVictoryIndex !== i) {
-                        this.selectedVictoryIndex = i;
-                        this.soundManager?.playMenuSelect();
-                        this.updateVictoryVisuals();
-                    }
-                    break;
-                }
-            }
-            return;
-        }
 
         if (this.isDeathScreenOpen) {
             const px = pointer.x;
@@ -116,25 +80,6 @@ export class UIManager {
     };
 
     private handlePointerDown = (pointer: Phaser.Input.Pointer) => {
-        if (this.isVictoryMenuOpen) {
-            const px = pointer.x;
-            const py = pointer.y;
-            const halfW = this.victoryBtnWidth / 2;
-            const halfH = this.victoryBtnHeight / 2;
-
-            for (let i = 0; i < this.victoryOptions.length; i++) {
-                const btnY = this.victoryStartBtnY + (i * this.victoryBtnGap);
-                if (
-                    px >= this.victoryModalX - halfW && px <= this.victoryModalX + halfW &&
-                    py >= btnY - halfH && py <= btnY + halfH
-                ) {
-                    this.selectedVictoryIndex = i;
-                    this.triggerCurrentVictoryOption();
-                    break;
-                }
-            }
-            return;
-        }
 
         if (this.isDeathScreenOpen) {
             const px = pointer.x;
@@ -153,27 +98,6 @@ export class UIManager {
     };
 
     private handleGlobalKeyDown = (event: KeyboardEvent) => {
-        if (this.isVictoryMenuOpen) {
-            const key = event.code;
-            if (key === 'ArrowUp' || key === 'KeyW') {
-                event.preventDefault();
-                event.stopPropagation();
-                this.selectedVictoryIndex = (this.selectedVictoryIndex - 1 + this.victoryOptions.length) % this.victoryOptions.length;
-                this.soundManager?.playMenuSelect();
-                this.updateVictoryVisuals();
-            } else if (key === 'ArrowDown' || key === 'KeyS') {
-                event.preventDefault();
-                event.stopPropagation();
-                this.selectedVictoryIndex = (this.selectedVictoryIndex + 1) % this.victoryOptions.length;
-                this.soundManager?.playMenuSelect();
-                this.updateVictoryVisuals();
-            } else if (key === 'Enter' || key === 'Space') {
-                event.preventDefault();
-                event.stopPropagation();
-                this.triggerCurrentVictoryOption();
-            }
-            return;
-        }
 
         if (this.isDeathScreenOpen) {
             const key = event.code;
@@ -641,185 +565,18 @@ export class UIManager {
     }
 
     public showVictoryMenu(
-        onRestart: () => void,
-        stats: { time: string; deaths: number; coins: number; kills: number }
+        _onRestart: () => void,
+        _stats: { time: string; deaths: number; coins: number; kills: number }
     ) {
         this.hideVictoryMenu();
         this.hidePauseMenu();
         this.hideDeathScreen();
         this.isVictoryMenuOpen = true;
-        this.selectedVictoryIndex = 0;
         GameEventBus.getInstance().emitGameState('VICTORY');
-
-        if (this.scene.game.canvas) {
-            this.scene.game.canvas.focus();
-        }
-
-        this.victoryContainer = this.scene.add.container(0, 0).setScrollFactor(0).setDepth(250);
-
-        // Dark dimming backdrop
-        const backdrop = this.scene.add.rectangle(this.victoryModalX, this.victoryModalY, this.scene.scale.width, this.scene.scale.height, 0x030712, 0.88);
-        this.victoryContainer.add(backdrop);
-
-        // Victory Options: Restart Run, View Leaderboard, Audio Mute/Unmute
-        this.victoryOptions = [
-            {
-                id: 'restart',
-                label: '🔄 Restart Run',
-                action: onRestart
-            },
-            {
-                id: 'leaderboard',
-                label: '🏆 View Leaderboard',
-                action: () => {
-                    LeaderboardManager.getInstance().showLeaderboardModal(this.scene, this.soundManager);
-                }
-            },
-            {
-                id: 'sound',
-                label: `🔊 Audio: ${this.soundEnabled ? 'ON' : 'OFF'}`,
-                action: () => {
-                    this.soundEnabled = !this.soundEnabled;
-                    this.soundManager?.setMuted(!this.soundEnabled);
-                    if (this.victorySoundLabelRef) {
-                        this.victorySoundLabelRef.setText(`🔊 Audio: ${this.soundEnabled ? 'ON' : 'OFF'}`);
-                    }
-                    if (this.soundEnabled) {
-                        this.soundManager?.playMenuSelect();
-                    }
-                }
-            }
-        ];
-
-        const modalWidth = 420;
-        const modalHeight = 350;
-        const modalBg = this.scene.add.rectangle(this.victoryModalX, this.victoryModalY, modalWidth, modalHeight, 0x0f172a, 0.96)
-            .setStrokeStyle(2.5, 0xf59e0b, 0.95);
-        this.victoryContainer.add(modalBg);
-
-        // Title
-        const title = this.scene.add.text(this.victoryModalX, this.victoryModalY - 125, '🏆 STAGE COMPLETE! 🏆', {
-            fontSize: '24px', fontFamily: 'Arial', color: '#facc15', stroke: '#000000', strokeThickness: 4, fontStyle: 'bold'
-        }).setOrigin(0.5);
-        this.victoryContainer.add(title);
-
-        this.scene.tweens.add({
-            targets: title,
-            scale: 1.05,
-            duration: 800,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
-
-        const subtitle = this.scene.add.text(this.victoryModalX, this.victoryModalY - 92, 'Orb of Victory Secured • Run Submitted!', {
-            fontSize: '12px', fontFamily: 'Arial', color: '#38bdf8', stroke: '#000000', strokeThickness: 2, fontStyle: 'bold'
-        }).setOrigin(0.5);
-        this.victoryContainer.add(subtitle);
-
-        // Stats Box
-        const statsBox = this.scene.add.rectangle(this.victoryModalX, this.victoryModalY - 48, 360, 46, 0x1e293b, 0.9)
-            .setStrokeStyle(1.5, 0x475569);
-        const statsText = this.scene.add.text(this.victoryModalX, this.victoryModalY - 48, `TIME: ${stats.time}   |   DEATHS: ${stats.deaths}\nCOINS: ${stats.coins}   |   KILLS: ${stats.kills}`, {
-            fontSize: '12px', fontFamily: 'Arial', color: '#e2e8f0', align: 'center', stroke: '#000000', strokeThickness: 2, fontStyle: 'bold'
-        }).setOrigin(0.5);
-        this.victoryContainer.add([statsBox, statsText]);
-
-        this.victoryStartBtnY = this.victoryModalY + 16;
-
-        this.victoryButtonBoxes = [];
-        this.victoryButtonLabels = [];
-
-        for (let i = 0; i < this.victoryOptions.length; i++) {
-            const opt = this.victoryOptions[i];
-            const btnY = this.victoryStartBtnY + (i * this.victoryBtnGap);
-
-            const box = this.scene.add.rectangle(this.victoryModalX, btnY, this.victoryBtnWidth, this.victoryBtnHeight, 0x1e293b, 0.9)
-                .setStrokeStyle(1.5, 0x475569);
-
-            const label = this.scene.add.text(this.victoryModalX, btnY, opt.label, {
-                fontSize: '13px', fontFamily: 'Arial', color: '#ffffff', fontStyle: 'bold', stroke: '#000000', strokeThickness: 2.5
-            }).setOrigin(0.5);
-
-            if (opt.id === 'sound') {
-                this.victorySoundLabelRef = label;
-            }
-
-            this.victoryButtonBoxes.push(box);
-            this.victoryButtonLabels.push(label);
-            this.victoryContainer.add([box, label]);
-        }
-
-        this.victoryHighlight = this.scene.add.graphics();
-        this.victoryContainer.add(this.victoryHighlight);
-
-        this.updateVictoryVisuals();
+        GameEventBus.getInstance().emit('sound:status', this.soundEnabled);
     }
 
     public hideVictoryMenu() {
         this.isVictoryMenuOpen = false;
-        if (this.victoryContainer) {
-            this.victoryContainer.destroy();
-            this.victoryContainer = undefined;
-        }
-    }
-
-    private triggerCurrentVictoryOption() {
-        const opt = this.victoryOptions[this.selectedVictoryIndex];
-        if (opt && opt.action) {
-            this.soundManager?.playMenuSelect();
-            opt.action();
-        }
-    }
-
-    private updateVictoryVisuals() {
-        if (!this.isVictoryMenuOpen || !this.victoryHighlight) return;
-
-        for (let i = 0; i < this.victoryButtonBoxes.length; i++) {
-            const box = this.victoryButtonBoxes[i];
-            const label = this.victoryButtonLabels[i];
-            const isSelected = (i === this.selectedVictoryIndex);
-            const opt = this.victoryOptions[i];
-
-            if (isSelected) {
-                if (opt.id === 'restart') {
-                    box.setFillStyle(0xb91c1c, 0.95);
-                    box.setStrokeStyle(2, 0xf87171);
-                } else if (opt.id === 'leaderboard') {
-                    box.setFillStyle(0x0284c7, 0.95);
-                    box.setStrokeStyle(2, 0x38bdf8);
-                } else {
-                    box.setFillStyle(0x059669, 0.95);
-                    box.setStrokeStyle(2, 0x34d399);
-                }
-                box.setScale(1.02);
-                label.setScale(1.02);
-                label.setColor('#ffffff');
-            } else {
-                box.setFillStyle(0x1e293b, 0.85);
-                box.setStrokeStyle(1.5, 0x475569);
-                box.setScale(1);
-                label.setScale(1);
-                label.setColor('#94a3b8');
-            }
-        }
-
-        this.victoryHighlight.clear();
-        const activeBox = this.victoryButtonBoxes[this.selectedVictoryIndex];
-        const activeOpt = this.victoryOptions[this.selectedVictoryIndex];
-        if (activeBox && activeOpt) {
-            let borderColor = 0x38bdf8;
-            if (activeOpt.id === 'restart') borderColor = 0xfca5a5;
-            else if (activeOpt.id === 'sound') borderColor = 0x6ee7b7;
-
-            this.victoryHighlight.lineStyle(3, borderColor, 1);
-            this.victoryHighlight.strokeRoundedRect(
-                activeBox.x - (activeBox.width * activeBox.scaleX / 2) - 3,
-                activeBox.y - (activeBox.height * activeBox.scaleY / 2) - 3,
-                (activeBox.width * activeBox.scaleX) + 6,
-                (activeBox.height * activeBox.scaleY) + 6,
-                6
-            );
-        }
     }
 }

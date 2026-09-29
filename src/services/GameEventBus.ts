@@ -106,6 +106,12 @@ export interface OrbTargetData {
   center: { x: number; y: number };
 }
 
+export interface DoorPromptData {
+  active: boolean;
+  x: number;
+  y: number;
+}
+
 export interface EventMap {
   'stats:changed': GameStats;
   'time:tick': string; // Formatted time string, throttled to ~10Hz
@@ -124,6 +130,7 @@ export interface EventMap {
   'coin:bump': void;
   'boss:shield-hit': void;
   'prompt:restart': RestartPromptData;
+  'prompt:door': DoorPromptData | null;
   'checkpoint:changed': CheckpointState | null;
 }
 
@@ -149,6 +156,7 @@ export class GameEventBus {
   private lastOrbTarget: OrbTargetData = { pips: [], center: { x: 427, y: 55 } };
   private lastRestartPrompt: RestartPromptData = { active: false, progress: 0 };
   private lastCheckpoint: CheckpointState | null = null;
+  private lastDoorPrompt: DoorPromptData | null = null;
 
   public static getInstance(): GameEventBus {
     if (!GameEventBus.instance) {
@@ -403,12 +411,29 @@ export class GameEventBus {
     this.lastOrbTarget = { pips: [], center: { x: 427, y: 55 } };
     this.lastRestartPrompt = { active: false, progress: 0 };
     this.lastCheckpoint = null;
+    this.lastDoorPrompt = null;
     this.emit('prompt:restart', { active: false, progress: 0 });
+    this.emit('prompt:door', null);
     this.emit('checkpoint:changed', null);
   }
 
   public emitCheckpoint(data: CheckpointState | null): void {
     this.lastCheckpoint = data;
     this.emit('checkpoint:changed', data);
+  }
+
+  public emitDoorPromptIfChanged(data: DoorPromptData | null): void {
+    if (!data && !this.lastDoorPrompt) return;
+    if (
+      data &&
+      this.lastDoorPrompt &&
+      data.active === this.lastDoorPrompt.active &&
+      Math.abs(data.x - this.lastDoorPrompt.x) < 0.1 &&
+      Math.abs(data.y - this.lastDoorPrompt.y) < 0.1
+    ) {
+      return;
+    }
+    this.lastDoorPrompt = data ? { ...data } : null;
+    this.emit('prompt:door', this.lastDoorPrompt);
   }
 }

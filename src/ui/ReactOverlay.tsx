@@ -11,6 +11,7 @@ import {
 } from '../services/GameEventBus';
 import { KamiZukiHUD } from './KamiZukiHUD';
 import { PauseModal } from './PauseModal';
+import { VictoryModal } from './VictoryModal';
 import { DebugReadout } from './DebugReadout';
 import { UIKitShowcase } from './UIKitShowcase';
 import { BossBar } from './kit/BossBar';
@@ -19,7 +20,7 @@ import { SlotCard } from './kit/SlotCard';
 import { Panel } from './kit/Panel';
 import { PromptChip } from './kit/PromptChip';
 import { ToastProvider, useToast } from './kit/ToastContext';
-import type { RestartPromptData, CheckpointState } from '../services/GameEventBus';
+import type { RestartPromptData, CheckpointState, DoorPromptData } from '../services/GameEventBus';
 
 interface ReactOverlayContentProps {
   gameState: GameState;
@@ -60,6 +61,8 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
   });
   const [shieldHitPulse, setShieldHitPulse] = useState<number>(0);
   const [restartPrompt, setRestartPrompt] = useState<RestartPromptData>({ active: false, progress: 0 });
+  const [doorPrompt, setDoorPrompt] = useState<DoorPromptData | null>(null);
+  const [timeString, setTimeString] = useState<string>('00:00.00');
   const [activeCheckpoint, setActiveCheckpoint] = useState<CheckpointState | null>(null);
   const [checkpointPulse, setCheckpointPulse] = useState<number>(0);
 
@@ -187,6 +190,14 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
       setRestartPrompt(data);
     });
 
+    const unsubDoor = bus.on('prompt:door', (data) => {
+      setDoorPrompt(data);
+    });
+
+    const unsubTime = bus.on('time:tick', (t) => {
+      setTimeString(t);
+    });
+
     const unsubCheckpoint = bus.on('checkpoint:changed', (data) => {
       setActiveCheckpoint(data);
       if (data) {
@@ -216,6 +227,8 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
       unsubEquipment();
       unsubShieldHit();
       unsubRestartPrompt();
+      unsubDoor();
+      unsubTime();
       unsubCheckpoint();
       unsubToast();
     };
@@ -235,10 +248,12 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
     );
   }
 
+  const isMenuPaused = gameState === 'PAUSED' || gameState === 'VICTORY';
+
   return (
     <div
       className="react-ui-overlay"
-      data-paused={gameState === 'PAUSED' ? 'true' : 'false'}
+      data-paused={isMenuPaused ? 'true' : 'false'}
     >
       {/* Top KamiZuki HUD & Boss Arena Status */}
       <div className="hud-top-wrapper">
@@ -334,8 +349,28 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
         </div>
       )}
 
+      {/* Floating Door Interact Prompt Chip positioned directly above DoorZone */}
+      {doorPrompt && doorPrompt.active && (
+        <div
+          className="door-prompt-world-wrapper"
+          style={{
+            left: `${doorPrompt.x}%`,
+            top: `${doorPrompt.y}%`,
+          }}
+        >
+          <PromptChip
+            keyName="E"
+            label="to enter"
+            variant="crimson"
+          />
+        </div>
+      )}
+
       {/* Pause Modal */}
       <PauseModal gameState={gameState} stats={stats} />
+
+      {/* Victory Modal */}
+      <VictoryModal gameState={gameState} stats={stats} timeString={timeString} />
 
       {/* Dev-Only Event Bus Overlay (toggled with backtick `) */}
       {isDev && <DebugReadout onOpenUIKit={() => setShowUIKit(true)} />}
@@ -360,7 +395,7 @@ export const ReactOverlay: React.FC = () => {
   }, []);
 
   return (
-    <ToastProvider paused={gameState === 'PAUSED'}>
+    <ToastProvider paused={gameState === 'PAUSED' || gameState === 'VICTORY'}>
       <ReactOverlayContent gameState={gameState} />
     </ToastProvider>
   );
