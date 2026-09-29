@@ -108,16 +108,7 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
   }, [onOpenUIKit]);
 
   if (!isVisible) {
-    return (
-      <button
-        type="button"
-        className="debug-toggle-pill react-interactive"
-        title="Toggle Dev Debug & UI Kit (Hotkey: ` or F2 or Ctrl+Shift+D)"
-        onClick={() => setIsVisible(true)}
-      >
-        DEV [ ` / F2 ]
-      </button>
-    );
+    return null;
   }
 
   return (

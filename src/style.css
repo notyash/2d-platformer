@@ -654,29 +654,6 @@ html, body {
   margin-top: 0.25rem;
 }
 
-.debug-toggle-pill {
-  position: absolute;
-  bottom: 0.5rem;
-  left: 0.5rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border-line);
-  color: var(--parchment-dim);
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  padding: 0.15rem 0.45rem;
-  border-radius: var(--radius-xs);
-  cursor: pointer;
-  z-index: var(--z-dev);
-  transition: all 0.15s ease;
-  user-select: none;
-}
-
-.debug-toggle-pill:hover {
-  background: var(--bg-panel);
-  border-color: var(--border-crimson);
-  color: var(--parchment);
-}
-
 .debug-close-btn {
   background: none;
   border: none;
