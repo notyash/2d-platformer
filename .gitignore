@@ -173,3 +173,10 @@ SURREALDB_FDE_INTERVIEW_PREP.md
 .env*
 chrome/
 screenshots/
+# Local scripts, scratch files, specs and rules
+scripts/
+scratch/
+BOSS_SPEC.md
+TODO.md
+UI_STYLE_GUIDE.md
+.agents/rules/
