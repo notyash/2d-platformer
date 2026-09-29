@@ -331,7 +331,7 @@ html, body {
   left: var(--space-lg);
   display: flex;
   flex-direction: row;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: var(--space-sm);
   z-index: var(--z-hud);
   pointer-events: auto;

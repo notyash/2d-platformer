@@ -266,6 +266,25 @@
   }
 }
 
+.kz-slot-wrapper {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.kz-slot-card__keyhint-below {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.kz-keycap--dimmed {
+  opacity: 0.35;
+  filter: grayscale(1);
+  pointer-events: none;
+}
+
 /* --------------------------------------------------------------------------
    Toast Notification Component
    -------------------------------------------------------------------------- */
@@ -325,6 +344,15 @@
   margin-top: 1px;
 }
 
+.kz-toast-item__sprite {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: block;
+}
+
 .kz-toast-item__content {
   flex: 1;
 }
@@ -343,6 +371,29 @@
   font-size: 11.5px;
   line-height: 1.35;
   color: var(--parchment-dim);
+}
+
+.kz-toast-item__keys-line {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--parchment);
+}
+
+.kz-toast-item__key-sep {
+  color: var(--parchment-dim);
+  font-size: 10px;
+  opacity: 0.6;
+  margin: 0 1px;
+}
+
+.kz-toast-item__hint {
+  color: var(--parchment-dim);
+  margin-left: 2px;
 }
 
 .kz-toast-item__close {

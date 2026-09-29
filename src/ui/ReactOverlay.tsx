@@ -83,8 +83,10 @@ const ReactOverlayContent: React.FC = () => {
     const unsubToast = bus.on('toast:show', (toastData) => {
       showToast({
         title: toastData.title,
-        message: toastData.message,
+        iconSrc: toastData.iconSrc,
         keys: toastData.keys,
+        hint: toastData.hint,
+        message: toastData.message,
         variant: toastData.variant,
         durationMs: toastData.durationMs,
       });
@@ -142,7 +144,6 @@ const ReactOverlayContent: React.FC = () => {
           {equipment.gun.acquired && (
             <SlotCard
               state={equipment.gun.state}
-              keyHint="L-Click / Ctrl"
               cooldownStartTime={equipment.gun.cooldownStartTime}
               cooldownDurationMs={equipment.gun.cooldownDurationMs}
               aria-label="Blaster Slot"

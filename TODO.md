@@ -171,6 +171,9 @@
 
 ---
 
+### 🐛 Known Bugs & Fixes
+- [ ] **Bridge Break Inconsistency on Moving Platform Landing**: Fix issue where falling onto a moving platform and then subsequently dropping onto the bridge still breaks it. Ensure landing/standing on the intermediate moving platform reliably and permanently cancels `isSmashFallActive` so the bridge remains unbreakable/solid.
+
 ### 🎨 Gameplay Polish & World Expansion
 - [ ] **Remove Cherry Blossom Petals Effect**: Remove the ambient floating cherry blossom petal breeze particles from the screen.
 - [ ] **Fix Grey Lines & Edge Bleeding on Sprites**: Thoroughly audit and clean all sprite sheets, tile boundaries, texture bleed margins, and camera subpixel rounding to eliminate grey lines appearing on top of sprites.

@@ -21,7 +21,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({
   icon,
   keyHint,
   badgeCount,
-  cooldownStartTime,
+  cooldownStartTime: _cooldownStartTime,
   cooldownDurationMs = 1000,
   className = '',
   children,
@@ -29,49 +29,56 @@ export const SlotCard: React.FC<SlotCardProps> = ({
 }) => {
   const stateClass = `kz-slot-card--${state}`;
 
-  // Calculate CSS animation delay once when cooldown starts, not on every re-render
+  // Cooldown sweep ring style (game-driven duration, zero wall-clock drift on pause)
   const cooldownStyle = useMemo<React.CSSProperties | undefined>(() => {
     if (state !== 'cooldown') return undefined;
 
-    const elapsed = cooldownStartTime ? Math.max(0, Date.now() - cooldownStartTime) : 0;
     return {
       animationDuration: `${cooldownDurationMs}ms`,
-      animationDelay: elapsed > 0 ? `-${elapsed}ms` : '0ms',
+      animationDelay: '0ms',
     };
-  }, [state, cooldownStartTime, cooldownDurationMs]);
+  }, [state, cooldownDurationMs]);
 
   return (
-    <div className={`kz-slot-card ${stateClass} ${className}`.trim()} {...props}>
-      {/* Icon / Content */}
-      <div className="kz-slot-card__icon-wrapper">
-        {children ? children : icon ? <Icon name={icon} size={24} /> : null}
+    <div className={`kz-slot-wrapper ${className}`.trim()} {...props}>
+      <div className={`kz-slot-card ${stateClass}`}>
+        {/* Icon / Content */}
+        <div className="kz-slot-card__icon-wrapper">
+          {children ? children : icon ? <Icon name={icon} size={24} /> : null}
+        </div>
+
+        {/* Badge Count (e.g. quantity / ammo) */}
+        {badgeCount !== undefined && badgeCount > 0 && (
+          <span className="kz-slot-card__badge-count">{badgeCount}</span>
+        )}
+
+        {/* Cooldown SVG Ring Sweep (Pure CSS animation, paused automatically during game pause) */}
+        {state === 'cooldown' && (
+          <div className="kz-slot-card__cooldown-overlay" aria-hidden="true">
+            <svg className="kz-slot-card__cooldown-svg" viewBox="0 0 70 70">
+              <circle
+                className="kz-slot-card__cooldown-circle"
+                cx="35"
+                cy="35"
+                r="30"
+                pathLength="100"
+                style={cooldownStyle}
+              />
+            </svg>
+          </div>
+        )}
       </div>
 
-      {/* Badge Count (e.g. quantity / ammo) */}
-      {badgeCount !== undefined && badgeCount > 0 && (
-        <span className="kz-slot-card__badge-count">{badgeCount}</span>
-      )}
-
-      {/* KeyCap Hint */}
+      {/* KeyCap Hint Centered Below the Card */}
       {keyHint && (
-        <div className="kz-slot-card__keycap-wrapper">
-          <KeyCap size="sm">{keyHint}</KeyCap>
-        </div>
-      )}
-
-      {/* Cooldown SVG Ring Sweep (Pure CSS animation, zero JS per-frame updates) */}
-      {state === 'cooldown' && (
-        <div className="kz-slot-card__cooldown-overlay" aria-hidden="true">
-          <svg className="kz-slot-card__cooldown-svg" viewBox="0 0 70 70">
-            <circle
-              className="kz-slot-card__cooldown-circle"
-              cx="35"
-              cy="35"
-              r="30"
-              pathLength="100"
-              style={cooldownStyle}
-            />
-          </svg>
+        <div className="kz-slot-card__keyhint-below">
+          <KeyCap
+            size="sm"
+            isPressed={state === 'active'}
+            className={state === 'disabled' ? 'kz-keycap--dimmed' : ''}
+          >
+            {keyHint}
+          </KeyCap>
         </div>
       )}
     </div>

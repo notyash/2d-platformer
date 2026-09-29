@@ -135,11 +135,12 @@ export class InventoryManager {
         this.soundManager?.playPowerup();
         this.syncEquipment();
 
-        // Control hint toast on pickup (ephemeral, not cached/replayed)
+        // Structured control hint toast on pickup (ephemeral, not cached/replayed)
         GameEventBus.getInstance().emit('toast:show', {
-            title: 'Weapon Acquired',
-            message: 'Gun acquired: [L-Click / Ctrl] Shoot',
-            keys: ['L-Click / Ctrl'],
+            title: 'GUN ACQUIRED',
+            iconSrc: '/assets/sprites/collectibles/gun_sprite.png',
+            keys: ['CTRL', 'L-CLICK'],
+            hint: 'to shoot',
             variant: 'info',
             durationMs: 3500,
         });
@@ -156,11 +157,12 @@ export class InventoryManager {
         this.soundManager?.playPowerup();
         this.syncEquipment();
 
-        // Control hint toast on pickup (ephemeral, not cached/replayed)
+        // Structured control hint toast on pickup (ephemeral, not cached/replayed)
         GameEventBus.getInstance().emit('toast:show', {
-            title: 'Totem Acquired',
-            message: 'Totem acquired: press [E] to activate the shield',
+            title: 'TOTEM ACQUIRED',
+            iconSrc: '/assets/sprites/collectibles/frog_doll_totem.png',
             keys: ['E'],
+            hint: 'to activate the shield',
             variant: 'success',
             durationMs: 3500,
         });

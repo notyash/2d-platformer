@@ -37,7 +37,6 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
   // State for SlotCard interactive testing
   const [slotState, setSlotState] = useState<SlotCardState>('ready');
-  const [cooldownStart, setCooldownStart] = useState<number>(0);
 
   // State for ProgressPips
   const [pipFilled, setPipFilled] = useState<number>(3);
@@ -55,7 +54,6 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
   const triggerCooldown = () => {
     setSlotState('cooldown');
-    setCooldownStart(Date.now());
     setTimeout(() => {
       setSlotState('ready');
     }, 2000);
@@ -146,26 +144,40 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           {/* Section 4: SlotCard */}
           <Panel variant="crimson-border" className="ui-kit-section">
             <h2 className="ui-kit-section-title">
-              <Icon name="gun" size={16} /> 4. SlotCard Equipment Slots
+              <Icon name="gun" size={16} /> 4. SlotCard Equipment Slots (With & Without KeyHint)
             </h2>
-            <div className="ui-kit-row">
+            <div className="ui-kit-row" style={{ alignItems: 'flex-start' }}>
               <div className="ui-kit-slot-demo">
-                <span className="ui-kit-label">Interactive:</span>
+                <span className="ui-kit-label">With KeyHint (Totem):</span>
                 <SlotCard
                   state={slotState}
-                  icon="gun"
-                  keyHint="L-CLICK"
-                  badgeCount={3}
-                  cooldownStartTime={cooldownStart}
+                  keyHint="E"
+                  badgeCount={1}
                   cooldownDurationMs={2000}
-                />
+                >
+                  <img
+                    src="/assets/sprites/collectibles/frog_doll_totem.png"
+                    alt="Totem"
+                    width={26}
+                    height={26}
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                </SlotCard>
               </div>
               <div className="ui-kit-slot-demo">
-                <span className="ui-kit-label">Ready:</span>
-                <SlotCard state="ready" icon="totem" keyHint="E" badgeCount={1} />
+                <span className="ui-kit-label">No KeyHint (Gun):</span>
+                <SlotCard state="ready">
+                  <img
+                    src="/assets/sprites/collectibles/gun_sprite.png"
+                    alt="Gun"
+                    width={26}
+                    height={26}
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                </SlotCard>
               </div>
               <div className="ui-kit-slot-demo">
-                <span className="ui-kit-label">Active:</span>
+                <span className="ui-kit-label">Active (Glow):</span>
                 <SlotCard state="active" icon="orb" keyHint="C" />
               </div>
               <div className="ui-kit-slot-demo">
@@ -174,7 +186,7 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
               </div>
               <div className="ui-kit-slot-demo">
                 <span className="ui-kit-label">Disabled:</span>
-                <SlotCard state="disabled" icon="gun" />
+                <SlotCard state="disabled" icon="gun" keyHint="E" />
               </div>
             </div>
             <div className="ui-kit-controls-row">
@@ -185,7 +197,7 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                 type="button"
                 className="hud-btn hud-btn-outline"
                 onClick={() =>
-                  setSlotState((s) => (s === 'ready' ? 'active' : s === 'active' ? 'empty' : 'ready'))
+                  setSlotState((s) => (s === 'ready' ? 'active' : s === 'active' ? 'disabled' : 'ready'))
                 }
               >
                 Cycle State ({slotState})
@@ -317,18 +329,48 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           <div className="ui-kit-section-full">
             <Panel variant="parchment" style={{ padding: '20px' }}>
               <h2 className="ui-kit-section-title">
-                <Icon name="trophy" size={16} /> 7. Toast Notifications
+                <Icon name="trophy" size={16} /> 7. Toast Notifications (Structured Sprite & KeyCaps)
               </h2>
               <p style={{ fontSize: '12px', color: 'var(--parchment-dim)', marginBottom: '12px' }}>
-                Trigger accessible, auto-dismissing notifications with custom KamiZuki styling and icons.
+                Trigger accessible, structured notifications with item pixel sprites, multiple KeyCaps, and hint text.
               </p>
               <div className="ui-kit-controls-row">
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-crimson"
+                  onClick={() =>
+                    showToast({
+                      title: 'GUN ACQUIRED',
+                      iconSrc: '/assets/sprites/collectibles/gun_sprite.png',
+                      keys: ['CTRL', 'L-CLICK'],
+                      hint: 'to shoot',
+                      variant: 'info',
+                    })
+                  }
+                >
+                  Gun Pickup Toast
+                </button>
                 <button
                   type="button"
                   className="hud-btn hud-btn-outline"
                   onClick={() =>
                     showToast({
-                      title: 'INFO',
+                      title: 'TOTEM ACQUIRED',
+                      iconSrc: '/assets/sprites/collectibles/frog_doll_totem.png',
+                      keys: ['E'],
+                      hint: 'to activate the shield',
+                      variant: 'success',
+                    })
+                  }
+                >
+                  Totem Pickup Toast
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-outline"
+                  onClick={() =>
+                    showToast({
+                      title: 'CHECKPOINT',
                       message: 'Checkpoint registered at Shrine Gate.',
                       variant: 'info',
                     })
@@ -338,42 +380,16 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                 </button>
                 <button
                   type="button"
-                  className="hud-btn hud-btn-outline"
-                  onClick={() =>
-                    showToast({
-                      title: 'VICTORY PROOF',
-                      message: 'Run submitted and verified on-chain.',
-                      variant: 'success',
-                    })
-                  }
-                >
-                  Success Toast
-                </button>
-                <button
-                  type="button"
-                  className="hud-btn hud-btn-outline"
-                  onClick={() =>
-                    showToast({
-                      title: 'TOTEM ACTIVE',
-                      message: 'Guardian shield absorbing lethal blow.',
-                      variant: 'warning',
-                    })
-                  }
-                >
-                  Warning Toast
-                </button>
-                <button
-                  type="button"
                   className="hud-btn hud-btn-restart"
                   onClick={() =>
                     showToast({
-                      title: 'FATAL DAMAGE',
-                      message: 'Fell into bottomless abyss.',
+                      title: 'BOSS INVULNERABLE',
+                      message: 'Collect all 7 Gravity Orbs to break the barrier!',
                       variant: 'danger',
                     })
                   }
                 >
-                  Danger Toast
+                  Boss Shield Toast
                 </button>
                 <button
                   type="button"

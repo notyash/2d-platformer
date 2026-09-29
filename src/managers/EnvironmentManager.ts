@@ -70,7 +70,7 @@ export class EnvironmentManager {
     public jumpPads: Phaser.Physics.Arcade.Sprite[] = [];
     public firebars: Firebar[] = [];
     public bridgeBreakZones: Phaser.GameObjects.Zone[] = [];
-    public isBridgeBreakArmed: boolean = false;
+    public isSmashFallActive: boolean = false;
     public bridges: BridgeData[] = [];
     public doorZones: Phaser.GameObjects.Zone[] = [];
     public doorExitZones: Phaser.GameObjects.Zone[] = [];
@@ -672,7 +672,7 @@ export class EnvironmentManager {
             const topY = obj.gid !== undefined ? (obj.y - (obj.height || 32)) : (obj.y || 0);
             const promptY = topY - 14;
 
-            const promptWidth = 86;
+            let promptWidth = 86;
             const promptHeight = 24;
 
             const bg = this.scene.add.graphics();
@@ -680,18 +680,23 @@ export class EnvironmentManager {
             const crimsonBorder = parseInt(TOKENS.colors.crimson.replace('#', '0x'), 16);
             const keyCapBg = parseInt(TOKENS.colors.bgCard.replace('#', '0x'), 16);
 
-            // Navy panel fill
-            bg.fillStyle(navyFill, 0.95);
-            bg.fillRoundedRect(-promptWidth / 2, -promptHeight / 2, promptWidth, promptHeight, 5);
-            // Crimson border
-            bg.lineStyle(1.5, crimsonBorder, 0.9);
-            bg.strokeRoundedRect(-promptWidth / 2, -promptHeight / 2, promptWidth, promptHeight, 5);
+            const renderBadgeGraphics = (w: number) => {
+                bg.clear();
+                // Navy panel fill
+                bg.fillStyle(navyFill, 0.95);
+                bg.fillRoundedRect(-w / 2, -promptHeight / 2, w, promptHeight, 5);
+                // Crimson border
+                bg.lineStyle(1.5, crimsonBorder, 0.9);
+                bg.strokeRoundedRect(-w / 2, -promptHeight / 2, w, promptHeight, 5);
 
-            // KeyCap inner box on left
-            bg.fillStyle(keyCapBg, 0.9);
-            bg.fillRoundedRect(-promptWidth / 2 + 4, -promptHeight / 2 + 3, 18, 18, 3);
-            bg.lineStyle(1, crimsonBorder, 0.6);
-            bg.strokeRoundedRect(-promptWidth / 2 + 4, -promptHeight / 2 + 3, 18, 18, 3);
+                // KeyCap inner box on left
+                bg.fillStyle(keyCapBg, 0.9);
+                bg.fillRoundedRect(-w / 2 + 4, -promptHeight / 2 + 3, 18, 18, 3);
+                bg.lineStyle(1, crimsonBorder, 0.6);
+                bg.strokeRoundedRect(-w / 2 + 4, -promptHeight / 2 + 3, 18, 18, 3);
+            };
+
+            renderBadgeGraphics(promptWidth);
 
             // KeyCap text "E"
             const keyTxt = this.scene.add.text(-promptWidth / 2 + 13, 0, 'E', {
@@ -709,16 +714,20 @@ export class EnvironmentManager {
                 fontStyle: 'bold'
             }).setOrigin(0, 0.5);
 
-            // Ensure web fonts are ready before final text measurement and redraw
+            // Ensure web fonts are ready, redraw text and resize badge to match exact text bounds
             if (typeof document !== 'undefined' && document.fonts) {
                 document.fonts.ready.then(() => {
-                    if (keyTxt && keyTxt.active) {
+                    if (keyTxt && keyTxt.active && verbTxt && verbTxt.active && bg && bg.active) {
                         keyTxt.setFontFamily(TOKENS.fonts.mono);
                         keyTxt.updateText();
-                    }
-                    if (verbTxt && verbTxt.active) {
                         verbTxt.setFontFamily(TOKENS.fonts.sans);
                         verbTxt.updateText();
+
+                        const dynamicWidth = Math.max(86, Math.ceil(28 + verbTxt.width + 12));
+                        promptWidth = dynamicWidth;
+                        renderBadgeGraphics(promptWidth);
+                        keyTxt.setPosition(-promptWidth / 2 + 13, 0);
+                        verbTxt.setPosition(-promptWidth / 2 + 28, 0);
                     }
                 }).catch(() => {});
             }
@@ -965,9 +974,11 @@ export class EnvironmentManager {
 
         if (this.movingPlatforms.length > 0) {
             this.scene.physics.add.collider(this.player, this.movingPlatforms, (_p, plat) => {
+                // Instantly cancel smash fall if player contacts any moving platform
+                this.isSmashFallActive = false;
                 const pBody = (_p as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.Body;
                 const platBody = (plat as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.Body;
-                if (pBody.bottom <= platBody.top + 4 && pBody.right > platBody.left + 2 && pBody.left < platBody.right - 2) {
+                if (pBody.bottom <= platBody.top + 8 && pBody.right > platBody.left + 2 && pBody.left < platBody.right - 2) {
                     this.player.isOnPlatform = true;
                 }
             });
@@ -1158,7 +1169,7 @@ export class EnvironmentManager {
                     // Custom tile: Keep original tile graphic intact, do not use the jumppad sprite spring effect
                     this.player.setVelocityY(padSprite.getData('bouncePower'));
                     this.player.isNormalJump = false; 
-                    this.isBridgeBreakArmed = false;
+                    this.isSmashFallActive = false;
                     this.player.ignoreGroundJumpUntil = this.scene.time.now + 200;
                     this.soundManager?.playJump();
 
@@ -1193,7 +1204,7 @@ export class EnvironmentManager {
                             padSprite.setFrame(3);
                             this.player.setVelocityY(padSprite.getData('bouncePower'));
                             this.player.isNormalJump = false;
-                            this.isBridgeBreakArmed = false;
+                            this.isSmashFallActive = false;
                             this.player.ignoreGroundJumpUntil = this.scene.time.now + 200;
                             this.soundManager?.playJump();
 
@@ -1412,8 +1423,8 @@ export class EnvironmentManager {
                     const pBody = this.player.body as Phaser.Physics.Arcade.Body;
                     const bridgeTop = sprite.y;
 
-                    // 1. If armed and falling downwards -> Break the bridge!
-                    if (this.isBridgeBreakArmed && pBody.velocity.y >= 0) {
+                    // 1. If in smash fall and moving downwards -> Break the bridge!
+                    if (this.isSmashFallActive && pBody.velocity.y >= 0) {
                         this.breakBridge(bridgeData);
                         return false; // Pass smoothly through without blocking
                     }
@@ -1458,7 +1469,7 @@ export class EnvironmentManager {
     public breakBridge(bridge: BridgeData) {
         if (bridge.broken) return;
         bridge.broken = true;
-        this.isBridgeBreakArmed = false;
+        this.isSmashFallActive = false;
 
         const sprite = bridge.sprite;
         const body = sprite.body as Phaser.Physics.Arcade.Body;
@@ -1495,15 +1506,26 @@ export class EnvironmentManager {
         // Float impact feedback text
         this.uiManager.showFloatingText(centerX, sprite.y - 12, 'CRASH!', '#D2B48C');
 
-        // Carry downward plunge velocity cleanly through the broken bridge
+        // Add physical impact resistance to player downward fall velocity upon crashing through the bridge
         if (this.player && this.player.body) {
             const pBody = this.player.body as Phaser.Physics.Arcade.Body;
             pBody.blocked.down = false;
             pBody.touching.down = false;
             this.player.isOnPlatform = false;
             const currentVY = pBody.velocity.y;
-            const plungeVY = Math.max(280, Math.min(Math.max(currentVY * 0.75, 280), 550));
-            pBody.setVelocityY(plungeVY);
+            // Apply impact resistance: absorb ~60-65% of downward velocity (dampening plunge to ~35-40% speed)
+            const resistedVY = Math.max(120, Math.min(currentVY * 0.38, 240));
+            pBody.setVelocityY(resistedVY);
+
+            // Subtle squash tween on the player for visual tactile impact feedback
+            this.scene.tweens.add({
+                targets: this.player,
+                scaleX: 1.2,
+                scaleY: 0.8,
+                duration: 60,
+                yoyo: true,
+                ease: 'Quad.easeInOut'
+            });
         }
 
         // Once animation completes, smooth fade
@@ -1822,30 +1844,26 @@ export class EnvironmentManager {
         }
 
         // Bridge Break Zone & Bridge Impact Logic:
-        // 1. Arming Zone: top staging area (y <= 480, x: 2350..2750) or inside any BridgeBreakZone
+        // Arming Zone: Only when player is inside any BridgeBreakZone
         let inBreakZone = false;
         for (const zone of this.bridgeBreakZones) {
             const zb = zone.getBounds();
-            const expandedZone = new Phaser.Geom.Rectangle(zb.x - 32, zb.y - 32, zb.width + 64, zb.height + 64);
-            if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, expandedZone)) {
+            if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, zb)) {
                 inBreakZone = true;
                 break;
             }
         }
-        if (this.player.y <= 480 && this.player.x >= 2350 && this.player.x <= 2750) {
-            inBreakZone = true;
-        }
 
         if (inBreakZone) {
-            // Player is in top shaft / zone: Arm bridge break
-            this.isBridgeBreakArmed = true;
-        } else if (this.isBridgeBreakArmed) {
+            // Player is inside BridgeBreakZone: Activate smash fall
+            this.isSmashFallActive = true;
+        } else if (this.isSmashFallActive) {
             // Check if the surface the player touches is an unbroken Bridge
             let landedOnBridge: BridgeData | undefined = undefined;
             for (const bridge of this.bridges) {
                 if (!bridge.broken && bridge.sprite && bridge.sprite.active) {
                     const b = bridge.sprite.getBounds();
-                    const bridgeSurface = new Phaser.Geom.Rectangle(b.x - 20, b.y - 32, b.width + 40, b.height + 64);
+                    const bridgeSurface = new Phaser.Geom.Rectangle(b.x - 10, b.y - 16, b.width + 20, b.height + 32);
                     if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, bridgeSurface)) {
                         landedOnBridge = bridge;
                         break;
@@ -1854,22 +1872,30 @@ export class EnvironmentManager {
             }
 
             if (landedOnBridge && pBody.velocity.y >= 0) {
-                // Direct landing on bridge without intermediate resting contact -> Break the bridge!
+                // Direct fall from BridgeBreakZone onto bridge without landing on anything else -> Break the bridge!
                 this.breakBridge(landedOnBridge);
-            } else if (!landedOnBridge && this.player.y > 480 && this.player.y < 700) {
-                // Only disarm if the player has genuinely LANDED and rested on an intermediate obstacle:
-                // 1. Standing on the moving platform
-                // 2. Or grounded on a floor where vertical fall velocity has completely stopped (ignoring passing wall scrapes)
-                const isRidingPlatform = this.player.isOnPlatform;
-                const isSolidGrounded = (pBody.blocked.down || pBody.touching.down) && Math.abs(pBody.velocity.y) < 15;
+            } else if (!landedOnBridge) {
+                // Check if the player touched or landed on any moving platform during the fall
+                let touchingMovingPlat = false;
+                for (const plat of this.movingPlatforms) {
+                    if (plat && plat.active) {
+                        const platBounds = plat.getBounds();
+                        const platArea = new Phaser.Geom.Rectangle(platBounds.x - 4, platBounds.y - 8, platBounds.width + 8, platBounds.height + 16);
+                        if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, platArea)) {
+                            touchingMovingPlat = true;
+                            break;
+                        }
+                    }
+                }
 
-                if (isRidingPlatform || isSolidGrounded) {
-                    this.isBridgeBreakArmed = false;
+                // If the player landed on or touched ANYTHING else (moving platform, solid ground, tile, obstacle), cancel smash fall!
+                if (touchingMovingPlat || this.player.isOnPlatform || pBody.blocked.down || pBody.touching.down) {
+                    this.isSmashFallActive = false;
                 }
             }
 
             if (this.player.isDying || this.player.isTeleporting) {
-                this.isBridgeBreakArmed = false;
+                this.isSmashFallActive = false;
             }
         } 
     }
@@ -1900,9 +1926,9 @@ export class EnvironmentManager {
             reveal.snapshotRevealed = reveal.revealed;
         }
         for (const bridge of this.bridges) {
-            bridge.snapshotBroken = bridge.broken;
+            bridge.snapshotBroken = false;
         }
-        this.isBridgeBreakArmed = false;
+        this.isSmashFallActive = false;
     }
 
     public rollbackToCheckpoint() {
@@ -1919,41 +1945,30 @@ export class EnvironmentManager {
             }
         }
 
-        // Arm bridge break state if player respawns at or near the top ledge / BridgeBreakZone
-        const isAtTopShaft = this.player ? (this.player.y < 350 || this.player.activeSpawnY < 350) : true;
-        this.isBridgeBreakArmed = isAtTopShaft;
+        // Bridge break logic resets on checkpoint restart
+        this.isSmashFallActive = false;
 
         for (const bridge of this.bridges) {
-            bridge.broken = bridge.snapshotBroken;
+            bridge.broken = false;
+            bridge.snapshotBroken = false;
             const sprite = bridge.sprite;
             const body = sprite.body as Phaser.Physics.Arcade.Body;
-            if (bridge.broken) {
-                sprite.setVisible(false);
-                sprite.setAlpha(0);
-                if (body) {
-                    body.enable = false;
-                    body.checkCollision.none = true;
-                }
-                if (bridge.collider) bridge.collider.active = false;
-                if (bridge.bulletCollider) bridge.bulletCollider.active = false;
-            } else {
-                this.scene.tweens.killTweensOf(sprite);
-                sprite.setVisible(true);
-                sprite.setAlpha(1);
-                sprite.setFrame(0);
-                if (body) {
-                    body.enable = true;
-                    body.checkCollision.none = false;
-                }
-                if (bridge.collider) bridge.collider.active = true;
-                if (bridge.bulletCollider) bridge.bulletCollider.active = true;
+            this.scene.tweens.killTweensOf(sprite);
+            sprite.setVisible(true);
+            sprite.setAlpha(1);
+            sprite.setFrame(0);
+            if (body) {
+                body.enable = true;
+                body.checkCollision.none = false;
             }
+            if (bridge.collider) bridge.collider.active = true;
+            if (bridge.bulletCollider) bridge.bulletCollider.active = true;
         }
     }
 
     resetAll() {
-        const isAtTopShaft = this.player ? (this.player.y < 350 || this.player.activeSpawnY < 350) : true;
-        this.isBridgeBreakArmed = isAtTopShaft;
+        // Bridge break logic resets on restart run
+        this.isSmashFallActive = false;
 
         for (const trigger of this.revealTriggers) {
             trigger.activated = false;

@@ -40,6 +40,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private collectedOrbs: number = 0;
     private victoryOrb?: Phaser.Physics.Arcade.Sprite;
     private hasShownShieldedToast: boolean = false;
+    private hasShownBossEncounterToast: boolean = false;
     
     // State Tracking
     private bossState: 'idle' | 'memory-telegraph' | 'vanished' | 'striking' | 'descending' | 'patrolling' | 'summoning' = 'idle';
@@ -914,6 +915,17 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         // Show top-screen boss health bar immediately on encounter start
         this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp);
 
+        // Boss encounter toast only when entering BossArenaZone for the first time
+        if (!this.hasShownBossEncounterToast) {
+            this.hasShownBossEncounterToast = true;
+            GameEventBus.getInstance().emit('toast:show', {
+                title: 'BOSS ENCOUNTER',
+                message: 'The boss is shielded. Collect the gravity orbs.',
+                variant: 'warning',
+                durationMs: 4000,
+            });
+        }
+
         if (this.hasReachedPhase2) {
             this.startPhase2Directly();
         } else {
@@ -1002,6 +1014,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             // Hide Boss Health Bar
             this.uiManager.hideBossHealthBar();
             this.hasShownShieldedToast = false;
+            if (forceFullReset) {
+                this.hasShownBossEncounterToast = false;
+            }
             GameEventBus.getInstance().emitOrbsIfChanged({ collected: 0, total: 7 });
             GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 1, invulnerable: true });
 
@@ -1113,15 +1128,6 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.setBossFrame(0);
         this.setVisible(true);
         GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 1, invulnerable: true });
-        if (!this.hasShownShieldedToast) {
-            this.hasShownShieldedToast = true;
-            GameEventBus.getInstance().emit('toast:show', {
-                title: 'BOSS ENCOUNTER',
-                message: 'The boss is shielded. Collect the gravity orbs.',
-                variant: 'warning',
-                durationMs: 4000,
-            });
-        }
         const body = this.body as Phaser.Physics.Arcade.Body;
         if (body) {
             body.setEnable(true);
@@ -1446,7 +1452,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 if (this.isDead) return;
 
                 // Impact landing dust & audio
-                this.uiManager.spawnParticles(this.x, floorTopY, 0xEF4444);
+                this.uiManager.spawnParticles(this.x, floorTopY, parseInt(TOKENS.colors.hazardRed.replace('#', '0x'), 16));
                 this.uiManager.spawnParticles(this.x - 24, floorTopY, 0xA855F7);
                 this.uiManager.spawnParticles(this.x + 24, floorTopY, 0xA855F7);
                 this.soundManager?.playStomp();
@@ -1531,7 +1537,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         if (this.isInvulnerable || this.isDead || this.bossState === 'vanished' || this.bossState === 'memory-telegraph' || this.bossState === 'striking') return;
 
         this.hp -= 1;
-        this.setTint(0xFF0000);
+        this.setTint(parseInt(TOKENS.colors.hazardRed.replace('#', '0x'), 16));
         this.scene.time.delayedCall(100, () => {
             if (this && this.active) this.clearTint();
         });

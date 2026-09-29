@@ -32,6 +32,9 @@ export const TOKENS = {
     warningBg: 'rgba(245, 158, 11, 0.15)',
     danger: '#f03e51',
     dangerBg: 'rgba(240, 62, 81, 0.15)',
+
+    // Gameplay Hazards
+    hazardRed: '#ff0000',
   },
   fonts: {
     display: "'Cinzel Decorative', 'Cinzel', serif",

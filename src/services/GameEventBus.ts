@@ -77,8 +77,10 @@ export type GameAction =
 
 export interface ToastData {
   title?: string;
-  message: string;
+  iconSrc?: string;
   keys?: string[];
+  hint?: string;
+  message?: string;
   variant?: 'info' | 'success' | 'warning' | 'danger' | 'victory';
   durationMs?: number;
 }

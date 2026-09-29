@@ -9,10 +9,12 @@ export type ToastVariant = 'info' | 'success' | 'warning' | 'danger' | 'victory'
 export interface ToastItemData {
   id: string;
   title?: string;
-  message: string;
-  keys?: string[];
-  variant?: ToastVariant;
+  iconSrc?: string;
   icon?: IconName;
+  keys?: string[];
+  hint?: string;
+  message?: string;
+  variant?: ToastVariant;
   durationMs?: number;
 }
 
@@ -36,7 +38,7 @@ const getDefaultIcon = (variant: ToastVariant = 'info'): IconName => {
   }
 };
 
-const renderMessageWithKeyCaps = (message: string, _keys?: string[]): React.ReactNode => {
+const renderMessageWithKeyCaps = (message: string): React.ReactNode => {
   const parts = message.split(/(\[[^\]]+\])/g);
   if (parts.length === 1) {
     return message;
@@ -66,13 +68,33 @@ export const Toast: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
 
         return (
           <div key={t.id} className={`kz-toast-item kz-toast-item--${variant}`}>
-            <div className="kz-toast-item__icon">
-              <Icon name={iconName} size={18} />
-            </div>
+            {t.iconSrc ? (
+              <div className="kz-toast-item__icon">
+                <img src={t.iconSrc} alt="" className="kz-toast-item__sprite" />
+              </div>
+            ) : (
+              <div className="kz-toast-item__icon">
+                <Icon name={iconName} size={18} />
+              </div>
+            )}
 
             <div className="kz-toast-item__content">
               {t.title && <div className="kz-toast-item__title">{t.title}</div>}
-              <div className="kz-toast-item__message">{renderMessageWithKeyCaps(t.message, t.keys)}</div>
+              {t.keys && t.keys.length > 0 ? (
+                <div className="kz-toast-item__keys-line">
+                  {t.keys.map((k, idx) => (
+                    <React.Fragment key={idx}>
+                      {idx > 0 && <span className="kz-toast-item__key-sep">/</span>}
+                      <KeyCap size="sm">{k}</KeyCap>
+                    </React.Fragment>
+                  ))}
+                  {t.hint && <span className="kz-toast-item__hint">{t.hint}</span>}
+                </div>
+              ) : t.message ? (
+                <div className="kz-toast-item__message">{renderMessageWithKeyCaps(t.message)}</div>
+              ) : t.hint ? (
+                <div className="kz-toast-item__message">{t.hint}</div>
+              ) : null}
             </div>
 
             <button

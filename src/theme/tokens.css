@@ -43,6 +43,9 @@
   --color-danger: #f03e51;
   --color-danger-bg: rgba(240, 62, 81, 0.15);
 
+  /* Gameplay Hazards */
+  --hazard-red: #ff0000;
+
   /* Fonts */
   --font-display: 'Cinzel Decorative', 'Cinzel', serif;
   --font-heading: 'Cinzel', serif;
