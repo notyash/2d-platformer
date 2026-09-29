@@ -78,6 +78,7 @@ export type GameAction =
 export interface ToastData {
   title?: string;
   message: string;
+  keys?: string[];
   variant?: 'info' | 'success' | 'warning' | 'danger' | 'victory';
   durationMs?: number;
 }

@@ -1308,8 +1308,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.player.hasGun = true;
         }
 
-        this.uiManager.showFloatingText(this.player.x, this.player.y - 30, 'BLASTER GUN EQUIPPED!', '#38BDF8', 2000);
-        this.uiManager.spawnParticles(this.player.x, this.player.y, 0x38BDF8);
+        this.uiManager.showFloatingText(this.player.x, this.player.y - 30, 'BLASTER GUN EQUIPPED!', TOKENS.colors.orbCyan, 2000);
+        this.uiManager.spawnParticles(this.player.x, this.player.y, parseInt(TOKENS.colors.orbCyan.replace('#', '0x'), 16));
         this.soundManager?.playPowerup();
 
         // If boss is currently mid thunder attack (telegraphing, vanished, or striking):
@@ -1397,7 +1397,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 2, invulnerable: false });
 
         // Show phase transition banner & Top-Screen Boss Health Bar
-        this.uiManager.showFloatingText(this.x, this.y - 40, 'PHASE 2 - VULNERABLE', '#FF0000');
+        this.uiManager.showFloatingText(this.x, this.y - 40, 'PHASE 2 - VULNERABLE', TOKENS.colors.danger);
         this.uiManager.showBossHealthBar('ELECKING', 50, this.hp);
 
         // Find ground position directly beneath boss.
@@ -1592,7 +1592,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             minion.setData('isBossMinion', true);
         }
 
-        this.uiManager.showFloatingText(this.x, this.y - 40, 'SUMMONING!', '#8B5CF6');
+        this.uiManager.showFloatingText(this.x, this.y - 40, 'SUMMONING!', TOKENS.colors.orbPurple);
         
         this.addBossTimer(2000, () => {
             if (this.phase === 2 && !this.isDead) this.startGroundedPatrol();
@@ -1608,13 +1608,15 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         // Hide Boss Health Bar
         this.uiManager.hideBossHealthBar();
 
+        const goldParticleColor = parseInt(TOKENS.colors.gold.replace('#', '0x'), 16);
+
         // Boss explosion
         for (let i = 0; i < 20; i++) {
             this.scene.time.delayedCall(i * 100, () => {
                 this.uiManager.spawnParticles(
                     this.x + Phaser.Math.Between(-50, 50),
                     this.y + Phaser.Math.Between(-50, 50),
-                    0xFFD700
+                    goldParticleColor
                 );
             });
         }
@@ -1670,8 +1672,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                     this.victoryOrb = undefined;
 
                     this.soundManager?.playVictory();
-                    this.uiManager.showFloatingText(orbX, orbY - 25, 'ORB OF VICTORY COLLECTED!', '#FFD700', 1600);
-                    this.uiManager.spawnParticles(orbX, orbY, 0xFFD700);
+                    this.uiManager.showFloatingText(orbX, orbY - 25, 'ORB OF VICTORY COLLECTED!', TOKENS.colors.gold, 1600);
+                    this.uiManager.spawnParticles(orbX, orbY, goldParticleColor);
 
                     // Complete the stage & submit run to SurrealDB
                     if (typeof (this.scene as any).onStageComplete === 'function') {

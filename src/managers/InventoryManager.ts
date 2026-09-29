@@ -5,6 +5,8 @@ import { UIManager } from './UIManager';
 import { SoundManager } from './SoundManager';
 import { GameEventBus, type EquipmentSlotState } from '../services/GameEventBus';
 
+import { TOKENS } from '../theme/tokens';
+
 export class InventoryManager {
     private scene: Phaser.Scene;
     private player: Player;
@@ -19,6 +21,10 @@ export class InventoryManager {
     private savedCheckpointTotemCount: number = 0;
     private savedCheckpointHasGun: boolean = false;
     private savedCheckpointHasTotem: boolean = false;
+
+    // Phaser-governed timers for pause-aware equipment state transitions
+    private gunShotTimer?: Phaser.Time.TimerEvent;
+    private gunCooldownTimer?: Phaser.Time.TimerEvent;
 
     constructor(
         scene: Phaser.Scene, 
@@ -82,8 +88,44 @@ export class InventoryManager {
         });
     }
 
-    public onGunFired(startTime: number, durationMs: number) {
+    public onGunFired(_startTime?: number, _durationMs?: number) {
+        const hasGun = Boolean(this.player.hasGun || this.gunCount > 0);
+        if (!hasGun) return;
+
+        const hasTotem = Boolean(this.player.hasTotem && this.totemCount > 0);
+        const totemState: EquipmentSlotState = !hasTotem
+            ? 'disabled'
+            : this.player.hasTotem
+            ? 'active'
+            : 'ready';
+
+        // Plain gun shot: brief pulse on the slot instead of rapid sweep ring
+        GameEventBus.getInstance().emitEquipmentIfChanged({
+            gun: {
+                acquired: true,
+                count: this.gunCount,
+                state: 'active',
+            },
+            totem: {
+                acquired: hasTotem,
+                count: this.totemCount,
+                state: totemState,
+            },
+        });
+
+        // Cooldown end is governed by Phaser scene timer so it pauses with game pause
+        this.gunShotTimer?.remove();
+        this.gunShotTimer = this.scene.time.delayedCall(120, () => {
+            this.syncEquipment();
+        });
+    }
+
+    public triggerGunCooldown(startTime: number, durationMs: number) {
         this.syncEquipment({ startTime, durationMs });
+        this.gunCooldownTimer?.remove();
+        this.gunCooldownTimer = this.scene.time.delayedCall(durationMs, () => {
+            this.syncEquipment();
+        });
     }
 
     public addGun() {
@@ -96,7 +138,8 @@ export class InventoryManager {
         // Control hint toast on pickup (ephemeral, not cached/replayed)
         GameEventBus.getInstance().emit('toast:show', {
             title: 'Weapon Acquired',
-            message: 'Gun Blaster: [L-Click / Ctrl] Shoot',
+            message: 'Gun acquired: [L-Click / Ctrl] Shoot',
+            keys: ['L-Click / Ctrl'],
             variant: 'info',
             durationMs: 3500,
         });
@@ -106,8 +149,9 @@ export class InventoryManager {
         this.totemCount++;
         this.player.hasTotem = true;
         this.updatePlayerTint();
-        this.uiManager.showFloatingText(this.player.x, this.player.y - 20, 'TOTEM SHIELD ACTIVATED!', '#FFD700', 1200);
-        this.uiManager.spawnParticles(this.player.x, this.player.y, 0xFFD700);
+        const goldColor = parseInt(TOKENS.colors.gold.replace('#', '0x'), 16);
+        this.uiManager.showFloatingText(this.player.x, this.player.y - 20, 'TOTEM SHIELD ACTIVATED!', TOKENS.colors.gold, 1200);
+        this.uiManager.spawnParticles(this.player.x, this.player.y, goldColor);
         this.scene.cameras.main.shake(150, 0.006);
         this.soundManager?.playPowerup();
         this.syncEquipment();
@@ -115,7 +159,8 @@ export class InventoryManager {
         // Control hint toast on pickup (ephemeral, not cached/replayed)
         GameEventBus.getInstance().emit('toast:show', {
             title: 'Totem Acquired',
-            message: 'Totem Shield: [E] Active Shield',
+            message: 'Totem acquired: press [E] to activate the shield',
+            keys: ['E'],
             variant: 'success',
             durationMs: 3500,
         });

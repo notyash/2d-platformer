@@ -4,6 +4,7 @@ import { Player } from '../entities/Player';
 import { UIManager } from './UIManager';
 import { InventoryManager } from './InventoryManager';
 import { SoundManager } from './SoundManager';
+import { TOKENS } from '../theme/tokens';
 import type { Firebar } from '../types';
 
 export interface WindZoneData {
@@ -675,43 +676,49 @@ export class EnvironmentManager {
             const promptHeight = 24;
 
             const bg = this.scene.add.graphics();
+            const navyFill = parseInt(TOKENS.colors.bgPanel.replace('#', '0x'), 16);
+            const crimsonBorder = parseInt(TOKENS.colors.crimson.replace('#', '0x'), 16);
+            const keyCapBg = parseInt(TOKENS.colors.bgCard.replace('#', '0x'), 16);
+
             // Navy panel fill
-            bg.fillStyle(0x11131c, 0.95);
+            bg.fillStyle(navyFill, 0.95);
             bg.fillRoundedRect(-promptWidth / 2, -promptHeight / 2, promptWidth, promptHeight, 5);
             // Crimson border
-            bg.lineStyle(1.5, 0xc81c2e, 0.9);
+            bg.lineStyle(1.5, crimsonBorder, 0.9);
             bg.strokeRoundedRect(-promptWidth / 2, -promptHeight / 2, promptWidth, promptHeight, 5);
 
             // KeyCap inner box on left
-            bg.fillStyle(0x1a1d2b, 0.9);
+            bg.fillStyle(keyCapBg, 0.9);
             bg.fillRoundedRect(-promptWidth / 2 + 4, -promptHeight / 2 + 3, 18, 18, 3);
-            bg.lineStyle(1, 0xc81c2e, 0.6);
+            bg.lineStyle(1, crimsonBorder, 0.6);
             bg.strokeRoundedRect(-promptWidth / 2 + 4, -promptHeight / 2 + 3, 18, 18, 3);
 
             // KeyCap text "E"
             const keyTxt = this.scene.add.text(-promptWidth / 2 + 13, 0, 'E', {
                 fontSize: '11px',
-                fontFamily: "'Space Grotesk', 'Inter', monospace, sans-serif",
-                color: '#f2e7d3',
+                fontFamily: TOKENS.fonts.mono,
+                color: TOKENS.colors.parchment,
                 fontStyle: 'bold'
             }).setOrigin(0.5);
 
             // Verb label "Activate"
             const verbTxt = this.scene.add.text(-promptWidth / 2 + 28, 0, 'Activate', {
                 fontSize: '11px',
-                fontFamily: "'Inter', sans-serif",
-                color: '#f2e7d3',
+                fontFamily: TOKENS.fonts.sans,
+                color: TOKENS.colors.parchment,
                 fontStyle: 'bold'
             }).setOrigin(0, 0.5);
 
-            // Ensure web fonts are ready
+            // Ensure web fonts are ready before final text measurement and redraw
             if (typeof document !== 'undefined' && document.fonts) {
                 document.fonts.ready.then(() => {
                     if (keyTxt && keyTxt.active) {
-                        keyTxt.setFontFamily("'Space Grotesk', 'Inter', monospace, sans-serif");
+                        keyTxt.setFontFamily(TOKENS.fonts.mono);
+                        keyTxt.updateText();
                     }
                     if (verbTxt && verbTxt.active) {
-                        verbTxt.setFontFamily("'Inter', sans-serif");
+                        verbTxt.setFontFamily(TOKENS.fonts.sans);
+                        verbTxt.updateText();
                     }
                 }).catch(() => {});
             }

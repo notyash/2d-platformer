@@ -108,7 +108,7 @@ export class MainStageScene extends Phaser.Scene {
         this.load.image('blocks/spike', 'assets/sprites/blocks/spike.png');
         this.load.spritesheet('jump-pad-img', 'assets/sprites/misc/jumppad sprite.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('bridge-break', 'assets/sprites/misc/new bridge break sprite.png', { frameWidth: 96, frameHeight: 32 });
-        this.load.spritesheet('coin', 'assets/sprites/collectibles/new coin sprite.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('coin', 'assets/sprites/collectibles/new_coin_sprite.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('bullet-sprite', 'assets/sprites/misc/new bullet sprite.png', { frameWidth: 32, frameHeight: 32 });
         this.load.image('checkpoint-sprite', 'assets/sprites/misc/checkpoint sprite.png');
         this.load.image('door', 'assets/sprites/misc/door.png');
@@ -128,8 +128,8 @@ export class MainStageScene extends Phaser.Scene {
         this.load.image('mob-shiro-onna', 'assets/sprites/monsters/Shiro Onna.png');
 
         // Collectibles (Totem & Gun)
-        this.load.image('totem', 'assets/sprites/collectibles/frog doll totem.png');
-        this.load.image('gun-powerup', 'assets/sprites/collectibles/gun sprite.png');
+        this.load.image('totem', 'assets/sprites/collectibles/frog_doll_totem.png');
+        this.load.image('gun-powerup', 'assets/sprites/collectibles/gun_sprite.png');
 
         const particleSvg = `data:image/svg+xml;charset=utf8,<svg width="8" height="8" xmlns="http://www.w3.org/2000/svg"><circle cx="4" cy="4" r="4" fill="%23FFFFFF"/></svg>`;
         const fireballSvg = `data:image/svg+xml;charset=utf8,<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" fill="%23FF4500"/><circle cx="8" cy="8" r="5" fill="%23FF8C00"/><circle cx="8" cy="8" r="3" fill="%23FFFF00"/></svg>`;

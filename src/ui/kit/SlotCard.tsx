@@ -27,40 +27,18 @@ export const SlotCard: React.FC<SlotCardProps> = ({
   children,
   ...props
 }) => {
-  const [isCooldownComplete, setIsCooldownComplete] = React.useState(false);
-
-  React.useEffect(() => {
-    if (state === 'cooldown' && cooldownStartTime && cooldownDurationMs) {
-      const remaining = (cooldownStartTime + cooldownDurationMs) - Date.now();
-      if (remaining <= 0) {
-        setIsCooldownComplete(true);
-      } else {
-        setIsCooldownComplete(false);
-        const timer = setTimeout(() => {
-          setIsCooldownComplete(true);
-        }, remaining);
-        return () => clearTimeout(timer);
-      }
-    } else {
-      setIsCooldownComplete(false);
-    }
-  }, [state, cooldownStartTime, cooldownDurationMs]);
-
-  const effectiveState: SlotCardState =
-    state === 'cooldown' && isCooldownComplete ? 'ready' : state;
-
-  const stateClass = `kz-slot-card--${effectiveState}`;
+  const stateClass = `kz-slot-card--${state}`;
 
   // Calculate CSS animation delay once when cooldown starts, not on every re-render
   const cooldownStyle = useMemo<React.CSSProperties | undefined>(() => {
-    if (effectiveState !== 'cooldown') return undefined;
+    if (state !== 'cooldown') return undefined;
 
     const elapsed = cooldownStartTime ? Math.max(0, Date.now() - cooldownStartTime) : 0;
     return {
       animationDuration: `${cooldownDurationMs}ms`,
       animationDelay: elapsed > 0 ? `-${elapsed}ms` : '0ms',
     };
-  }, [effectiveState, cooldownStartTime, cooldownDurationMs]);
+  }, [state, cooldownStartTime, cooldownDurationMs]);
 
   return (
     <div className={`kz-slot-card ${stateClass} ${className}`.trim()} {...props}>

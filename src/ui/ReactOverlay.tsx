@@ -84,6 +84,7 @@ const ReactOverlayContent: React.FC = () => {
       showToast({
         title: toastData.title,
         message: toastData.message,
+        keys: toastData.keys,
         variant: toastData.variant,
         durationMs: toastData.durationMs,
       });
@@ -147,7 +148,7 @@ const ReactOverlayContent: React.FC = () => {
               aria-label="Blaster Slot"
             >
               <img
-                src="/assets/sprites/collectibles/gun sprite.png"
+                src="/assets/sprites/collectibles/gun_sprite.png"
                 alt="Blaster"
                 width={28}
                 height={28}
@@ -165,7 +166,7 @@ const ReactOverlayContent: React.FC = () => {
               aria-label="Totem Shield Slot"
             >
               <img
-                src="/assets/sprites/collectibles/frog doll totem.png"
+                src="/assets/sprites/collectibles/frog_doll_totem.png"
                 alt="Totem Shield"
                 width={28}
                 height={28}
