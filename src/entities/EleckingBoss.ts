@@ -734,22 +734,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 if (!orb.visible || !orb.active) return;
 
                 const currentOrbId = orb.getData('orbId');
+                const pickupX = orb.x;
+                const pickupY = orb.y;
                 orb.destroy();
-                this.collectedOrbs++;
-
-                // Sound & Floating '+1' token pop notification
-                this.soundManager?.playPowerup();
-                this.uiManager.showFloatingText(orb.x, orb.y - 10, '+1', TOKENS.colors.orbCyan, 600, 20);
-                GameEventBus.getInstance().emitOrbsIfChanged({ collected: this.collectedOrbs, total: totalOrbs });
-
-                if (this.collectedOrbs >= totalOrbs && this.phase === 1) {
-                    if (this.orbRevealTimer) {
-                        this.orbRevealTimer.remove(false);
-                        this.orbRevealTimer = undefined;
-                    }
-                    this.transitionToPhase2();
-                    return;
-                }
 
                 // If sequential IDs: reveal the next orb in sequence instantly
                 if (hasSequentialIds && currentOrbId !== undefined) {
@@ -765,6 +752,27 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
                     this.revealNextGravityOrb(nextId);
                 }
+
+                // Reserve the exact pip index: already collected + current flights in the air
+                const targetPipIndex = this.collectedOrbs + this.uiManager.getInFlightOrbsCount();
+
+                // Smooth flying orb to exact reserved pip in progressive pip bar
+                this.uiManager.playOrbPickupEffect(pickupX, pickupY, targetPipIndex, () => {
+                    this.collectedOrbs++;
+
+                    // Sound & Floating '+1' token pop notification
+                    this.soundManager?.playPowerup();
+                    this.uiManager.showFloatingText(pickupX, pickupY - 10, '+1', TOKENS.colors.orbMint, 600, 20);
+                    GameEventBus.getInstance().emitOrbsIfChanged({ collected: this.collectedOrbs, total: totalOrbs });
+
+                    if (this.collectedOrbs >= totalOrbs && this.phase === 1) {
+                        if (this.orbRevealTimer) {
+                            this.orbRevealTimer.remove(false);
+                            this.orbRevealTimer = undefined;
+                        }
+                        this.transitionToPhase2();
+                    }
+                });
             });
         });
     }
@@ -982,6 +990,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     public resetAll(forceFullReset: boolean = false) {
         this.clearAllActiveTimers();
         this.clearAllAttackEffects();
+        this.uiManager.cancelFlyingOrbs();
 
         // Clear all boss projectiles
         this.orbsOfRageGroup.clear(true, true);

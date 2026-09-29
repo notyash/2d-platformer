@@ -159,7 +159,7 @@ export const BossBar: React.FC<BossBarProps> = ({
         )}
       </div>
 
-      {/* Frame: Ghost Bar + Normal Crimson Fill + Optional Phase Ticks */}
+      {/* Frame: Clear outline, containing dark clipped track */}
       <div
         ref={frameRef}
         className={`kz-boss-bar-frame ${breakingClass}`.trim()}
@@ -169,25 +169,29 @@ export const BossBar: React.FC<BossBarProps> = ({
         aria-valuemax={maxHp}
         aria-label={`${name} Health`}
       >
-        {/* Ghost Damage Bar (disabled while shielded) */}
-        {!invulnerable && (
-          <div className="kz-boss-bar-ghost" style={{ width: `${ghostPercent}%` }} />
-        )}
+        <div className="kz-boss-bar-track">
+          {/* Ghost Damage Bar (disabled while shielded) */}
+          {!invulnerable && ghostPercent > 0 && (
+            <div className="kz-boss-bar-ghost" style={{ width: `${ghostPercent}%` }} />
+          )}
 
-        {/* Primary Health Fill: normal crimson fill, 100% width while shielded, hpPercent otherwise */}
-        <div
-          className="kz-boss-bar-fill"
-          style={{ width: `${invulnerable ? 100 : hpPercent}%` }}
-        />
+          {/* Primary Health Fill: normal crimson fill, 100% width while shielded, hpPercent otherwise */}
+          {(invulnerable || safeHp > 0) && (
+            <div
+              className="kz-boss-bar-fill"
+              style={{ width: `${invulnerable ? 100 : hpPercent}%` }}
+            />
+          )}
 
-        {/* Optional Phase Tick Dividers */}
-        {showPhaseTicks && ticks.length > 0 && (
-          <div className="kz-boss-bar-ticks" aria-hidden="true">
-            {ticks.map((tickPercent, idx) => (
-              <div key={idx} className="kz-boss-bar-tick" style={{ left: `${tickPercent}%` }} />
-            ))}
-          </div>
-        )}
+          {/* Optional Phase Tick Dividers */}
+          {showPhaseTicks && ticks.length > 0 && (
+            <div className="kz-boss-bar-ticks" aria-hidden="true">
+              {ticks.map((tickPercent, idx) => (
+                <div key={idx} className="kz-boss-bar-tick" style={{ left: `${tickPercent}%` }} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

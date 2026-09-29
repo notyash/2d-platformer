@@ -317,16 +317,20 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           {/* Section 5: ProgressPips */}
           <Panel variant="default" className="ui-kit-section">
             <h2 className="ui-kit-section-title">
-              <Icon name="orb" size={16} /> 5. ProgressPips (Completion Flash)
+              <Icon name="orb" size={16} /> 5. ProgressPips (Completion Flash & Mint Accent)
             </h2>
             <div className="ui-kit-row">
               <div className="ui-kit-pip-group">
-                <span className="ui-kit-label">Crimson:</span>
-                <ProgressPips total={totalPips} filled={pipFilled} variant="crimson" size="md" />
+                <span className="ui-kit-label">Mint (Orb Pips):</span>
+                <ProgressPips total={totalPips} filled={pipFilled} variant="mint" size="md" />
               </div>
               <div className="ui-kit-pip-group">
                 <span className="ui-kit-label">Gold:</span>
                 <ProgressPips total={totalPips} filled={pipFilled} variant="gold" size="md" />
+              </div>
+              <div className="ui-kit-pip-group">
+                <span className="ui-kit-label">Crimson:</span>
+                <ProgressPips total={totalPips} filled={pipFilled} variant="crimson" size="md" />
               </div>
               <div className="ui-kit-pip-group">
                 <span className="ui-kit-label">Cyan:</span>
@@ -382,46 +386,60 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                     <ProgressPips
                       total={7}
                       filled={bossOrbs}
-                      variant="cyan"
+                      variant="mint"
                       size="md"
                       aria-label={`Gravity Orbs: ${bossOrbs} of 7`}
                     />
                   </div>
                 )}
               </div>
-              <div className="ui-kit-controls-row" style={{ alignItems: 'center' }}>
-                <button
-                  type="button"
-                  className="hud-btn hud-btn-crimson"
-                  onClick={() => GameEventBus.getInstance().emit('boss:shield-hit', undefined)}
-                >
-                  Trigger Shield Hit Pulse (boss:shield-hit)
-                </button>
-                <button
-                  type="button"
-                  className="hud-btn hud-btn-crimson"
-                  onClick={simulateOrbPickupAndBreak}
-                >
-                  Simulate 7/7 Orbs & Shield Break (600ms Fade-out)
-                </button>
-                <button
-                  type="button"
-                  className="hud-btn hud-btn-outline"
-                  onClick={resetBossToPhase1}
-                >
-                  Reset to Phase I Shielded (0/7 Orbs)
-                </button>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-                  HP: {bossHp}/50
+              <div className="ui-kit-controls-row" style={{ alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(17, 19, 28, 0.85)', padding: '6px 12px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-line)' }}>
+                  <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--parchment)' }}>
+                    HP: <strong style={{ color: bossHp === 0 ? 'var(--parchment-dim)' : 'var(--crimson-light)' }}>{bossHp}/50</strong> ({Math.round((bossHp / 50) * 100)}%)
+                  </span>
                   <input
                     type="range"
                     min="0"
                     max="50"
+                    step="1"
                     value={bossHp}
                     onChange={(e) => setBossHp(Number(e.target.value))}
-                    style={{ cursor: 'pointer' }}
+                    style={{ cursor: 'pointer', width: '120px' }}
+                    aria-label="Boss HP Slider"
                   />
-                </label>
+                </div>
+
+                {/* Quick HP Presets: 100%, 50%, 10%, 0% */}
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-outline"
+                  onClick={() => setBossHp(50)}
+                >
+                  100% (50 HP)
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-outline"
+                  onClick={() => setBossHp(25)}
+                >
+                  50% (25 HP)
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-outline"
+                  onClick={() => setBossHp(5)}
+                >
+                  10% (5 HP)
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-crimson"
+                  onClick={() => setBossHp(0)}
+                >
+                  0% (0 HP)
+                </button>
+
                 <button
                   type="button"
                   className="hud-btn hud-btn-outline"
@@ -434,7 +452,28 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                     }
                   }}
                 >
-                  {bossInvulnerable ? 'Break Shield (Phase II)' : 'Shield Boss (Phase I)'}
+                  {bossInvulnerable ? 'Switch to Phase II (Unshielded)' : 'Switch to Phase I (Shielded)'}
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-crimson"
+                  onClick={() => GameEventBus.getInstance().emit('boss:shield-hit', undefined)}
+                >
+                  Trigger Shield Hit Pulse
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-crimson"
+                  onClick={simulateOrbPickupAndBreak}
+                >
+                  Simulate 7/7 Orbs & Break
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-outline"
+                  onClick={resetBossToPhase1}
+                >
+                  Reset Phase I (0/7 Orbs)
                 </button>
                 <button
                   type="button"

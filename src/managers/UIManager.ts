@@ -15,6 +15,8 @@ export class UIManager {
     private soundManager?: SoundManager;
     private hudText?: Phaser.GameObjects.Text;
     private activeFlyingCoins: Phaser.GameObjects.Sprite[] = [];
+    private activeFlyingOrbs: { sprite: Phaser.GameObjects.Sprite; tweens: Phaser.Tweens.Tween[]; sessionId: number }[] = [];
+    private orbFlightSessionId: number = 0;
     
     // Pause Menu Container & State
     private pauseContainer?: Phaser.GameObjects.Container;
@@ -363,6 +365,133 @@ export class UIManager {
                 });
             }
         });
+    }
+
+    public spawnOrbSparkles(x: number, y: number) {
+        if (x === undefined || y === undefined || isNaN(x) || isNaN(y)) return;
+        const mintColor = parseInt(TOKENS.colors.orbMint.replace('#', '0x'), 16);
+        const count = Phaser.Math.Between(4, 6);
+        const particles = this.scene.add.particles(x, y, 'particle', {
+            speed: { min: 30, max: 90 },
+            scale: { start: 0.9, end: 0 },
+            tint: mintColor,
+            lifespan: 400,
+            blendMode: 'ADD',
+            emitting: false
+        });
+        particles.setDepth(25);
+        particles.explode(count);
+        this.scene.time.delayedCall(450, () => {
+            if (particles && particles.active) particles.destroy();
+        });
+    }
+
+    public getInFlightOrbsCount(): number {
+        return this.activeFlyingOrbs.filter(o => o.sprite && o.sprite.active).length;
+    }
+
+    public cancelFlyingOrbs(): void {
+        this.orbFlightSessionId++;
+        for (const item of this.activeFlyingOrbs) {
+            for (const tw of item.tweens) {
+                if (tw && tw.isPlaying()) tw.stop();
+            }
+            if (item.sprite && item.sprite.active) {
+                item.sprite.destroy();
+            }
+        }
+        this.activeFlyingOrbs = [];
+    }
+
+    public playOrbPickupEffect(worldX: number, worldY: number, pipIndex: number, onArrival?: () => void) {
+        if (worldX === undefined || worldY === undefined || isNaN(worldX) || isNaN(worldY)) {
+            onArrival?.();
+            return;
+        }
+
+        const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (prefersReducedMotion) {
+            onArrival?.();
+            return;
+        }
+
+        // 1. Burst 4-6 mint sparkle pixels at pickup point
+        this.spawnOrbSparkles(worldX, worldY);
+
+        // 2. Screen space sprite (scrollFactor 0) so flight pauses with the game on the Phaser clock
+        const camera = this.scene.cameras.main;
+        const screenStartX = worldX - camera.scrollX;
+        const screenStartY = worldY - camera.scrollY;
+
+        const orbSprite = this.scene.add.sprite(screenStartX, screenStartY, 'gravity-orb');
+        orbSprite.setScrollFactor(0);
+        orbSprite.setDepth(100);
+        if (this.scene.anims.exists('gravity-orb-anim')) {
+            orbSprite.play('gravity-orb-anim');
+        }
+        orbSprite.setScale(0.85);
+
+        const target = GameEventBus.getInstance().getOrbTarget(pipIndex);
+        const flightSession = this.orbFlightSessionId;
+        const orbRecord = { sprite: orbSprite, tweens: [] as Phaser.Tweens.Tween[], sessionId: flightSession };
+        this.activeFlyingOrbs.push(orbRecord);
+
+        // Step 1: 150ms pop at pickup point (scale 0.85 -> 1.35, slight rise)
+        const popTargetY = screenStartY - 16;
+        const popTween = this.scene.tweens.add({
+            targets: orbSprite,
+            y: popTargetY,
+            scale: 1.35,
+            duration: 150,
+            ease: 'Cubic.easeOut',
+            onComplete: () => {
+                if (flightSession !== this.orbFlightSessionId || !orbSprite || !orbSprite.active) {
+                    return;
+                }
+
+                const startX = orbSprite.x;
+                const startY = orbSprite.y;
+                const targetX = target.x;
+                const targetY = target.y;
+
+                // Smooth upward curve towards the exact reserved pip slot
+                const midX = (startX + targetX) / 2 + (startX < targetX ? -30 : 30);
+                const midY = Math.min(startY, targetY) - 60;
+
+                const tweenData = { t: 0 };
+
+                // Step 2: 650ms smooth Bezier flight to exact pip slot, shrinking to pip size (~0.28)
+                const flightTween = this.scene.tweens.add({
+                    targets: tweenData,
+                    t: 1,
+                    duration: 650,
+                    ease: 'Cubic.easeInOut',
+                    onUpdate: () => {
+                        if (flightSession !== this.orbFlightSessionId || !orbSprite || !orbSprite.active) return;
+                        const t = tweenData.t;
+                        const curX = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * midX + t * t * targetX;
+                        const curY = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * midY + t * t * targetY;
+                        orbSprite.setPosition(curX, curY);
+                        // Shrinks from 1.35 down to 0.28 (pip slot size) so it drops directly into the pip
+                        orbSprite.setScale(1.35 - 1.07 * t);
+                    },
+                    onComplete: () => {
+                        const idx = this.activeFlyingOrbs.indexOf(orbRecord);
+                        if (idx !== -1) {
+                            this.activeFlyingOrbs.splice(idx, 1);
+                        }
+                        if (orbSprite && orbSprite.active) {
+                            orbSprite.destroy();
+                        }
+                        if (flightSession === this.orbFlightSessionId) {
+                            onArrival?.();
+                        }
+                    }
+                });
+                orbRecord.tweens.push(flightTween);
+            }
+        });
+        orbRecord.tweens.push(popTween);
     }
 
     showPauseMenu(

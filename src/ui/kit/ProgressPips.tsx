@@ -6,14 +6,14 @@ export interface ProgressPipsProps extends React.HTMLAttributes<HTMLDivElement> 
   total: number;
   filled: number;
   size?: 'sm' | 'md' | 'lg';
-  variant?: 'crimson' | 'gold' | 'cyan';
+  variant?: 'crimson' | 'gold' | 'cyan' | 'mint';
 }
 
 export const ProgressPips: React.FC<ProgressPipsProps> = ({
   total,
   filled,
   size = 'md',
-  variant = 'crimson',
+  variant = 'mint',
   className = '',
   ...props
 }) => {

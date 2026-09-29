@@ -6,6 +6,7 @@ export const TOKENS = {
     bgPanel: '#11131c',
     bgPanelHover: '#171924',
     bgCard: '#151722',
+    bgTrack: '#0c0e18',
     borderLine: 'rgba(255, 255, 255, 0.09)',
     borderCrimson: 'rgba(200, 28, 46, 0.4)',
     crimson: '#c81c2e',
@@ -22,6 +23,8 @@ export const TOKENS = {
     // Orb & Magic Accents
     orbCyan: '#00f0ff',
     orbCyanGlow: 'rgba(0, 240, 255, 0.4)',
+    orbMint: '#97d8b2',
+    orbMintGlow: 'rgba(151, 216, 178, 0.4)',
     orbPurple: '#a855f7',
     orbPurpleGlow: 'rgba(168, 85, 247, 0.4)',
 

@@ -90,6 +90,11 @@ export interface CoinTargetData {
   y: number;
 }
 
+export interface OrbTargetData {
+  pips: { x: number; y: number }[];
+  center: { x: number; y: number };
+}
+
 export interface EventMap {
   'stats:changed': GameStats;
   'time:tick': string; // Formatted time string, throttled to ~10Hz
@@ -104,6 +109,7 @@ export interface EventMap {
   'sound:status': boolean;
   'checkpoint:saved': { checkpointName: string; timestamp: number };
   'hud:coin-target': CoinTargetData;
+  'hud:orb-target': OrbTargetData;
   'coin:bump': void;
   'boss:shield-hit': void;
 }
@@ -127,6 +133,7 @@ export class GameEventBus {
   };
   private lastState: GameState = 'PLAYING';
   private lastCoinTarget: CoinTargetData = { x: 80, y: 30 };
+  private lastOrbTarget: OrbTargetData = { pips: [], center: { x: 427, y: 55 } };
 
   public static getInstance(): GameEventBus {
     if (!GameEventBus.instance) {
@@ -162,6 +169,8 @@ export class GameEventBus {
         callback(this.lastFormattedTime as EventMap[K]);
       } else if (event === 'hud:coin-target') {
         callback(this.lastCoinTarget as EventMap[K]);
+      } else if (event === 'hud:orb-target') {
+        callback(this.lastOrbTarget as EventMap[K]);
       }
     } catch (err) {
       console.error(`[GameEventBus] Error in initial cached callback for "${String(event)}":`, err);
@@ -339,6 +348,24 @@ export class GameEventBus {
   }
 
   /**
+   * Emit HUD orb pips target positions in game coordinates
+   */
+  public emitOrbTarget(target: OrbTargetData): void {
+    this.lastOrbTarget = {
+      pips: target.pips.map((p) => ({ ...p })),
+      center: { ...target.center },
+    };
+    this.emit('hud:orb-target', this.lastOrbTarget);
+  }
+
+  public getOrbTarget(pipIndex?: number): { x: number; y: number } {
+    if (pipIndex !== undefined && this.lastOrbTarget.pips && this.lastOrbTarget.pips[pipIndex]) {
+      return { ...this.lastOrbTarget.pips[pipIndex] };
+    }
+    return { ...this.lastOrbTarget.center };
+  }
+
+  /**
    * Reset internal cache for clean run restart
    */
   public resetCache(): void {
@@ -354,5 +381,6 @@ export class GameEventBus {
     };
     this.lastState = 'PLAYING';
     this.lastCoinTarget = { x: 80, y: 30 };
+    this.lastOrbTarget = { pips: [], center: { x: 427, y: 55 } };
   }
 }

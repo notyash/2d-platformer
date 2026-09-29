@@ -81,6 +81,65 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
     prevPhaseRef.current = bossPhase.phase;
   }, [bossPhase.phase]);
 
+  const orbsContainerRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Measure and emit Orb Pips target positions (each individual pip + center) in Phaser game coordinates (854x480)
+  useEffect(() => {
+    const bus = GameEventBus.getInstance();
+    const updateOrbTarget = () => {
+      if (!orbsContainerRef.current) return;
+      const stage = document.getElementById('game-stage');
+      if (!stage) return;
+      const stageRect = stage.getBoundingClientRect();
+      if (stageRect.width <= 0 || stageRect.height <= 0) return;
+
+      const orbsRect = orbsContainerRef.current.getBoundingClientRect();
+      const centerX = ((orbsRect.left + orbsRect.width / 2 - stageRect.left) / stageRect.width) * 854;
+      const centerY = ((orbsRect.top + orbsRect.height / 2 - stageRect.top) / stageRect.height) * 480;
+
+      const pipEls = orbsContainerRef.current.querySelectorAll('.kz-pip');
+      const pips: { x: number; y: number }[] = [];
+      pipEls.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        pips.push({
+          x: ((rect.left + rect.width / 2 - stageRect.left) / stageRect.width) * 854,
+          y: ((rect.top + rect.height / 2 - stageRect.top) / stageRect.height) * 480,
+        });
+      });
+
+      bus.emitOrbTarget({
+        pips,
+        center: { x: centerX, y: centerY },
+      });
+    };
+
+    updateOrbTarget();
+
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => updateOrbTarget()) : null;
+    if (ro) {
+      if (orbsContainerRef.current) ro.observe(orbsContainerRef.current);
+      const stage = document.getElementById('game-stage');
+      if (stage) ro.observe(stage);
+    }
+
+    const handleFullscreenChange = () => {
+      updateOrbTarget();
+      setTimeout(updateOrbTarget, 50);
+      setTimeout(updateOrbTarget, 150);
+    };
+
+    window.addEventListener('resize', updateOrbTarget);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', updateOrbTarget);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, [bossHp.isVisible, isPipsRendered, orbs.total]);
+
   // Check if URL specifies /ui-kit showcase
   const [showUIKit, setShowUIKit] = useState<boolean>(() => {
     if (typeof window !== 'undefined' && isDev) {
@@ -179,11 +238,14 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
           />
 
           {bossHp.isVisible && isPipsRendered && orbs.total > 0 && (
-            <div className={`hud-boss-orbs ${isPipsFadingOut ? 'hud-boss-orbs--fading' : ''}`}>
+            <div
+              ref={orbsContainerRef}
+              className={`hud-boss-orbs ${isPipsFadingOut ? 'hud-boss-orbs--fading' : ''}`}
+            >
               <ProgressPips
                 total={orbs.total}
                 filled={orbs.collected}
-                variant="cyan"
+                variant="mint"
                 size="md"
                 aria-label={`Gravity Orbs: ${orbs.collected} of ${orbs.total}`}
               />

@@ -711,6 +711,7 @@ export class MainStageScene extends Phaser.Scene {
         this.player.cancelDeathEffect();
         this.uiManager.hideDeathScreen();
         this.uiManager.hidePauseMenu();
+        this.uiManager.cancelFlyingOrbs();
         this.totalDeaths++;
         this.player.setPosition(this.player.activeSpawnX, this.player.activeSpawnY);
         this.player.setVelocity(0, 0);
@@ -764,6 +765,7 @@ export class MainStageScene extends Phaser.Scene {
         this.player.cancelDeathEffect();
         this.uiManager.hideDeathScreen();
         this.uiManager.hidePauseMenu();
+        this.uiManager.cancelFlyingOrbs();
         this.totalDeaths = 0;
         this.activeRunTimeMs = 0;
 

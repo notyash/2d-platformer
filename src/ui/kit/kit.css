@@ -218,7 +218,7 @@
 .kz-pips {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.35rem;
 }
 
 .kz-pip {
@@ -228,23 +228,23 @@
 }
 
 .kz-pip--sm {
-  width: 0.25rem;
+  width: 0.35rem;
   height: 0.45rem;
 }
 
 .kz-pip--md {
-  width: 0.4rem;
+  width: 0.65rem;
   height: 0.7rem;
 }
 
 .kz-pip--lg {
-  width: 0.55rem;
+  width: 0.9rem;
   height: 0.9rem;
 }
 
 .kz-pip--unfilled {
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .kz-pip--crimson.kz-pip--filled {
@@ -259,10 +259,11 @@
   box-shadow: 0 0 0.6rem var(--gold-glow);
 }
 
+.kz-pip--mint.kz-pip--filled,
 .kz-pip--cyan.kz-pip--filled {
-  background: var(--orb-cyan);
+  background: var(--orb-mint);
   border: 1px solid #ffffff;
-  box-shadow: 0 0 0.6rem var(--orb-cyan-glow);
+  box-shadow: 0 0 0.6rem var(--orb-mint-glow);
 }
 
 .kz-pips--completed {
@@ -560,37 +561,22 @@
   position: relative;
   width: 100%;
   height: var(--boss-bar-height);
-  background: var(--bg-panel);
-  border: 1px solid var(--border-crimson);
+  background: #0a0c14;
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: var(--radius-xs);
-  box-shadow: var(--shadow-panel), 0 0 0.5rem var(--crimson-glow);
+  box-shadow: var(--shadow-panel), 0 0 0.5rem rgba(0, 0, 0, 0.5);
   overflow: hidden;
   transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
-/* Subtle corner end caps on frame */
-.kz-boss-bar-frame::before,
-.kz-boss-bar-frame::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: linear-gradient(180deg, var(--crimson-light) 0%, var(--crimson-dark) 100%);
-  border: 1px solid var(--border-crimson);
-  box-shadow: 0 0 4px var(--crimson-glow);
-  z-index: 5;
-  pointer-events: none;
-}
-
-.kz-boss-bar-frame::before {
-  left: 0;
-  border-left: none;
-}
-
-.kz-boss-bar-frame::after {
-  right: 0;
-  border-right: none;
+/* Dark, clipped inner track holding all fill layers */
+.kz-boss-bar-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-track);
+  overflow: hidden;
+  border-radius: inherit;
 }
 
 /* Shield Hit Pulse (250ms scale & brightness pulse on frame) */
@@ -598,8 +584,8 @@
   0% {
     transform: scale(1);
     filter: brightness(1);
-    border-color: var(--border-crimson);
-    box-shadow: var(--shadow-panel), 0 0 1rem var(--crimson-glow);
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: var(--shadow-panel), 0 0 1rem rgba(0, 0, 0, 0.5);
   }
   30% {
     transform: scale(1.025);
@@ -610,8 +596,8 @@
   100% {
     transform: scale(1);
     filter: brightness(1);
-    border-color: var(--border-crimson);
-    box-shadow: var(--shadow-panel), 0 0 1rem var(--crimson-glow);
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: var(--shadow-panel), 0 0 1rem rgba(0, 0, 0, 0.5);
   }
 }
 
@@ -637,8 +623,8 @@
     filter: brightness(1.3);
   }
   100% {
-    border-color: var(--border-crimson);
-    box-shadow: var(--shadow-panel), 0 0 1rem var(--crimson-glow);
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: var(--shadow-panel), 0 0 1rem rgba(0, 0, 0, 0.5);
     filter: brightness(1);
     transform: scale(1);
   }
@@ -650,9 +636,10 @@
   top: 0;
   left: 0;
   height: 100%;
-  background: rgba(240, 62, 81, 0.55);
+  background: rgba(240, 62, 81, 0.45);
   transition: width var(--transition-slow);
   z-index: 1;
+  pointer-events: none;
 }
 
 /* Main active health bar (always uses pure opaque crimson fill) */
@@ -665,6 +652,7 @@
   transition: width 80ms ease-out, background var(--transition-normal);
   z-index: 2;
   opacity: 1;
+  pointer-events: none;
 }
 
 /* Phase tick dividers */
