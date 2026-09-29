@@ -2,7 +2,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { GameEventBus, type GameStats, type BossHpData, type GameState } from '../services/GameEventBus';
 
-export const DebugReadout: React.FC = () => {
+export interface DebugReadoutProps {
+  onOpenUIKit?: () => void;
+}
+
+export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
   // Only enabled in dev builds
   const isDev = import.meta.env.DEV;
 
@@ -111,6 +115,19 @@ export const DebugReadout: React.FC = () => {
         <span>Stats Emits: {statsUpdateCount.current}</span>
         <span>Timer Ticks: {tickCount}</span>
       </div>
+
+      {onOpenUIKit && (
+        <div style={{ marginTop: '8px' }}>
+          <button
+            type="button"
+            className="hud-btn hud-btn-outline"
+            style={{ width: '100%', fontSize: '10px', padding: '4px 8px' }}
+            onClick={onOpenUIKit}
+          >
+            🎨 Open UI Kit Showcase (/ui-kit)
+          </button>
+        </div>
+      )}
     </div>
   );
 };

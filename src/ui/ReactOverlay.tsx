@@ -4,10 +4,23 @@ import { GameEventBus, type GameState, type GameStats } from '../services/GameEv
 import { KamiZukiHUD } from './KamiZukiHUD';
 import { PauseModal } from './PauseModal';
 import { DebugReadout } from './DebugReadout';
+import { UIKitShowcase } from './UIKitShowcase';
 
 export const ReactOverlay: React.FC = () => {
+  const isDev = import.meta.env.DEV;
   const [gameState, setGameState] = useState<GameState>('PLAYING');
   const [stats, setStats] = useState<GameStats>({ coins: 0, kills: 0, deaths: 0 });
+
+  // Check if URL specifies /ui-kit showcase
+  const [showUIKit, setShowUIKit] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && isDev) {
+      const path = window.location.pathname;
+      const search = window.location.search;
+      const hash = window.location.hash;
+      return path.includes('ui-kit') || search.includes('ui-kit') || hash.includes('ui-kit');
+    }
+    return false;
+  });
 
   useEffect(() => {
     const bus = GameEventBus.getInstance();
@@ -28,14 +41,17 @@ export const ReactOverlay: React.FC = () => {
 
   return (
     <div className="react-ui-overlay">
-      {/* Top KamiZuki HUD (Coins, Kills, Deaths chips, Space Grotesk timer, Actions) */}
+      {/* Top KamiZuki HUD */}
       <KamiZukiHUD />
 
-      {/* Pause Modal (First user of useMenuNavigation) */}
+      {/* Pause Modal */}
       <PauseModal gameState={gameState} stats={stats} />
 
-      {/* Dev-Only Event Bus Overlay (toggled with backtick key `) */}
-      <DebugReadout />
+      {/* Dev-Only Event Bus Overlay (toggled with backtick `) */}
+      {isDev && <DebugReadout onOpenUIKit={() => setShowUIKit(true)} />}
+
+      {/* Dev-Only /ui-kit Showcase Gallery */}
+      {isDev && showUIKit && <UIKitShowcase onClose={() => setShowUIKit(false)} />}
     </div>
   );
 };
