@@ -19,7 +19,7 @@ import { SlotCard } from './kit/SlotCard';
 import { Panel } from './kit/Panel';
 import { PromptChip } from './kit/PromptChip';
 import { ToastProvider, useToast } from './kit/ToastContext';
-import type { RestartPromptData } from '../services/GameEventBus';
+import type { RestartPromptData, CheckpointState } from '../services/GameEventBus';
 
 interface ReactOverlayContentProps {
   gameState: GameState;
@@ -60,6 +60,8 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
   });
   const [shieldHitPulse, setShieldHitPulse] = useState<number>(0);
   const [restartPrompt, setRestartPrompt] = useState<RestartPromptData>({ active: false, progress: 0 });
+  const [activeCheckpoint, setActiveCheckpoint] = useState<CheckpointState | null>(null);
+  const [checkpointPulse, setCheckpointPulse] = useState<number>(0);
 
   // Orb Pips lifecycle: visible only in Phase 1; on transition to Phase 2, fade out over 600ms then remove from DOM
   const [isPipsFadingOut, setIsPipsFadingOut] = useState<boolean>(false);
@@ -185,6 +187,13 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
       setRestartPrompt(data);
     });
 
+    const unsubCheckpoint = bus.on('checkpoint:changed', (data) => {
+      setActiveCheckpoint(data);
+      if (data) {
+        setCheckpointPulse(Date.now());
+      }
+    });
+
     const unsubToast = bus.on('toast:show', (toastData) => {
       showToast({
         id: toastData.id,
@@ -207,6 +216,7 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
       unsubEquipment();
       unsubShieldHit();
       unsubRestartPrompt();
+      unsubCheckpoint();
       unsubToast();
     };
   }, [showToast]);
@@ -277,9 +287,9 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
         )}
       </div>
 
-      {/* Bottom-Left Equipment Dock */}
-      {(equipment.gun.acquired || equipment.totem.acquired) && (
-        <div className="hud-equipment-dock" role="region" aria-label="Equipment Dock">
+      {/* Bottom-Left Equipment & Checkpoint Dock */}
+      {(equipment.gun.acquired || equipment.totem.acquired || activeCheckpoint !== null) && (
+        <div className="hud-equipment-dock" role="region" aria-label="Equipment & Checkpoint Dock">
           {equipment.gun.acquired && (
             <SlotCard
               state={equipment.gun.state}
@@ -312,6 +322,18 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
                 height={28}
               />
             </SlotCard>
+          )}
+
+          {activeCheckpoint !== null && (
+            <SlotCard
+              key={`checkpoint-slot-${activeCheckpoint.id}-${checkpointPulse}`}
+              state="ready"
+              icon="checkpoint"
+              keyHint="C"
+              badgeCount={typeof activeCheckpoint.id === 'number' ? activeCheckpoint.id : parseInt(String(activeCheckpoint.id), 10) || undefined}
+              className={`hud-checkpoint-slot ${checkpointPulse > 0 ? 'hud-checkpoint-slot--pulse' : ''}`}
+              aria-label={`Checkpoint ${activeCheckpoint.id} Active`}
+            />
           )}
         </div>
       )}

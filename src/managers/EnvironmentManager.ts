@@ -127,6 +127,7 @@ export class EnvironmentManager {
         this.player.lastSafeY = cp.spawnY;
 
         this.scene.cameras.main.flash(200, 255, 255, 255);
+        GameEventBus.getInstance().emitCheckpoint({ id: cp.id });
         GameEventBus.getInstance().emit('toast:show', {
             id: 'checkpoint-saved',
             title: 'CHECKPOINT SAVED',

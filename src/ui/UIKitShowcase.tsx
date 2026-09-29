@@ -66,6 +66,10 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   // State for KeyCap pressed
   const [isKeyPressed, setIsKeyPressed] = useState<boolean>(false);
 
+  // State for Checkpoint Slot testing
+  const [demoCheckpointActive, setDemoCheckpointActive] = useState<boolean>(true);
+  const [demoCheckpointPulse, setDemoCheckpointPulse] = useState<number>(0);
+
   const triggerCooldown = () => {
     setSlotState('cooldown');
     setTimeout(() => {
@@ -289,12 +293,23 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                 </SlotCard>
               </div>
               <div className="ui-kit-slot-demo">
-                <span className="ui-kit-label">Active (Glow):</span>
-                <SlotCard state="active" icon="orb" keyHint="C" />
+                <span className="ui-kit-label">Checkpoint Slot (C):</span>
+                {demoCheckpointActive ? (
+                  <SlotCard
+                    key={`demo-cp-${demoCheckpointPulse}`}
+                    state="ready"
+                    icon="checkpoint"
+                    keyHint="C"
+                    badgeCount={2}
+                    className={`hud-checkpoint-slot ${demoCheckpointPulse > 0 ? 'hud-checkpoint-slot--pulse' : ''}`}
+                  />
+                ) : (
+                  <SlotCard state="empty" />
+                )}
               </div>
               <div className="ui-kit-slot-demo">
-                <span className="ui-kit-label">Empty:</span>
-                <SlotCard state="empty" />
+                <span className="ui-kit-label">Active (Glow):</span>
+                <SlotCard state="active" icon="orb" keyHint="C" />
               </div>
               <div className="ui-kit-slot-demo">
                 <span className="ui-kit-label">Disabled:</span>
@@ -314,6 +329,22 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
               >
                 Cycle State ({slotState})
               </button>
+              <button
+                type="button"
+                className="hud-btn hud-btn-outline"
+                onClick={() => setDemoCheckpointActive((a) => !a)}
+              >
+                Toggle Checkpoint ({demoCheckpointActive ? 'Active' : 'None'})
+              </button>
+              {demoCheckpointActive && (
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-crimson"
+                  onClick={() => setDemoCheckpointPulse(Date.now())}
+                >
+                  Pulse Checkpoint Slot
+                </button>
+              )}
             </div>
           </Panel>
 

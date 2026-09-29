@@ -436,14 +436,12 @@ export class MainStageScene extends Phaser.Scene {
                 if (this.envManager.hasActiveCheckpoint()) {
                     this.respawnAtActiveCheckpoint();
                 } else {
-                    this.uiManager.showFloatingText(
-                        this.player.x, 
-                        this.player.y - 25, 
-                        'NO CHECKPOINT ACTIVE', 
-                        '#94A3B8', 
-                        800, 
-                        25
-                    );
+                    GameEventBus.getInstance().emit('toast:show', {
+                        id: 'no-checkpoint-active',
+                        title: 'NO CHECKPOINT ACTIVE',
+                        icon: 'checkpoint',
+                        variant: 'warning',
+                    });
                 }
             });
         }
@@ -752,8 +750,6 @@ export class MainStageScene extends Phaser.Scene {
             this.player.setTexture(this.player.facing === 'right' ? 'idle-r' : 'idle-l');
         }
         this.player.enforceKeyLift();
-
-        this.uiManager.showFloatingText(this.player.x, this.player.y - 20, 'RESPAWNED AT CHECKPOINT', '#38BDF8', 1200);
         this.soundManager?.playPowerup();
     }
 

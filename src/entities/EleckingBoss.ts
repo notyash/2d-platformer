@@ -1324,7 +1324,6 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.player.hasGun = true;
         }
 
-        this.uiManager.showFloatingText(this.player.x, this.player.y - 30, 'BLASTER GUN EQUIPPED!', TOKENS.colors.orbCyan, 2000);
         this.uiManager.spawnParticles(this.player.x, this.player.y, parseInt(TOKENS.colors.orbCyan.replace('#', '0x'), 16));
         this.soundManager?.playPowerup();
 

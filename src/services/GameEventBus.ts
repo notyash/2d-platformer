@@ -92,6 +92,10 @@ export interface RestartPromptData {
   progress: number;
 }
 
+export interface CheckpointState {
+  id: string | number;
+}
+
 export interface CoinTargetData {
   x: number;
   y: number;
@@ -120,6 +124,7 @@ export interface EventMap {
   'coin:bump': void;
   'boss:shield-hit': void;
   'prompt:restart': RestartPromptData;
+  'checkpoint:changed': CheckpointState | null;
 }
 
 type EventCallback<T> = (data: T) => void;
@@ -143,6 +148,7 @@ export class GameEventBus {
   private lastCoinTarget: CoinTargetData = { x: 80, y: 30 };
   private lastOrbTarget: OrbTargetData = { pips: [], center: { x: 427, y: 55 } };
   private lastRestartPrompt: RestartPromptData = { active: false, progress: 0 };
+  private lastCheckpoint: CheckpointState | null = null;
 
   public static getInstance(): GameEventBus {
     if (!GameEventBus.instance) {
@@ -182,6 +188,8 @@ export class GameEventBus {
         callback(this.lastOrbTarget as EventMap[K]);
       } else if (event === 'prompt:restart') {
         callback(this.lastRestartPrompt as EventMap[K]);
+      } else if (event === 'checkpoint:changed') {
+        callback(this.lastCheckpoint as EventMap[K]);
       }
     } catch (err) {
       console.error(`[GameEventBus] Error in initial cached callback for "${String(event)}":`, err);
@@ -394,6 +402,13 @@ export class GameEventBus {
     this.lastCoinTarget = { x: 80, y: 30 };
     this.lastOrbTarget = { pips: [], center: { x: 427, y: 55 } };
     this.lastRestartPrompt = { active: false, progress: 0 };
+    this.lastCheckpoint = null;
     this.emit('prompt:restart', { active: false, progress: 0 });
+    this.emit('checkpoint:changed', null);
+  }
+
+  public emitCheckpoint(data: CheckpointState | null): void {
+    this.lastCheckpoint = data;
+    this.emit('checkpoint:changed', data);
   }
 }
