@@ -12,6 +12,7 @@ import { LeaderboardManager } from '../managers/LeaderboardManager';
 import { InputRecorder } from '../managers/InputRecorder';
 import { SurrealService } from '../services/SurrealService';
 import { EleckingBoss } from '../entities/EleckingBoss';
+import { GameEventBus } from '../services/GameEventBus';
 
 export class MainStageScene extends Phaser.Scene {
     private player!: Player;
@@ -438,8 +439,45 @@ export class MainStageScene extends Phaser.Scene {
         // Accidental Reload Guard (beforeunload event)
         window.addEventListener('beforeunload', this.beforeUnloadHandler);
 
+        // GameEventBus Action Dispatcher (React UI -> Phaser Game)
+        const bus = GameEventBus.getInstance();
+        const unsubAction = bus.on('action:trigger', (action) => {
+            switch (action.type) {
+                case 'RESUME_GAME':
+                    this.resumeGame();
+                    break;
+                case 'PAUSE_GAME':
+                    this.pauseGame();
+                    break;
+                case 'TOGGLE_PAUSE':
+                    if (this.isGameComplete) return;
+                    if (this.isGamePaused) this.resumeGame();
+                    else this.pauseGame();
+                    break;
+                case 'RESPAWN_CHECKPOINT':
+                    if (this.envManager.hasActiveCheckpoint()) {
+                        this.respawnAtActiveCheckpoint();
+                    }
+                    break;
+                case 'RESTART_RUN':
+                    this.restartFullRun();
+                    break;
+                case 'TOGGLE_SOUND':
+                    this.soundManager.setMuted(!this.soundManager.isMuted);
+                    bus.emit('sound:status', !this.soundManager.isMuted);
+                    if (!this.soundManager.isMuted) {
+                        this.soundManager.playMenuSelect();
+                    }
+                    break;
+                case 'OPEN_LEADERBOARD':
+                    LeaderboardManager.getInstance().showLeaderboardModal(this, this.soundManager);
+                    break;
+            }
+        });
+
         this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
             window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+            unsubAction();
         });
 
         // World Colliders
@@ -610,6 +648,12 @@ export class MainStageScene extends Phaser.Scene {
         this.soundManager.pauseAll();
         this.soundManager.playMenuSelect();
 
+        // Release keyboard capture and disable listeners while modal is open
+        if (this.input && this.input.keyboard) {
+            this.input.keyboard.enabled = false;
+            this.input.keyboard.resetKeys();
+        }
+
         const formattedTime = this.getFormattedElapsedTime();
         const hasCheckpoint = this.envManager.hasActiveCheckpoint();
 
@@ -637,6 +681,14 @@ export class MainStageScene extends Phaser.Scene {
         this.soundManager.resumeAll();
         this.uiManager.hidePauseMenu();
         this.soundManager.playMenuSelect();
+
+        // Re-enable Phaser keyboard capture after 1 frame so activating keypress doesn't trigger in-game jump
+        setTimeout(() => {
+            if (!this.isGamePaused && this.input && this.input.keyboard) {
+                this.input.keyboard.enabled = true;
+                this.input.keyboard.resetKeys();
+            }
+        }, 50);
     }
 
     private respawnAtActiveCheckpoint() {

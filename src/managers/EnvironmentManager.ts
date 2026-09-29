@@ -1516,45 +1516,8 @@ export class EnvironmentManager {
         });
     }
 
-    setupStartTutorialCues(rawMapObjects: any[] = [], spawnX: number = 105, spawnY: number = 176) {
-        const jumpObj = rawMapObjects.find((obj: any) => obj.name === 'JumpInstructions' || obj.name === 'jumpInstructions');
-
-        const w = jumpObj?.width ? jumpObj.width : 220;
-        const h = jumpObj?.height ? jumpObj.height : 52;
-        const panelX = jumpObj ? jumpObj.x + w / 2 : (spawnX + 105);
-        const panelY = jumpObj ? jumpObj.y + h / 2 : (spawnY - 10);
-
-        const bg = this.scene.add.graphics();
-        bg.fillStyle(0x0f172a, 0.5);
-        bg.fillRoundedRect(-w / 2, -h / 2, w, h, 8);
-        bg.lineStyle(1.5, 0x38bdf8, 0.5);
-        bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 8);
-
-        const offset = Math.min(Math.max(h * 0.28, 14), h / 2 - 10);
-
-        const header = this.scene.add.text(0, -offset, '▲ JUMP MECHANICS', {
-            fontSize: '11px',
-            fontFamily: 'Arial, sans-serif',
-            color: '#38bdf8',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        const controlsText = this.scene.add.text(0, 0, '[SPACE]  /  [W]  /  [↑]', {
-            fontSize: '11px',
-            fontFamily: 'Arial, sans-serif',
-            color: '#f8fafc',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        const mechanicsText = this.scene.add.text(0, offset, 'Tap: Short-Hop  •  Hold: High Jump', {
-            fontSize: '9.5px',
-            fontFamily: 'Arial, sans-serif',
-            color: '#cbd5e1',
-            fontStyle: 'normal'
-        }).setOrigin(0.5);
-
-        const container = this.scene.add.container(panelX, panelY, [bg, header, controlsText, mechanicsText]);
-        container.setDepth(3);
+    setupStartTutorialCues(_rawMapObjects: any[] = [], _spawnX: number = 105, _spawnY: number = 176) {
+        // Visual removed per KamiZuki UI overhaul
     }
 
     update(delta: number = 16.667) {

@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
+import React from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import { MainStageScene } from './scenes/MainStageScene';
+import { ReactOverlay } from './ui/ReactOverlay';
 
 // Suppress harmless Phaser tilemap dimension warnings for single backdrop images
 const originalWarn = console.warn;
@@ -11,6 +14,28 @@ console.warn = (...args: any[]) => {
 };
 
 const BASE_HEIGHT = 480; // 15 vertical tiles x 32px
+
+export type DisplayMode = 'fullscreen' | 'framed';
+
+export function getDisplayMode(): DisplayMode {
+  if (typeof window !== 'undefined') {
+    const urlParams = new URLSearchParams(window.location.search);
+    const modeParam = urlParams.get('mode');
+    if (modeParam === 'framed') return 'framed';
+    if ((window as any).__KAMIZUKI_MODE__ === 'framed') return 'framed';
+  }
+  return 'fullscreen';
+}
+
+export function setDisplayMode(mode: DisplayMode) {
+  if (typeof window !== 'undefined') {
+    (window as any).__KAMIZUKI_MODE__ = mode;
+    const masterWrapper = document.getElementById('game-master-wrapper');
+    if (masterWrapper) {
+      masterWrapper.className = `game-master-wrapper mode-${mode}`;
+    }
+  }
+}
 
 export function isMobileDevice(): boolean {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
@@ -31,11 +56,11 @@ function showMobileBlocker() {
   app.innerHTML = `
     <div class="mobile-blocker">
       <div class="mobile-card">
-        <div class="mobile-icon">🧅</div>
-        <h1 class="mobile-title">ONION BOY</h1>
+        <div class="mobile-icon">⛩️</div>
+        <h1 class="mobile-title">KAMIZUKI</h1>
         <div class="mobile-badge">DESKTOP ONLY</div>
         <p class="mobile-desc">
-          Onion Boy is designed exclusively for precision desktop keyboard & mouse platforming. Mobile and touchscreen devices are not supported.
+          KamiZuki platformer is designed exclusively for precision desktop keyboard & mouse controls. Mobile and touchscreen devices are not supported.
         </p>
         <div class="mobile-reqs">
           <div class="req-item"><span class="req-icon">⌨️</span><span>Keyboard Controls (WASD / Arrows / Space)</span></div>
@@ -56,16 +81,62 @@ function getResponsiveWidth(): number {
   return 854; // 16:9 standard fallback (854 x 480)
 }
 
-if (isMobileDevice()) {
-  showMobileBlocker();
-} else {
+// Global Singletons to guard against double instantiation under StrictMode or HMR
+let activeGame: Phaser.Game | null = null;
+let activeReactRoot: Root | null = null;
+
+async function bootstrap() {
+  if (isMobileDevice()) {
+    showMobileBlocker();
+    return;
+  }
+
+  // 1. Wait for document.fonts.ready before initial render
+  if (typeof document !== 'undefined' && 'fonts' in document) {
+    try {
+      await document.fonts.ready;
+    } catch {
+      // Font load fallback
+    }
+  }
+
+  // 2. Tear down any existing instances (StrictMode / HMR guard)
+  if (activeGame) {
+    activeGame.destroy(true);
+    activeGame = null;
+  }
+  if (activeReactRoot) {
+    activeReactRoot.unmount();
+    activeReactRoot = null;
+  }
+
+  const app = document.getElementById('app');
+  if (!app) return;
+
+  const displayMode = getDisplayMode();
+
+  // 3. Build unified layout container (Canvas + Vignette Frame + React Overlay)
+  app.innerHTML = `
+    <div class="game-master-wrapper mode-${displayMode}" id="game-master-wrapper">
+      <div id="game-canvas-host" class="game-canvas-host"></div>
+      <div class="game-vignette-overlay"></div>
+      <div id="react-overlay-root"></div>
+    </div>
+  `;
+
+  const canvasHost = document.getElementById('game-canvas-host');
+  const masterWrapper = document.getElementById('game-master-wrapper');
+  const reactRootEl = document.getElementById('react-overlay-root');
+
+  if (!canvasHost || !masterWrapper || !reactRootEl) return;
+
   const initialWidth = getResponsiveWidth();
 
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     width: initialWidth,
     height: BASE_HEIGHT,
-    parent: 'app',
+    parent: 'game-canvas-host',
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -91,19 +162,33 @@ if (isMobileDevice()) {
     scene: [MainStageScene]
   };
 
-  const game = new Phaser.Game(config);
+  // 4. Initialize Phaser Game (Independent explicit container, no resize feedback loop)
+  activeGame = new Phaser.Game(config);
 
-  if (typeof window !== 'undefined') {
-    window.addEventListener('resize', () => {
-      if (isMobileDevice()) {
-        game.destroy(true);
-        showMobileBlocker();
-        return;
-      }
-      if (game.isBooted && window.innerHeight > 0) {
-        const newWidth = getResponsiveWidth();
-        game.scale.resize(newWidth, BASE_HEIGHT);
-      }
-    });
+  // 5. Mount React Overlay UI
+  activeReactRoot = createRoot(reactRootEl);
+  activeReactRoot.render(React.createElement(ReactOverlay));
+
+  // 6. Global resize handler
+  window.addEventListener('resize', () => {
+    if (isMobileDevice()) {
+      if (activeGame) activeGame.destroy(true);
+      if (activeReactRoot) activeReactRoot.unmount();
+      showMobileBlocker();
+      return;
+    }
+    if (activeGame && activeGame.isBooted && window.innerHeight > 0) {
+      const newWidth = getResponsiveWidth();
+      activeGame.scale.resize(newWidth, BASE_HEIGHT);
+    }
+  });
+}
+
+// Start application bootstrap
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => bootstrap());
+  } else {
+    bootstrap();
   }
 }

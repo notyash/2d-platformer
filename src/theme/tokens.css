@@ -1,0 +1,54 @@
+/* ==========================================================================
+   KAMIZUKI DESIGN TOKENS
+   Dark Japanese Fantasy Web3 Play-To-Earn Aesthetic
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@500;600;700;900&family=Inter:wght@300;400;500;600;700&family=Noto+Serif+JP:wght@600;700;900&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+:root {
+  /* Color Palette */
+  --bg-void: #08090d;
+  --bg-panel: #11131c;
+  --bg-panel-hover: #171924;
+  --bg-card: #151722;
+  
+  --border-line: rgba(255, 255, 255, 0.09);
+  --border-crimson: rgba(200, 28, 46, 0.4);
+  
+  /* Crimson Accents */
+  --crimson: #c81c2e;
+  --crimson-light: #f03e51;
+  --crimson-dark: #780d19;
+  --crimson-glow: rgba(240, 62, 81, 0.35);
+  
+  /* Parchment & Gold */
+  --parchment: #f2e7d3;
+  --parchment-dim: #c5b8a0;
+  --parchment-dark: #241d1a;
+  --ink-black: #120e0e;
+  --gold: #d4af37;
+  --gold-glow: rgba(212, 175, 55, 0.3);
+
+  /* Fonts */
+  --font-display: 'Cinzel Decorative', 'Cinzel', serif;
+  --font-heading: 'Cinzel', serif;
+  --font-kanji: 'Noto Serif JP', serif;
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'Space Grotesk', monospace;
+
+  /* Border Radii */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-crimson-glow: 0 4px 20px rgba(240, 62, 81, 0.35);
+  --shadow-crimson-hover: 0 6px 28px rgba(240, 62, 81, 0.5);
+  --shadow-panel: 0 10px 30px rgba(0, 0, 0, 0.4);
+  --shadow-parchment: 0 18px 45px rgba(0, 0, 0, 0.6), inset 0 0 60px rgba(184, 142, 90, 0.3);
+
+  /* Transitions */
+  --transition-fast: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}

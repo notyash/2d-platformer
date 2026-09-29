@@ -1,3 +1,5 @@
+@import './theme/tokens.css';
+
 * {
   margin: 0;
   padding: 0;
@@ -7,21 +9,553 @@
 html, body {
   width: 100%;
   height: 100%;
-  background: #0f172a;
+  background-color: var(--bg-void);
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(200, 28, 46, 0.15) 0%, transparent 60%),
+    radial-gradient(circle at 80% 40%, rgba(30, 20, 45, 0.35) 0%, transparent 50%);
+  background-attachment: fixed;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
+  color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #app {
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 100%;
-  height: 100vh;
+  width: 100vw;
+  height: 100dvh;
+  position: relative;
+  background-color: var(--bg-void);
 }
 
-#app canvas {
-  display: block;
+/* Master Game Container */
+.game-master-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  background-color: var(--bg-void);
+}
+
+/* Fullscreen letterboxed mode (default) */
+.game-master-wrapper.mode-fullscreen {
+  width: 100vw;
+  height: 100dvh;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Framed card mode for site embeds */
+.game-master-wrapper.mode-framed {
+  max-width: 1024px;
+  max-height: 576px;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-crimson);
+  box-shadow: 0 0 35px rgba(200, 28, 46, 0.2), 0 20px 50px rgba(0, 0, 0, 0.8);
+  background-color: var(--bg-card);
+}
+
+.game-canvas-host {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  line-height: 0;
+}
+
+.game-canvas-host canvas {
+  display: block !important;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* Dark Hero Vignette / Border Frame matching KamiZuki */
+.game-vignette-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 5;
+  box-shadow: inset 0 0 60px rgba(8, 9, 13, 0.8), inset 0 0 120px rgba(8, 9, 13, 0.5);
+  border-radius: inherit;
+}
+
+/* React UI Overlay Layer */
+.react-ui-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-family: var(--font-sans);
+  user-select: none;
+}
+
+/* Allow interactive child elements in the overlay */
+.react-interactive {
+  pointer-events: auto;
+}
+
+/* ==========================================================================
+   KamiZuki Top HUD
+   ========================================================================== */
+.kamizuki-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  width: 100%;
+  box-sizing: border-box;
+  z-index: 20;
+}
+
+/* Left: Compact Dark Navy Stat Chips */
+.hud-chips-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(17, 19, 28, 0.88);
+  border: 1px solid var(--border-line);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.hud-chip:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.chip-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.chip-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--parchment);
+  font-variant-numeric: tabular-nums;
+}
+
+.chip-coins .chip-value {
+  color: var(--gold);
+}
+
+.chip-kills .chip-value {
+  color: var(--crimson-light);
+}
+
+.chip-deaths .chip-value {
+  color: #e2e8f0;
+}
+
+/* Center: Large Tabular Timer */
+.hud-timer-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.hud-timer-frame {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  background: rgba(17, 19, 28, 0.92);
+  border: 1px solid var(--border-crimson);
+  border-radius: var(--radius-sm);
+  padding: 5px 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 15px var(--crimson-glow);
+  backdrop-filter: blur(10px);
+}
+
+.hud-timer-label {
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--crimson-light);
+}
+
+.hud-timer-value {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+  text-shadow: 0 0 10px var(--gold-glow);
+  min-width: 82px;
+  text-align: center;
+}
+
+/* Right: Small Icon-style Action Buttons */
+.hud-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  transition: all 0.15s ease;
+  backdrop-filter: blur(8px);
+}
+
+.hud-btn:focus {
+  outline: none;
+}
+
+.hud-btn-outline {
+  background: rgba(17, 19, 28, 0.85);
+  border: 1px solid var(--border-line);
+  color: var(--parchment-dim);
+}
+
+.hud-btn-outline:hover {
+  background: var(--bg-panel-hover);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: var(--parchment);
+  transform: translateY(-1px);
+}
+
+.hud-btn-restart {
+  border-color: rgba(240, 62, 81, 0.4);
+  color: #fca5a5;
+}
+
+.hud-btn-restart:hover {
+  border-color: var(--crimson-light);
+  color: #ffffff;
+  box-shadow: 0 0 12px var(--crimson-glow);
+}
+
+.hud-btn-crimson {
+  background: var(--crimson);
+  border: 1px solid var(--crimson-light);
+  color: #ffffff;
+  box-shadow: var(--shadow-crimson-glow);
+}
+
+.hud-btn-crimson:hover {
+  background: var(--crimson-light);
+  box-shadow: var(--shadow-crimson-hover);
+  transform: translateY(-1px);
+}
+
+.btn-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.btn-label {
+  text-transform: uppercase;
+}
+
+/* ==========================================================================
+   Pause Modal & Menu Navigation Styling
+   ========================================================================== */
+.pause-modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(8, 9, 13, 0.78);
+  backdrop-filter: blur(10px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.pause-modal-card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(17, 19, 28, 0.95);
+  border: 1.5px solid var(--border-crimson);
+  border-radius: var(--radius-md);
+  padding: 28px 24px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 35px var(--crimson-glow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.modal-kanji-tag {
+  font-family: var(--font-kanji);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--crimson-light);
+  letter-spacing: 0.12em;
+}
+
+.modal-title {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--parchment);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+  margin: 0;
+}
+
+.modal-divider {
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--crimson), transparent);
+  margin-top: 4px;
+}
+
+/* Stats Summary Row */
+.modal-stats-grid {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-line);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
+.modal-stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+}
+
+.stat-box-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.stat-box-label {
+  font-family: var(--font-heading);
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--parchment-dim);
+  letter-spacing: 0.08em;
+}
+
+.stat-box-value {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--parchment);
+}
+
+.stat-box-value.gold {
+  color: var(--gold);
+}
+
+.stat-box-value.crimson {
+  color: var(--crimson-light);
+}
+
+/* Menu Options List */
+.modal-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  width: 100%;
+}
+
+.modal-menu-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 10px 16px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-line);
+  border-radius: var(--radius-sm);
+  color: var(--parchment);
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  transition: all 0.12s ease;
+}
+
+.btn-keyhint {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--parchment-dim);
+  letter-spacing: 0.04em;
+}
+
+/* Focus and hover states controlled by useMenuNavigation */
+.modal-menu-btn.is-selected {
+  background: var(--crimson-dark);
+  border-color: var(--crimson-light);
+  color: #ffffff;
+  box-shadow: 0 0 16px var(--crimson-glow);
+  transform: scale(1.02);
+}
+
+.modal-menu-btn.is-selected .btn-keyhint {
+  color: var(--parchment);
+}
+
+.modal-menu-btn.variant-gold.is-selected {
+  background: rgba(212, 175, 55, 0.2);
+  border-color: var(--gold);
+  box-shadow: 0 0 16px var(--gold-glow);
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--parchment-dim);
+  letter-spacing: 0.04em;
+  margin-top: 4px;
+}
+
+/* ==========================================================================
+   Dev-Only Debug Readout Card
+   ========================================================================== */
+.debug-readout-card {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  background: rgba(17, 19, 28, 0.94);
+  border: 1px solid var(--border-crimson);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  box-shadow: var(--shadow-panel), 0 0 15px var(--crimson-glow);
+  backdrop-filter: blur(8px);
+  color: var(--parchment);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  max-width: 380px;
+  z-index: 999;
+}
+
+.debug-title {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--crimson-light);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.debug-badge {
+  display: inline-block;
+  background: var(--crimson-dark);
+  border: 1px solid var(--crimson-light);
+  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: var(--font-kanji);
+  font-weight: 700;
+}
+
+.debug-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.debug-val {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.debug-gold {
+  color: var(--gold);
+}
+
+.debug-crimson {
+  color: var(--crimson-light);
 }
 
 /* Mobile Access Restriction Screen */
@@ -36,7 +570,7 @@ html, body {
   align-items: center;
   width: 100vw;
   height: 100vh;
-  background: radial-gradient(circle at center, #1e293b 0%, #0a0f1d 100%);
+  background: radial-gradient(circle at center, #171924 0%, #08090d 100%);
   color: #f8fafc;
   padding: 24px;
   box-sizing: border-box;
@@ -47,11 +581,11 @@ html, body {
 .mobile-card {
   max-width: 440px;
   width: 100%;
-  background: rgba(15, 23, 42, 0.88);
-  border: 1.5px solid rgba(56, 189, 248, 0.4);
-  border-radius: 20px;
+  background: rgba(17, 19, 28, 0.92);
+  border: 1.5px solid var(--border-crimson);
+  border-radius: var(--radius-lg);
   padding: 32px 24px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.15);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px var(--crimson-glow);
   backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
@@ -74,10 +608,11 @@ html, body {
 .mobile-icon {
   font-size: 54px;
   line-height: 1;
-  filter: drop-shadow(0 4px 14px rgba(251, 146, 60, 0.4));
+  filter: drop-shadow(0 4px 14px var(--crimson-glow));
 }
 
 .mobile-title {
+  font-family: var(--font-heading);
   font-size: 24px;
   font-weight: 800;
   letter-spacing: 2px;
@@ -87,29 +622,30 @@ html, body {
 }
 
 .mobile-badge {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.6);
-  color: #f87171;
+  background: var(--crimson-dark);
+  border: 1px solid var(--crimson-light);
+  color: #ffffff;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 1.5px;
   padding: 4px 14px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   text-transform: uppercase;
+  font-family: var(--font-mono);
 }
 
 .mobile-desc {
   font-size: 13.5px;
   line-height: 1.5;
-  color: #94a3b8;
+  color: var(--parchment-dim);
   margin: 0;
 }
 
 .mobile-reqs {
   width: 100%;
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-line);
+  border-radius: var(--radius-sm);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
@@ -122,7 +658,7 @@ html, body {
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  color: #e2e8f0;
+  color: var(--parchment);
   font-weight: 500;
 }
 
@@ -133,6 +669,6 @@ html, body {
 
 .mobile-footer {
   font-size: 12px;
-  color: #38bdf8;
+  color: var(--crimson-light);
   font-weight: 600;
 }

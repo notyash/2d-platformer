@@ -1,7 +1,7 @@
-// src/managers/UIManager.ts
 import Phaser from 'phaser';
 import { SoundManager } from './SoundManager';
 import { LeaderboardManager } from './LeaderboardManager';
+import { GameEventBus } from '../services/GameEventBus';
 
 export interface MenuOption {
     id: string;
@@ -12,20 +12,13 @@ export interface MenuOption {
 export class UIManager {
     private scene: Phaser.Scene;
     private soundManager?: SoundManager;
-    private hudText!: Phaser.GameObjects.Text;
+    private hudText?: Phaser.GameObjects.Text;
     
     // Pause Menu Container & State
     private pauseContainer?: Phaser.GameObjects.Container;
     public soundEnabled: boolean = true;
     public isPauseMenuOpen: boolean = false;
     
-    private selectedMenuIndex: number = 0;
-    private menuOptions: MenuOption[] = [];
-    private menuButtonBoxes: Phaser.GameObjects.Rectangle[] = [];
-    private menuButtonLabels: Phaser.GameObjects.Text[] = [];
-    private selectionHighlight?: Phaser.GameObjects.Graphics;
-    private soundLabelRef?: Phaser.GameObjects.Text;
-
     // Death Screen Container & State
     private deathContainer?: Phaser.GameObjects.Container;
     public isDeathScreenOpen: boolean = false;
@@ -50,14 +43,6 @@ export class UIManager {
     private readonly victoryBtnHeight = 36;
     private get victoryModalX(): number { return this.scene.scale.width / 2; }
     private get victoryModalY(): number { return this.scene.scale.height / 2; }
-
-    // Dynamic Menu Geometry Constants
-    private get pauseModalX(): number { return this.scene.scale.width / 2; }
-    private get pauseModalY(): number { return this.scene.scale.height / 2; }
-    private currentStartBtnY = 182;
-    private readonly pauseBtnGap = 42;
-    private readonly pauseBtnWidth = 280;
-    private readonly pauseBtnHeight = 34;
 
     private get deathModalX(): number { return this.scene.scale.width / 2; }
     private get deathModalY(): number { return this.scene.scale.height / 2; }
@@ -107,29 +92,6 @@ export class UIManager {
             return;
         }
 
-        if (this.isPauseMenuOpen) {
-            const px = pointer.x;
-            const py = pointer.y;
-            const halfW = this.pauseBtnWidth / 2;
-            const halfH = this.pauseBtnHeight / 2;
-
-            for (let i = 0; i < this.menuOptions.length; i++) {
-                const btnY = this.currentStartBtnY + (i * this.pauseBtnGap);
-                if (
-                    px >= this.pauseModalX - halfW && px <= this.pauseModalX + halfW &&
-                    py >= btnY - halfH && py <= btnY + halfH
-                ) {
-                    if (this.selectedMenuIndex !== i) {
-                        this.selectedMenuIndex = i;
-                        this.soundManager?.playMenuSelect();
-                        this.updateMenuVisuals();
-                    }
-                    break;
-                }
-            }
-            return;
-        }
-
         if (this.isDeathScreenOpen) {
             const px = pointer.x;
             const py = pointer.y;
@@ -164,26 +126,6 @@ export class UIManager {
                 ) {
                     this.selectedVictoryIndex = i;
                     this.triggerCurrentVictoryOption();
-                    break;
-                }
-            }
-            return;
-        }
-
-        if (this.isPauseMenuOpen) {
-            const px = pointer.x;
-            const py = pointer.y;
-            const halfW = this.pauseBtnWidth / 2;
-            const halfH = this.pauseBtnHeight / 2;
-
-            for (let i = 0; i < this.menuOptions.length; i++) {
-                const btnY = this.currentStartBtnY + (i * this.pauseBtnGap);
-                if (
-                    px >= this.pauseModalX - halfW && px <= this.pauseModalX + halfW &&
-                    py >= btnY - halfH && py <= btnY + halfH
-                ) {
-                    this.selectedMenuIndex = i;
-                    this.triggerCurrentOption();
                     break;
                 }
             }
@@ -229,28 +171,6 @@ export class UIManager {
             return;
         }
 
-        if (this.isPauseMenuOpen) {
-            const key = event.code;
-            if (key === 'ArrowUp' || key === 'KeyW') {
-                event.preventDefault();
-                event.stopPropagation();
-                this.selectedMenuIndex = (this.selectedMenuIndex - 1 + this.menuOptions.length) % this.menuOptions.length;
-                this.soundManager?.playMenuSelect();
-                this.updateMenuVisuals();
-            } else if (key === 'ArrowDown' || key === 'KeyS') {
-                event.preventDefault();
-                event.stopPropagation();
-                this.selectedMenuIndex = (this.selectedMenuIndex + 1) % this.menuOptions.length;
-                this.soundManager?.playMenuSelect();
-                this.updateMenuVisuals();
-            } else if (key === 'Enter' || key === 'Space') {
-                event.preventDefault();
-                event.stopPropagation();
-                this.triggerCurrentOption();
-            }
-            return;
-        }
-
         if (this.isDeathScreenOpen) {
             const key = event.code;
             if (key === 'Enter' || key === 'Space') {
@@ -261,77 +181,9 @@ export class UIManager {
         }
     };
 
-    createHUD(onPauseToggle?: () => void, onRestartRun?: () => void) {
-        this.hudText = this.scene.add.text(16, 16, '', { 
-            fontSize: '15px', 
-            fontFamily: 'Arial', 
-            color: '#f8fafc', 
-            stroke: '#020617', 
-            strokeThickness: 3.5,
-            fontStyle: 'bold'
-        }).setScrollFactor(0).setDepth(15);
-
-        // Top Right [R+R] Restart Run Button
-        const restartBtnContainer = this.scene.add.container(this.scene.scale.width - 192, 24).setScrollFactor(0).setDepth(15);
-        const restartBtnBg = this.scene.add.rectangle(0, 0, 132, 28, 0x0f172a, 0.85)
-            .setStrokeStyle(1.5, 0xf87171, 0.8)
-            .setInteractive({ useHandCursor: true });
-        
-        const restartBtnText = this.scene.add.text(0, 0, '[R+R] Restart Run', {
-            fontSize: '12px', fontFamily: 'Arial', color: '#f87171', fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        restartBtnBg.on('pointerover', () => {
-            restartBtnBg.setFillStyle(0xb91c1c, 0.95);
-            restartBtnBg.setStrokeStyle(1.5, 0xfca5a5);
-            restartBtnText.setColor('#ffffff');
-        });
-
-        restartBtnBg.on('pointerout', () => {
-            restartBtnBg.setFillStyle(0x0f172a, 0.85);
-            restartBtnBg.setStrokeStyle(1.5, 0xf87171, 0.8);
-            restartBtnText.setColor('#f87171');
-        });
-
-        restartBtnBg.on('pointerdown', () => {
-            this.soundManager?.playMenuSelect();
-            if (onRestartRun) onRestartRun();
-        });
-
-        restartBtnContainer.add([restartBtnBg, restartBtnText]);
-
-        // Top Right [ESC] Menu Button
-        const menuBtnContainer = this.scene.add.container(this.scene.scale.width - 66, 24).setScrollFactor(0).setDepth(15);
-        const btnBg = this.scene.add.rectangle(0, 0, 100, 28, 0x0f172a, 0.85)
-            .setStrokeStyle(1.5, 0x38bdf8, 0.8)
-            .setInteractive({ useHandCursor: true });
-        
-        const btnText = this.scene.add.text(0, 0, '[ESC] Menu', {
-            fontSize: '12px', fontFamily: 'Arial', color: '#38bdf8', fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        btnBg.on('pointerover', () => {
-            btnBg.setFillStyle(0x0284c7, 0.95);
-            btnBg.setStrokeStyle(1.5, 0x7dd3fc);
-            btnText.setColor('#ffffff');
-        });
-
-        btnBg.on('pointerout', () => {
-            btnBg.setFillStyle(0x0f172a, 0.85);
-            btnBg.setStrokeStyle(1.5, 0x38bdf8, 0.8);
-            btnText.setColor('#38bdf8');
-        });
-
-        btnBg.on('pointerdown', () => {
-            this.soundManager?.playMenuSelect();
-            if (onPauseToggle) onPauseToggle();
-        });
-
-        menuBtnContainer.add([btnBg, btnText]);
-
+    createHUD(_onPauseToggle?: () => void, _onRestartRun?: () => void) {
+        // Visual HUD now handled exclusively by KamiZuki React HUD
         this.scene.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
-            if (restartBtnContainer) restartBtnContainer.setX(gameSize.width - 192);
-            if (menuBtnContainer) menuBtnContainer.setX(gameSize.width - 66);
             if (this.bossHealthContainer) this.bossHealthContainer.setX(gameSize.width / 2);
         });
     }
@@ -372,6 +224,8 @@ export class UIManager {
         this.renderBossHealthBar(this.bossBarTweenObj.pct);
         this.bossHealthContainer.setAlpha(0);
         this.bossHealthContainer.setVisible(true);
+
+        GameEventBus.getInstance().emitBossHpIfChanged({ currentHp, maxHp, bossName, isVisible: true });
 
         this.scene.tweens.add({
             targets: this.bossHealthContainer,
@@ -415,6 +269,8 @@ export class UIManager {
         const safeHp = Math.max(0, currentHp);
         const targetPct = Math.min(1, Math.max(0, safeHp / maxHp));
 
+        GameEventBus.getInstance().emitBossHpIfChanged({ currentHp: safeHp, maxHp, bossName: '⚡ ELECKING ⚡', isVisible: true });
+
         try {
             this.scene.tweens.killTweensOf(this.bossBarTweenObj);
             this.scene.tweens.add({
@@ -441,13 +297,18 @@ export class UIManager {
                 ease: 'Linear',
                 onComplete: () => {
                     if (this.bossHealthContainer) this.bossHealthContainer.setVisible(false);
+                    GameEventBus.getInstance().emitBossHpIfChanged({ currentHp: 0, maxHp: 50, bossName: '⚡ ELECKING ⚡', isVisible: false });
                 }
             });
         }
     }
 
     updateHUD(formattedTime: string, coins: number, kills: number, deaths: number) {
-        this.hudText.setText(`TIME: ${formattedTime}   |   DEATHS: ${deaths}   |   COINS: ${coins}   |   KILLS: ${kills}`);
+        if (this.hudText) {
+            this.hudText.setText(`TIME: ${formattedTime}   |   DEATHS: ${deaths}   |   COINS: ${coins}   |   KILLS: ${kills}`);
+        }
+        GameEventBus.getInstance().emitTimeThrottled(formattedTime);
+        GameEventBus.getInstance().emitStatsIfChanged({ coins, kills, deaths });
     }
 
     showFloatingText(x: number, y: number, message: string, color: string, duration: number = 800, distance: number = 40) {
@@ -500,201 +361,20 @@ export class UIManager {
     }
 
     showPauseMenu(
-        onResume: () => void, 
-        onRespawnCheckpoint: () => void,
-        onRestart: () => void, 
+        _onResume: () => void, 
+        _onRespawnCheckpoint: () => void,
+        _onRestart: () => void, 
         stats: { time: string; deaths: number; coins: number; kills: number; hasCheckpoint?: boolean }
     ) {
         this.hidePauseMenu();
         this.isPauseMenuOpen = true;
-        this.selectedMenuIndex = 0;
-
-        if (this.scene.game.canvas) {
-            this.scene.game.canvas.focus();
-        }
-
-        this.pauseContainer = this.scene.add.container(0, 0).setScrollFactor(0).setDepth(200);
-
-        // Dark dimming backdrop
-        const backdrop = this.scene.add.rectangle(this.pauseModalX, this.pauseModalY, this.scene.scale.width, this.scene.scale.height, 0x000000, 0.75);
-        this.pauseContainer.add(backdrop);
-
-        // Construct dynamic menu options
-        this.menuOptions = [
-            { id: 'resume', label: 'Resume Game', action: onResume }
-        ];
-
-        // "Respawn at Checkpoint" only shows up if a checkpoint has been achieved
-        if (stats.hasCheckpoint) {
-            this.menuOptions.push({ id: 'respawn', label: 'Respawn at Checkpoint', action: onRespawnCheckpoint });
-        }
-
-        this.menuOptions.push(
-            {
-                id: 'leaderboard',
-                label: '🏆 View Leaderboard',
-                action: () => {
-                    LeaderboardManager.getInstance().showLeaderboardModal(this.scene, this.soundManager);
-                }
-            },
-            { 
-                id: 'sound', 
-                label: `Sound FX: ${this.soundEnabled ? 'ON' : 'OFF'}`, 
-                action: () => {
-                    this.soundEnabled = !this.soundEnabled;
-                    this.soundManager?.setMuted(!this.soundEnabled);
-                    if (this.soundLabelRef) {
-                        this.soundLabelRef.setText(`Sound FX: ${this.soundEnabled ? 'ON' : 'OFF'}`);
-                    }
-                    if (this.soundEnabled) {
-                        this.soundManager?.playMenuSelect();
-                    }
-                }
-            },
-            { id: 'restart', label: 'Restart Full Run', action: onRestart }
-        );
-
-        // Dynamic modal sizing & positioning
-        const totalBtns = this.menuOptions.length;
-        const modalWidth = 380;
-        const modalHeight = Math.max(320, 140 + totalBtns * this.pauseBtnGap);
-        const titleOffsetY = -modalHeight / 2 + 30;
-        const statsOffsetY = -modalHeight / 2 + 65;
-        
-        this.currentStartBtnY = this.pauseModalY - modalHeight / 2 + 105;
-
-        const modalBg = this.scene.add.rectangle(this.pauseModalX, this.pauseModalY, modalWidth, modalHeight, 0x0f172a, 0.95)
-            .setStrokeStyle(2.5, 0x38bdf8, 0.9);
-        this.pauseContainer.add(modalBg);
-
-        // Title
-        const title = this.scene.add.text(this.pauseModalX, this.pauseModalY + titleOffsetY, 'GAME PAUSED', {
-            fontSize: '22px', fontFamily: 'Arial', color: '#38bdf8', stroke: '#000000', strokeThickness: 3, fontStyle: 'bold'
-        }).setOrigin(0.5);
-        this.pauseContainer.add(title);
-
-        // Run Stats Summary
-        const statsSummary = this.scene.add.text(this.pauseModalX, this.pauseModalY + statsOffsetY, `TIME: ${stats.time}   |   DEATHS: ${stats.deaths}\nCOINS: ${stats.coins}   |   KILLS: ${stats.kills}`, {
-            fontSize: '12px', fontFamily: 'Arial', color: '#94a3b8', align: 'center', stroke: '#000000', strokeThickness: 2, fontStyle: 'bold'
-        }).setOrigin(0.5);
-        this.pauseContainer.add(statsSummary);
-
-        this.menuButtonBoxes = [];
-        this.menuButtonLabels = [];
-
-        for (let i = 0; i < this.menuOptions.length; i++) {
-            const opt = this.menuOptions[i];
-            const btnY = this.currentStartBtnY + (i * this.pauseBtnGap);
-
-            // Button Box
-            const box = this.scene.add.rectangle(this.pauseModalX, btnY, this.pauseBtnWidth, this.pauseBtnHeight, 0x1e293b, 0.9)
-                .setStrokeStyle(1.5, 0x475569);
-
-            // Button Label
-            const label = this.scene.add.text(this.pauseModalX, btnY, opt.label, {
-                fontSize: '13px', fontFamily: 'Arial', color: '#ffffff', fontStyle: 'bold', stroke: '#000000', strokeThickness: 2.5
-            }).setOrigin(0.5);
-
-            if (opt.id === 'sound') {
-                this.soundLabelRef = label;
-            }
-
-            this.menuButtonBoxes.push(box);
-            this.menuButtonLabels.push(label);
-            this.pauseContainer.add([box, label]);
-        }
-
-        // Selection Highlight Graphics
-        this.selectionHighlight = this.scene.add.graphics();
-        this.pauseContainer.add(this.selectionHighlight);
-
-        // Check if pointer is currently hovering over any button upon open
-        const pointer = this.scene.input.activePointer;
-        if (pointer) {
-            const px = pointer.x;
-            const py = pointer.y;
-            const halfW = this.pauseBtnWidth / 2;
-            const halfH = this.pauseBtnHeight / 2;
-
-            for (let i = 0; i < this.menuOptions.length; i++) {
-                const btnY = this.currentStartBtnY + (i * this.pauseBtnGap);
-                if (
-                    px >= this.pauseModalX - halfW && px <= this.pauseModalX + halfW &&
-                    py >= btnY - halfH && py <= btnY + halfH
-                ) {
-                    this.selectedMenuIndex = i;
-                    break;
-                }
-            }
-        }
-
-        this.updateMenuVisuals();
+        GameEventBus.getInstance().emitGameState('PAUSED');
+        GameEventBus.getInstance().emit('checkpoint:status', Boolean(stats.hasCheckpoint));
+        GameEventBus.getInstance().emit('sound:status', this.soundEnabled);
     }
 
     public updatePauseMenu() {
-        // Handled via window & screen pointer listeners
-    }
-
-    private triggerCurrentOption() {
-        const opt = this.menuOptions[this.selectedMenuIndex];
-        if (opt && opt.action) {
-            this.soundManager?.playMenuSelect();
-            opt.action();
-        }
-    }
-
-    private updateMenuVisuals() {
-        if (!this.isPauseMenuOpen || !this.selectionHighlight) return;
-
-        for (let i = 0; i < this.menuButtonBoxes.length; i++) {
-            const box = this.menuButtonBoxes[i];
-            const label = this.menuButtonLabels[i];
-            const isSelected = (i === this.selectedMenuIndex);
-            const opt = this.menuOptions[i];
-
-            if (isSelected) {
-                if (opt.id === 'restart') {
-                    // Restart Full Run (Red)
-                    box.setFillStyle(0xb91c1c, 0.95);
-                    box.setStrokeStyle(2, 0xf87171);
-                } else if (opt.id === 'respawn') {
-                    // Respawn at Checkpoint (Amber / Gold)
-                    box.setFillStyle(0xb45309, 0.95);
-                    box.setStrokeStyle(2, 0xfbbf24);
-                } else {
-                    // Standard option (Cyan)
-                    box.setFillStyle(0x0284c7, 0.95);
-                    box.setStrokeStyle(2, 0x38bdf8);
-                }
-                box.setScale(1.02);
-                label.setScale(1.02);
-                label.setColor('#ffffff');
-            } else {
-                box.setFillStyle(0x1e293b, 0.85);
-                box.setStrokeStyle(1.5, 0x475569);
-                box.setScale(1);
-                label.setScale(1);
-                label.setColor('#94a3b8');
-            }
-        }
-
-        this.selectionHighlight.clear();
-        const activeBox = this.menuButtonBoxes[this.selectedMenuIndex];
-        const activeOpt = this.menuOptions[this.selectedMenuIndex];
-        if (activeBox && activeOpt) {
-            let borderColor = 0x7dd3fc;
-            if (activeOpt.id === 'restart') borderColor = 0xfca5a5;
-            else if (activeOpt.id === 'respawn') borderColor = 0xfde047;
-
-            this.selectionHighlight.lineStyle(3, borderColor, 1);
-            this.selectionHighlight.strokeRoundedRect(
-                activeBox.x - (activeBox.width * activeBox.scaleX / 2) - 3,
-                activeBox.y - (activeBox.height * activeBox.scaleY / 2) - 3,
-                (activeBox.width * activeBox.scaleX) + 6,
-                (activeBox.height * activeBox.scaleY) + 6,
-                6
-            );
-        }
+        // Handled via React useMenuNavigation and global keyboard event bus
     }
 
     hideDeathScreen() {
@@ -711,6 +391,7 @@ export class UIManager {
             this.pauseContainer.destroy();
             this.pauseContainer = undefined;
         }
+        GameEventBus.getInstance().emitGameState('PLAYING');
     }
 
     showDeathScreen(
@@ -721,6 +402,7 @@ export class UIManager {
         this.hidePauseMenu();
         this.isDeathScreenOpen = true;
         this.selectedDeathIndex = 0;
+        GameEventBus.getInstance().emitGameState('DEAD');
 
         if (this.scene.game.canvas) {
             this.scene.game.canvas.focus();
@@ -833,6 +515,7 @@ export class UIManager {
         this.hideDeathScreen();
         this.isVictoryMenuOpen = true;
         this.selectedVictoryIndex = 0;
+        GameEventBus.getInstance().emitGameState('VICTORY');
 
         if (this.scene.game.canvas) {
             this.scene.game.canvas.focus();
@@ -866,9 +549,6 @@ export class UIManager {
                     this.soundManager?.setMuted(!this.soundEnabled);
                     if (this.victorySoundLabelRef) {
                         this.victorySoundLabelRef.setText(`🔊 Audio: ${this.soundEnabled ? 'ON' : 'OFF'}`);
-                    }
-                    if (this.soundLabelRef) {
-                        this.soundLabelRef.setText(`Sound FX: ${this.soundEnabled ? 'ON' : 'OFF'}`);
                     }
                     if (this.soundEnabled) {
                         this.soundManager?.playMenuSelect();
