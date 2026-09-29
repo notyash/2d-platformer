@@ -23,9 +23,12 @@ const ALL_ICONS: IconName[] = [
   'volume-mute',
   'restart',
   'menu',
+  'fullscreen',
+  'fullscreen-exit',
   'gun',
   'totem',
   'orb',
+  'shield',
   'close',
   'check',
   'arrow-up',
@@ -104,7 +107,7 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   };
 
   // State for Global UI Scale preview slider
-  const [previewScale, setPreviewScale] = useState<number>(1.3);
+  const [previewScale, setPreviewScale] = useState<number>(1.15);
 
   const handleScaleChange = (newScale: number) => {
     setPreviewScale(newScale);
@@ -203,6 +206,28 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
               >
                 Toggle Pressed
               </button>
+
+              <div className="ui-kit-item-group">
+                <span className="ui-kit-label">Fullscreen Button:</span>
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-label="Fullscreen"
+                  className="hud-btn hud-btn-outline"
+                  title="Fullscreen Demo"
+                  onClick={(e) => {
+                    e.currentTarget.blur();
+                    const masterWrapper = document.getElementById('game-master-wrapper');
+                    if (!document.fullscreenElement) {
+                      masterWrapper?.requestFullscreen?.();
+                    } else {
+                      document.exitFullscreen?.();
+                    }
+                  }}
+                >
+                  <Icon name={typeof document !== 'undefined' && document.fullscreenElement ? 'fullscreen-exit' : 'fullscreen'} size={14} />
+                </button>
+              </div>
             </div>
           </Panel>
 
@@ -358,7 +383,7 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                       total={7}
                       filled={bossOrbs}
                       variant="cyan"
-                      size="lg"
+                      size="md"
                       aria-label={`Gravity Orbs: ${bossOrbs} of 7`}
                     />
                   </div>

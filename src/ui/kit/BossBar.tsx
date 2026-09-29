@@ -1,7 +1,6 @@
 // src/ui/kit/BossBar.tsx
 import React, { useEffect, useState, useRef } from 'react';
 import { Icon } from './Icon';
-import { GameEventBus } from '../../services/GameEventBus';
 import './kit.css';
 
 export interface BossBarProps {
@@ -16,6 +15,7 @@ export interface BossBarProps {
   sealText?: string;
   hankoText?: string;
   className?: string;
+  shieldHitPulse?: number;
 }
 
 const toRomanNumeral = (num?: number): string => {
@@ -38,6 +38,7 @@ export const BossBar: React.FC<BossBarProps> = ({
   sealText = '神月',
   hankoText,
   className = '',
+  shieldHitPulse,
 }) => {
   const displaySeal = sealText ?? hankoText ?? '神月';
   const cleanName = name
@@ -73,32 +74,25 @@ export const BossBar: React.FC<BossBarProps> = ({
   }, [invulnerable, visible]);
 
   useEffect(() => {
-    // Listen for boss:shield-hit events and trigger reflow-based pulse animation
-    const bus = GameEventBus.getInstance();
-    const unsub = bus.on('boss:shield-hit', () => {
-      const now = performance.now();
-      if (now - lastShieldHitTimeRef.current < 80) return; // Throttle to at most one pulse per 80ms
-      lastShieldHitTimeRef.current = now;
+    if (shieldHitPulse === undefined || shieldHitPulse === 0) return;
+    const now = performance.now();
+    if (now - lastShieldHitTimeRef.current < 80) return; // Throttle to at most one pulse per 80ms
+    lastShieldHitTimeRef.current = now;
 
-      // Retrigger frame hit pulse via reflow
-      if (frameRef.current) {
-        frameRef.current.classList.remove('kz-boss-bar-frame--shield-hit');
-        void frameRef.current.offsetWidth;
-        frameRef.current.classList.add('kz-boss-bar-frame--shield-hit');
-      }
+    // Retrigger frame hit pulse via reflow
+    if (frameRef.current) {
+      frameRef.current.classList.remove('kz-boss-bar-frame--shield-hit');
+      void frameRef.current.offsetWidth;
+      frameRef.current.classList.add('kz-boss-bar-frame--shield-hit');
+    }
 
-      // Retrigger shield icon cyan flash via reflow
-      if (shieldBadgeRef.current) {
-        shieldBadgeRef.current.classList.remove('kz-boss-bar-shield-badge--hit');
-        void shieldBadgeRef.current.offsetWidth;
-        shieldBadgeRef.current.classList.add('kz-boss-bar-shield-badge--hit');
-      }
-    });
-
-    return () => {
-      unsub();
-    };
-  }, []);
+    // Retrigger shield icon cyan flash via reflow
+    if (shieldBadgeRef.current) {
+      shieldBadgeRef.current.classList.remove('kz-boss-bar-shield-badge--hit');
+      void shieldBadgeRef.current.offsetWidth;
+      shieldBadgeRef.current.classList.add('kz-boss-bar-shield-badge--hit');
+    }
+  }, [shieldHitPulse]);
 
   useEffect(() => {
     if (invulnerable) {
@@ -154,7 +148,7 @@ export const BossBar: React.FC<BossBarProps> = ({
             className={`kz-boss-bar-shield-badge ${isShieldBreaking ? 'kz-boss-bar-shield-badge--breaking' : ''}`}
             title="Shielded / Invulnerable"
           >
-            <Icon name="shield" size={15} />
+            <Icon name="shield" size={12} />
           </span>
         )}
 

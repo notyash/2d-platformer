@@ -16,12 +16,27 @@ import { UIKitShowcase } from './UIKitShowcase';
 import { BossBar } from './kit/BossBar';
 import { ProgressPips } from './kit/ProgressPips';
 import { SlotCard } from './kit/SlotCard';
+import { Panel } from './kit/Panel';
 import { ToastProvider, useToast } from './kit/ToastContext';
 
-const ReactOverlayContent: React.FC = () => {
+interface ReactOverlayContentProps {
+  gameState: GameState;
+}
+
+const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) => {
   const isDev = import.meta.env.DEV;
   const { showToast } = useToast();
-  const [gameState, setGameState] = useState<GameState>('PLAYING');
+  const [windowWidth, setWindowWidth] = useState<number>(() =>
+    typeof window !== 'undefined' ? window.innerWidth : 1280
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [stats, setStats] = useState<GameStats>({ coins: 0, kills: 0, deaths: 0 });
   const [bossHp, setBossHp] = useState<BossHpData>({
     currentHp: 50,
@@ -41,6 +56,7 @@ const ReactOverlayContent: React.FC = () => {
     gun: { acquired: false, count: 0, state: 'disabled' },
     totem: { acquired: false, count: 0, state: 'disabled' },
   });
+  const [shieldHitPulse, setShieldHitPulse] = useState<number>(0);
 
   // Orb Pips lifecycle: visible only in Phase 1; on transition to Phase 2, fade out over 600ms then remove from DOM
   const [isPipsFadingOut, setIsPipsFadingOut] = useState<boolean>(false);
@@ -79,10 +95,6 @@ const ReactOverlayContent: React.FC = () => {
   useEffect(() => {
     const bus = GameEventBus.getInstance();
 
-    const unsubState = bus.on('game:state', (newState) => {
-      setGameState(newState);
-    });
-
     const unsubStats = bus.on('stats:changed', (newStats) => {
       setStats(newStats);
     });
@@ -103,6 +115,10 @@ const ReactOverlayContent: React.FC = () => {
       setEquipment(data);
     });
 
+    const unsubShieldHit = bus.on('boss:shield-hit', () => {
+      setShieldHitPulse(Date.now());
+    });
+
     const unsubToast = bus.on('toast:show', (toastData) => {
       showToast({
         title: toastData.title,
@@ -116,15 +132,29 @@ const ReactOverlayContent: React.FC = () => {
     });
 
     return () => {
-      unsubState();
       unsubStats();
       unsubBossHp();
       unsubBossPhase();
       unsubOrbs();
       unsubEquipment();
+      unsubShieldHit();
       unsubToast();
     };
   }, [showToast]);
+
+  if (windowWidth < 480) {
+    return (
+      <div className="react-ui-overlay react-ui-overlay--screen-too-small">
+        <Panel variant="crimson-border" className="screen-too-small-panel">
+          <div className="screen-too-small-icon">⛩️</div>
+          <h2 className="screen-too-small-title">PLEASE USE A LARGER SCREEN</h2>
+          <p className="screen-too-small-text">
+            KamiZuki requires a display width of at least 480px.
+          </p>
+        </Panel>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -145,6 +175,7 @@ const ReactOverlayContent: React.FC = () => {
             invulnerable={bossPhase.invulnerable}
             visible={bossHp.isVisible}
             sealText="神月"
+            shieldHitPulse={shieldHitPulse}
           />
 
           {bossHp.isVisible && isPipsRendered && orbs.total > 0 && (
@@ -153,7 +184,7 @@ const ReactOverlayContent: React.FC = () => {
                 total={orbs.total}
                 filled={orbs.collected}
                 variant="cyan"
-                size="lg"
+                size="md"
                 aria-label={`Gravity Orbs: ${orbs.collected} of ${orbs.total}`}
               />
             </div>
@@ -213,9 +244,21 @@ const ReactOverlayContent: React.FC = () => {
 };
 
 export const ReactOverlay: React.FC = () => {
+  const [gameState, setGameState] = useState<GameState>('PLAYING');
+
+  useEffect(() => {
+    const bus = GameEventBus.getInstance();
+    const unsubState = bus.on('game:state', (newState) => {
+      setGameState(newState);
+    });
+    return () => {
+      unsubState();
+    };
+  }, []);
+
   return (
-    <ToastProvider>
-      <ReactOverlayContent />
+    <ToastProvider paused={gameState === 'PAUSED'}>
+      <ReactOverlayContent gameState={gameState} />
     </ToastProvider>
   );
 };

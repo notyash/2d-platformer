@@ -1,5 +1,5 @@
 // src/ui/kit/ToastContext.tsx
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { Toast, type ToastItemData } from './Toast';
 
 export interface ToastOptions extends Omit<ToastItemData, 'id'> {
@@ -12,19 +12,32 @@ export interface ToastContextValue {
   clearAllToasts: () => void;
 }
 
+export interface ToastProviderProps {
+  paused?: boolean;
+  children: React.ReactNode;
+}
+
+interface ToastRecord {
+  data: ToastItemData;
+  remainingMs: number;
+  startedAt: number;
+  timerId: number | null;
+}
+
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ToastProvider: React.FC<ToastProviderProps> = ({ paused = false, children }) => {
   const [toasts, setToasts] = useState<ToastItemData[]>([]);
-  const timersRef = useRef<Map<string, number>>(new Map());
+  const recordsRef = useRef<Map<string, ToastRecord>>(new Map());
+  const prevPausedRef = useRef<boolean>(paused);
 
   const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-    const timer = timersRef.current.get(id);
-    if (timer) {
-      window.clearTimeout(timer);
-      timersRef.current.delete(id);
+    const record = recordsRef.current.get(id);
+    if (record?.timerId) {
+      window.clearTimeout(record.timerId);
     }
+    recordsRef.current.delete(id);
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   const showToast = useCallback(
@@ -35,26 +48,63 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           ? { id, message: options, durationMs: 3000 }
           : { id, durationMs: 3000, ...options };
 
-      setToasts((prev) => [...prev.filter((t) => t.id !== id), toastData]);
+      const duration = toastData.durationMs ?? 3000;
+      let timerId: number | null = null;
+      const startedAt = performance.now();
 
-      const duration = toastData.durationMs || 3000;
-      if (duration > 0) {
-        const timer = window.setTimeout(() => {
+      if (duration > 0 && !paused) {
+        timerId = window.setTimeout(() => {
           dismissToast(id);
         }, duration);
-        timersRef.current.set(id, timer);
       }
 
+      recordsRef.current.set(id, {
+        data: toastData,
+        remainingMs: duration,
+        startedAt,
+        timerId,
+      });
+
+      setToasts((prev) => [...prev.filter((t) => t.id !== id), toastData]);
       return id;
     },
-    [dismissToast]
+    [dismissToast, paused]
   );
 
   const clearAllToasts = useCallback(() => {
-    timersRef.current.forEach((t) => window.clearTimeout(t));
-    timersRef.current.clear();
+    recordsRef.current.forEach((record) => {
+      if (record.timerId) window.clearTimeout(record.timerId);
+    });
+    recordsRef.current.clear();
     setToasts([]);
   }, []);
+
+  useEffect(() => {
+    if (paused && !prevPausedRef.current) {
+      // Freezing timers on pause transition
+      const now = performance.now();
+      recordsRef.current.forEach((record) => {
+        if (record.timerId !== null) {
+          window.clearTimeout(record.timerId);
+          record.timerId = null;
+          const elapsed = now - record.startedAt;
+          record.remainingMs = Math.max(0, record.remainingMs - elapsed);
+        }
+      });
+    } else if (!paused && prevPausedRef.current) {
+      // Resuming timers with remaining duration on unpause transition
+      const now = performance.now();
+      recordsRef.current.forEach((record, id) => {
+        if (record.remainingMs > 0 && record.timerId === null) {
+          record.startedAt = now;
+          record.timerId = window.setTimeout(() => {
+            dismissToast(id);
+          }, record.remainingMs);
+        }
+      });
+    }
+    prevPausedRef.current = paused;
+  }, [paused, dismissToast]);
 
   return (
     <ToastContext.Provider value={{ showToast, dismissToast, clearAllToasts }}>

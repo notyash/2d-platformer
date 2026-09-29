@@ -171,3 +171,5 @@ vite.config.ts.timestamp-*
 SURREALDB_FDE_INTERVIEW_PREP.md
 
 .env*
+chrome/
+screenshots/

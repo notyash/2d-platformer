@@ -388,10 +388,23 @@ export class MainStageScene extends Phaser.Scene {
 
         // ESC, R, and C Key listeners
         if (this.input.keyboard) {
+            let lastFullscreenExitTime = 0;
+            if (typeof document !== 'undefined') {
+                document.addEventListener('fullscreenchange', () => {
+                    if (!document.fullscreenElement) {
+                        lastFullscreenExitTime = performance.now();
+                    }
+                });
+            }
+
             this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
             this.escKey.on('down', () => {
                 if (this.isGameComplete) {
                     return; // Sticky: ESC cannot unpause or resume game once victory orb is collected
+                }
+                // When exiting fullscreen via Esc, do not open pause menu
+                if (document.fullscreenElement || (performance.now() - lastFullscreenExitTime < 300)) {
+                    return;
                 }
                 if (this.isGamePaused) {
                     this.resumeGame();

@@ -132,6 +132,9 @@ export class GameEventBus {
     if (!GameEventBus.instance) {
       GameEventBus.instance = new GameEventBus();
     }
+    if (import.meta.env.DEV && typeof window !== 'undefined') {
+      (window as any).__GameEventBus = GameEventBus.instance;
+    }
     return GameEventBus.instance;
   }
 

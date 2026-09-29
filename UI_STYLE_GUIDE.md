@@ -88,7 +88,9 @@ This document establishes the mandatory design rules and coding standards for al
 
 | Token Name | CSS Variable | Value | Purpose |
 | :--- | :--- | :--- | :--- |
-| **uiScale** | `--ui-scale` | `1.3` | Global React UI overlay zoom scale |
-| **bossBarWidth** | `--boss-bar-width` | `clamp(370px, 45vw, 615px)` | Responsive boss bar container width |
-| **bossBarHeight** | `--boss-bar-height`| `22px` | Boss health bar track height |
+| **uiScale** | `--ui-scale` | `1.15` | Global React UI overlay rem-scale factor |
+| **bossBarWidthPct** | `--boss-bar-width-pct` | `36%` | Target boss bar width percentage relative to game stage |
+| **bossBarMinWidth** | `--boss-bar-min-width` | `22rem` | Minimum responsive boss bar width |
+| **bossBarMaxWidth** | `--boss-bar-max-width` | `40rem` | Maximum responsive boss bar width |
+| **bossBarHeight** | `--boss-bar-height` | `1rem` | Boss health bar track height |
 

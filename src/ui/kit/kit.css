@@ -18,7 +18,7 @@
 
 .kz-panel--crimson-border {
   border-color: var(--border-crimson);
-  box-shadow: var(--shadow-panel), 0 0 16px var(--crimson-glow);
+  box-shadow: var(--shadow-panel), 0 0 1rem var(--crimson-glow);
 }
 
 .kz-panel--parchment {
@@ -48,14 +48,14 @@
 }
 
 .kz-keycap--sm {
-  font-size: 9px;
-  padding: 2px 5px;
+  font-size: 0.55rem;
+  padding: 0.15rem 0.35rem;
   letter-spacing: 0.04em;
 }
 
 .kz-keycap--md {
-  font-size: 11px;
-  padding: 3px 7px;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.45rem;
   letter-spacing: 0.06em;
 }
 
@@ -66,7 +66,13 @@
   background: var(--crimson-dark);
   border-color: var(--crimson-light);
   color: #ffffff;
-  box-shadow: 0 0 8px var(--crimson-glow);
+  box-shadow: 0 0 0.5rem var(--crimson-glow);
+}
+
+.kz-keycap--dimmed {
+  opacity: 0.35;
+  filter: grayscale(1);
+  pointer-events: none;
 }
 
 /* --------------------------------------------------------------------------
@@ -89,8 +95,8 @@
    -------------------------------------------------------------------------- */
 .kz-slot-card {
   position: relative;
-  width: 56px;
-  height: 56px;
+  width: 3.5rem;
+  height: 3.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -122,7 +128,7 @@
 
 .kz-slot-card--active {
   border-color: var(--crimson-light);
-  box-shadow: 0 0 16px var(--crimson-glow);
+  box-shadow: 0 0 1rem var(--crimson-glow);
   background: radial-gradient(circle at center, rgba(200, 28, 46, 0.2) 0%, var(--bg-card) 75%);
 }
 
@@ -141,17 +147,17 @@
 
 .kz-slot-card__keycap-wrapper {
   position: absolute;
-  bottom: 3px;
-  right: 3px;
+  bottom: 0.2rem;
+  right: 0.2rem;
   z-index: 4;
 }
 
 .kz-slot-card__badge-count {
   position: absolute;
-  top: 2px;
-  right: 4px;
+  top: 0.15rem;
+  right: 0.25rem;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 0.55rem;
   font-weight: 700;
   color: var(--gold);
   z-index: 4;
@@ -160,8 +166,7 @@
 /* Cooldown Animation SVG Ring */
 .kz-slot-card__cooldown-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
   height: 100%;
   z-index: 3;
@@ -194,13 +199,26 @@
   }
 }
 
+.kz-slot-wrapper {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.kz-slot-card__keyhint-below {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 /* --------------------------------------------------------------------------
    ProgressPips Component
    -------------------------------------------------------------------------- */
 .kz-pips {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 0.25rem;
 }
 
 .kz-pip {
@@ -210,18 +228,18 @@
 }
 
 .kz-pip--sm {
-  width: 6px;
-  height: 10px;
+  width: 0.25rem;
+  height: 0.45rem;
 }
 
 .kz-pip--md {
-  width: 10px;
-  height: 14px;
+  width: 0.4rem;
+  height: 0.7rem;
 }
 
 .kz-pip--lg {
-  width: 14px;
-  height: 20px;
+  width: 0.55rem;
+  height: 0.9rem;
 }
 
 .kz-pip--unfilled {
@@ -232,19 +250,19 @@
 .kz-pip--crimson.kz-pip--filled {
   background: var(--crimson-light);
   border: 1px solid #ffffff;
-  box-shadow: 0 0 10px var(--crimson-glow);
+  box-shadow: 0 0 0.6rem var(--crimson-glow);
 }
 
 .kz-pip--gold.kz-pip--filled {
   background: var(--gold);
   border: 1px solid #ffffff;
-  box-shadow: 0 0 10px var(--gold-glow);
+  box-shadow: 0 0 0.6rem var(--gold-glow);
 }
 
 .kz-pip--cyan.kz-pip--filled {
   background: var(--orb-cyan);
   border: 1px solid #ffffff;
-  box-shadow: 0 0 10px var(--orb-cyan-glow);
+  box-shadow: 0 0 0.6rem var(--orb-cyan-glow);
 }
 
 .kz-pips--completed {
@@ -266,55 +284,40 @@
   }
 }
 
-.kz-slot-wrapper {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-xs);
-}
-
-.kz-slot-card__keyhint-below {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.kz-keycap--dimmed {
-  opacity: 0.35;
-  filter: grayscale(1);
-  pointer-events: none;
-}
-
 /* --------------------------------------------------------------------------
-   Toast Notification Component
+   Toast Notification Component (Right side below Menu button)
    -------------------------------------------------------------------------- */
 .kz-toast-container {
   position: absolute;
-  top: 64px;
-  right: 20px;
+  top: 3.6rem;
+  right: 1rem;
+  left: auto;
+  transform: none;
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  align-items: flex-end;
+  gap: 0.5rem;
   z-index: var(--z-toast);
   pointer-events: none;
-  max-width: 320px;
-  width: 100%;
+  max-width: 22rem;
+  width: auto;
 }
 
 .kz-toast-item {
   pointer-events: auto;
   display: flex;
   align-items: flex-start;
-  gap: var(--space-md);
-  padding: 10px 14px;
+  gap: 0.75rem;
+  padding: 0.6rem 0.85rem;
   background: rgba(17, 19, 28, 0.96);
   border: 1px solid var(--border-line);
   border-radius: var(--radius-sm);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(12px);
   color: var(--parchment);
   animation: kzToastSlideIn var(--transition-normal);
   transition: transform var(--transition-fast), opacity var(--transition-fast);
+  width: 100%;
 }
 
 .kz-toast-item--info {
@@ -336,7 +339,7 @@
 
 .kz-toast-item--victory {
   border-left: 3px solid var(--gold);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 0 16px var(--gold-glow);
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.65), 0 0 1rem var(--gold-glow);
 }
 
 .kz-toast-item__icon {
@@ -345,8 +348,8 @@
 }
 
 .kz-toast-item__sprite {
-  width: 24px;
-  height: 24px;
+  width: 1.5rem;
+  height: 1.5rem;
   object-fit: contain;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
@@ -359,16 +362,16 @@
 
 .kz-toast-item__title {
   font-family: var(--font-heading);
-  font-size: 11px;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  margin-bottom: 2px;
+  margin-bottom: 0.15rem;
 }
 
 .kz-toast-item__message {
   font-family: var(--font-sans);
-  font-size: 11.5px;
+  font-size: 0.75rem;
   line-height: 1.35;
   color: var(--parchment-dim);
 }
@@ -377,16 +380,16 @@
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 0.25rem;
   font-family: var(--font-sans);
-  font-size: 11.5px;
+  font-size: 0.75rem;
   line-height: 1.35;
   color: var(--parchment);
 }
 
 .kz-toast-item__key-sep {
   color: var(--parchment-dim);
-  font-size: 10px;
+  font-size: 0.65rem;
   opacity: 0.6;
   margin: 0 1px;
 }
@@ -412,7 +415,7 @@
 @keyframes kzToastSlideIn {
   from {
     opacity: 0;
-    transform: translateX(30px);
+    transform: translateX(1.5rem);
   }
   to {
     opacity: 1;
@@ -427,9 +430,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-xs);
-  width: 100%;
-  max-width: var(--boss-bar-width);
+  gap: 0.375rem;
+  width: clamp(var(--boss-bar-min-width), var(--boss-bar-width-pct), var(--boss-bar-max-width));
   margin: 0 auto;
   transition: opacity var(--transition-normal), transform var(--transition-normal);
   z-index: var(--z-hud);
@@ -442,53 +444,53 @@
 
 .kz-boss-bar-wrapper--hidden {
   opacity: 0;
-  transform: translateY(-20px);
+  transform: translateY(-1.25rem);
   pointer-events: none;
 }
 
 .kz-boss-bar-header {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-2xs);
+  gap: 0.5rem;
+  margin-bottom: 0;
 }
 
 .kz-boss-bar-seal {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 26px;
-  height: 24px;
-  padding: 0 5px;
+  min-width: 1.25rem;
+  height: 1.15rem;
+  padding: 0 0.2rem;
   background: var(--crimson-dark);
   border: 1px solid var(--crimson-light);
   border-radius: var(--radius-xs);
   color: #ffffff;
   font-family: var(--font-kanji);
-  font-size: 13px;
+  font-size: 0.65rem;
   font-weight: 900;
   line-height: 1;
-  box-shadow: 0 0 8px var(--crimson-glow);
+  box-shadow: 0 0 0.4rem var(--crimson-glow);
   letter-spacing: 0.05em;
 }
 
 .kz-boss-bar-name {
   font-family: var(--font-heading);
-  font-size: 16px;
+  font-size: 1.25rem;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   color: var(--parchment);
   text-transform: uppercase;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
 }
 
 .kz-boss-bar-phase-badge {
   font-family: var(--font-heading);
-  font-size: 11px;
+  font-size: 0.6rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   color: var(--gold);
-  padding: 2px 8px;
+  padding: 0.1rem 0.35rem;
   background: rgba(212, 175, 55, 0.12);
   border: 1px solid rgba(212, 175, 55, 0.35);
   border-radius: var(--radius-xs);
@@ -500,7 +502,7 @@
   align-items: center;
   justify-content: center;
   color: var(--orb-cyan);
-  filter: drop-shadow(0 0 6px var(--orb-cyan-glow));
+  filter: drop-shadow(0 0 4px var(--orb-cyan-glow));
   animation: kzShieldPulse 2s infinite ease-in-out;
   transition: opacity 300ms ease-out, transform 300ms ease-out;
 }
@@ -559,24 +561,24 @@
   width: 100%;
   height: var(--boss-bar-height);
   background: var(--bg-panel);
-  border: 1.5px solid var(--border-crimson);
+  border: 1px solid var(--border-crimson);
   border-radius: var(--radius-xs);
-  box-shadow: var(--shadow-panel), 0 0 18px var(--crimson-glow);
+  box-shadow: var(--shadow-panel), 0 0 0.5rem var(--crimson-glow);
   overflow: hidden;
   transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
-/* Ornate corner ornaments / end caps on frame */
+/* Subtle corner end caps on frame */
 .kz-boss-bar-frame::before,
 .kz-boss-bar-frame::after {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 4px;
+  width: 3px;
   background: linear-gradient(180deg, var(--crimson-light) 0%, var(--crimson-dark) 100%);
   border: 1px solid var(--border-crimson);
-  box-shadow: 0 0 6px var(--crimson-glow);
+  box-shadow: 0 0 4px var(--crimson-glow);
   z-index: 5;
   pointer-events: none;
 }
@@ -597,19 +599,19 @@
     transform: scale(1);
     filter: brightness(1);
     border-color: var(--border-crimson);
-    box-shadow: var(--shadow-panel), 0 0 16px var(--crimson-glow);
+    box-shadow: var(--shadow-panel), 0 0 1rem var(--crimson-glow);
   }
   30% {
     transform: scale(1.025);
     filter: brightness(1.4);
     border-color: var(--orb-cyan);
-    box-shadow: var(--shadow-panel), 0 0 20px var(--orb-cyan-glow), inset 0 0 12px var(--orb-cyan-glow);
+    box-shadow: var(--shadow-panel), 0 0 1.25rem var(--orb-cyan-glow), inset 0 0 0.75rem var(--orb-cyan-glow);
   }
   100% {
     transform: scale(1);
     filter: brightness(1);
     border-color: var(--border-crimson);
-    box-shadow: var(--shadow-panel), 0 0 16px var(--crimson-glow);
+    box-shadow: var(--shadow-panel), 0 0 1rem var(--crimson-glow);
   }
 }
 
@@ -625,18 +627,18 @@
 @keyframes kzShieldBreak {
   0% {
     border-color: #ffffff;
-    box-shadow: 0 0 24px rgba(255, 255, 255, 0.9), 0 0 35px var(--crimson-glow);
+    box-shadow: 0 0 1.5rem rgba(255, 255, 255, 0.9), 0 0 2rem var(--crimson-glow);
     filter: brightness(1.8);
     transform: scale(1.03);
   }
   50% {
     border-color: var(--crimson-light);
-    box-shadow: 0 0 20px var(--crimson-glow);
+    box-shadow: 0 0 1.25rem var(--crimson-glow);
     filter: brightness(1.3);
   }
   100% {
     border-color: var(--border-crimson);
-    box-shadow: var(--shadow-panel), 0 0 16px var(--crimson-glow);
+    box-shadow: var(--shadow-panel), 0 0 1rem var(--crimson-glow);
     filter: brightness(1);
     transform: scale(1);
   }
@@ -691,15 +693,14 @@
    -------------------------------------------------------------------------- */
 .ui-kit-showcase-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100vw;
   height: 100vh;
   background: rgba(8, 9, 13, 0.95);
   backdrop-filter: blur(16px);
   z-index: var(--z-dev);
   overflow-y: auto;
-  padding: 32px 24px;
+  padding: 2rem 1.5rem;
   box-sizing: border-box;
 }
 
@@ -708,7 +709,7 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 1.5rem;
 }
 
 .ui-kit-header {
@@ -716,21 +717,21 @@
   justify-content: space-between;
   align-items: flex-start;
   border-bottom: 1.5px solid var(--border-crimson);
-  padding-bottom: 16px;
+  padding-bottom: 1rem;
 }
 
 .ui-kit-title {
   font-family: var(--font-heading);
-  font-size: 26px;
+  font-size: 1.6rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   color: var(--parchment);
-  margin: 4px 0;
+  margin: 0.25rem 0;
 }
 
 .ui-kit-subtitle {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 0.8rem;
   color: var(--parchment-dim);
 }
 
@@ -739,7 +740,7 @@
   border: 1px solid var(--border-line);
   color: var(--parchment);
   border-radius: var(--radius-xs);
-  padding: 6px;
+  padding: 0.4rem;
   cursor: pointer;
 }
 
@@ -751,15 +752,15 @@
 
 .ui-kit-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 1.25rem;
 }
 
 .ui-kit-section {
-  padding: 18px 20px;
+  padding: 1.1rem 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 0.85rem;
 }
 
 .ui-kit-section-full {
@@ -768,21 +769,21 @@
 
 .ui-kit-section-title {
   font-family: var(--font-heading);
-  font-size: 14px;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--crimson-light);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   margin: 0;
 }
 
 .ui-kit-icons-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 0.6rem;
 }
 
 .ui-kit-icon-cell {
@@ -790,8 +791,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 10px 6px;
+  gap: 0.4rem;
+  padding: 0.6rem 0.4rem;
   background: var(--bg-panel);
   border: 1px solid var(--border-line);
   border-radius: var(--radius-xs);
@@ -807,7 +808,7 @@
 
 .ui-kit-icon-label {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 0.6rem;
   color: var(--parchment-dim);
   text-align: center;
 }
@@ -816,68 +817,66 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 1rem;
 }
 
 .ui-kit-item-group {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.4rem;
 }
 
 .ui-kit-label {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.7rem;
   color: var(--parchment-dim);
 }
 
 .ui-kit-panels-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
 }
 
 .ui-kit-panel-demo {
-  padding: 16px;
-  font-size: 12px;
+  padding: 1rem;
+  font-size: 0.75rem;
 }
 
 .ui-kit-panel-demo strong {
   display: block;
   font-family: var(--font-heading);
-  font-size: 13px;
+  font-size: 0.85rem;
   color: var(--parchment);
-  margin-bottom: 6px;
+  margin-bottom: 0.4rem;
 }
 
 .ui-kit-slot-demo {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 0.4rem;
 }
 
 .ui-kit-pip-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.25rem;
 }
 
 .ui-kit-controls-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin-top: 8px;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
 }
 
 /* --------------------------------------------------------------------------
    Pause-Aware Animation State
    Freezes all kit animations when data-paused="true" is set on the overlay root
    -------------------------------------------------------------------------- */
-[data-paused="true"] *,
-[data-paused="true"] *::before,
-[data-paused="true"] *::after {
+[data-paused="true"] *:not(.pause-modal-backdrop):not(.pause-modal-backdrop *) {
   animation-play-state: paused !important;
 }
 
@@ -889,5 +888,3 @@
 [data-paused="true"] .leaderboard-modal-overlay * {
   animation-play-state: running !important;
 }
-
-

@@ -1,13 +1,25 @@
-// src/ui/KamiZukiHUD.tsx
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { GameEventBus, type GameStats } from '../services/GameEventBus';
 import { Icon } from './kit/Icon';
 
 export const KamiZukiHUD: React.FC = () => {
   const [stats, setStats] = useState<GameStats>({ coins: 0, kills: 0, deaths: 0 });
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(() => {
+    if (typeof document === 'undefined') return false;
+    return Boolean(document.fullscreenElement);
+  });
   const timerRef = useRef<HTMLDivElement | null>(null);
   const coinChipRef = useRef<HTMLDivElement | null>(null);
+
+  const isFullscreenSupported = typeof document !== 'undefined' && Boolean(
+    document.fullscreenEnabled ||
+    (document as any).webkitFullscreenEnabled ||
+    (document as any).mozFullScreenEnabled ||
+    (document as any).msFullscreenEnabled
+  );
+
+  const updateCoinTarget = useRef<() => void>(() => {});
 
   useEffect(() => {
     const bus = GameEventBus.getInstance();
@@ -39,33 +51,43 @@ export const KamiZukiHUD: React.FC = () => {
       }
     });
 
-    // 5. Calculate and share HUD Coin Chip coordinates in Phaser game coordinate space
-    const updateCoinTarget = () => {
+    // 5. Calculate and share HUD Coin Chip coordinates in Phaser game coordinate space (854x480)
+    const computeTarget = () => {
       if (!coinChipRef.current) return;
       const chipRect = coinChipRef.current.getBoundingClientRect();
-      const canvas = document.querySelector('#game-canvas-host canvas') as HTMLCanvasElement | null;
-      if (!canvas) return;
-      const canvasRect = canvas.getBoundingClientRect();
-      if (canvasRect.width <= 0 || canvasRect.height <= 0) return;
+      const stage = document.getElementById('game-stage');
+      if (!stage) return;
+      const stageRect = stage.getBoundingClientRect();
+      if (stageRect.width <= 0 || stageRect.height <= 0) return;
 
-      const scaleX = (canvas.width || 854) / canvasRect.width;
-      const scaleY = (canvas.height || 480) / canvasRect.height;
-      const gameX = (chipRect.left + chipRect.width / 2 - canvasRect.left) * scaleX;
-      const gameY = (chipRect.top + chipRect.height / 2 - canvasRect.top) * scaleY;
+      const gameX = ((chipRect.left + chipRect.width / 2 - stageRect.left) / stageRect.width) * 854;
+      const gameY = ((chipRect.top + chipRect.height / 2 - stageRect.top) / stageRect.height) * 480;
 
       bus.emitCoinTarget({ x: gameX, y: gameY });
     };
 
-    updateCoinTarget();
+    updateCoinTarget.current = computeTarget;
+    computeTarget();
 
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => updateCoinTarget()) : null;
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => computeTarget()) : null;
     if (ro) {
       if (coinChipRef.current) ro.observe(coinChipRef.current);
-      const canvasHost = document.getElementById('game-canvas-host');
-      if (canvasHost) ro.observe(canvasHost);
+      const stage = document.getElementById('game-stage');
+      if (stage) ro.observe(stage);
     }
 
-    window.addEventListener('resize', updateCoinTarget);
+    window.addEventListener('resize', computeTarget);
+
+    // Sync fullscreen state & recompute coin-fly target on fullscreen change
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+      computeTarget();
+      setTimeout(computeTarget, 50);
+      setTimeout(computeTarget, 150);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
     return () => {
       unsubStats();
@@ -73,9 +95,61 @@ export const KamiZukiHUD: React.FC = () => {
       unsubSound();
       unsubCoinBump();
       if (ro) ro.disconnect();
-      window.removeEventListener('resize', updateCoinTarget);
+      window.removeEventListener('resize', computeTarget);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
     };
   }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    if (!isFullscreenSupported) return;
+    try {
+      if (!document.fullscreenElement) {
+        const masterWrapper = document.getElementById('game-master-wrapper');
+        if (masterWrapper?.requestFullscreen) {
+          await masterWrapper.requestFullscreen();
+        } else if ((masterWrapper as any)?.webkitRequestFullscreen) {
+          await (masterWrapper as any).webkitRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+      }
+      updateCoinTarget.current();
+      setTimeout(() => updateCoinTarget.current(), 50);
+      setTimeout(() => updateCoinTarget.current(), 150);
+    } catch (err) {
+      console.warn('[Fullscreen] Error toggling fullscreen:', err);
+    }
+  }, [isFullscreenSupported]);
+
+  // F Key toggles fullscreen (ignored while any modal is open)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'KeyF' || e.key === 'f' || e.key === 'F') {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+        // Check if modal or pause is active
+        const isModalOpen = Boolean(
+          document.querySelector('[role="dialog"]') ||
+          document.querySelector('.kz-modal-backdrop') ||
+          document.querySelector('.ui-kit-showcase-backdrop') ||
+          GameEventBus.getInstance().getGameState() === 'PAUSED'
+        );
+        if (isModalOpen) return;
+
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [toggleFullscreen]);
 
   const handleAction = (type: 'RESTART_RUN' | 'TOGGLE_PAUSE' | 'TOGGLE_SOUND') => {
     // Ensure all buttons blur immediately so Space key will never re-trigger them
@@ -108,7 +182,6 @@ export const KamiZukiHUD: React.FC = () => {
       {/* Center: Large Space Grotesk Tabular Timer */}
       <div className="hud-timer-container">
         <div className="hud-timer-frame">
-          <span className="hud-timer-label">TIME</span>
           <div ref={timerRef} className="hud-timer-value">
             00:00.00
           </div>
@@ -117,9 +190,27 @@ export const KamiZukiHUD: React.FC = () => {
 
       {/* Right: Small Icon-style Action Buttons */}
       <div className="hud-actions-group">
+        {isFullscreenSupported && (
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label="Fullscreen"
+            className="hud-btn hud-btn-outline"
+            title={isFullscreen ? 'Exit Fullscreen (F)' : 'Fullscreen (F)'}
+            onPointerDown={(e) => e.currentTarget.blur()}
+            onClick={(e) => {
+              e.currentTarget.blur();
+              toggleFullscreen();
+            }}
+          >
+            <Icon name={isFullscreen ? 'fullscreen-exit' : 'fullscreen'} size={14} />
+          </button>
+        )}
+
         <button
           type="button"
           tabIndex={-1}
+          aria-label="Toggle Sound"
           className="hud-btn hud-btn-outline"
           title="Toggle Sound"
           onPointerDown={(e) => e.currentTarget.blur()}
@@ -134,6 +225,7 @@ export const KamiZukiHUD: React.FC = () => {
         <button
           type="button"
           tabIndex={-1}
+          aria-label="Restart Run"
           className="hud-btn hud-btn-outline hud-btn-restart"
           title="Restart Run (Double R)"
           onPointerDown={(e) => e.currentTarget.blur()}
@@ -149,6 +241,7 @@ export const KamiZukiHUD: React.FC = () => {
         <button
           type="button"
           tabIndex={-1}
+          aria-label="Menu"
           className="hud-btn hud-btn-crimson"
           title="Pause / Menu (ESC)"
           onPointerDown={(e) => e.currentTarget.blur()}
