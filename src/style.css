@@ -293,6 +293,79 @@ html, body {
 }
 
 /* ==========================================================================
+   Boss Encounter & Pips Layout Area
+   ========================================================================== */
+.hud-top-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  pointer-events: none;
+}
+
+.hud-boss-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+  width: 100%;
+  max-width: 460px;
+  pointer-events: none;
+  z-index: var(--z-hud);
+}
+
+.hud-boss-orbs {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: var(--space-xs);
+}
+
+/* Responsive adjustments across 1280x720, 1920x1080 and narrow viewports */
+@media (max-width: 768px) {
+  .kamizuki-hud {
+    padding: var(--space-xs) var(--space-sm);
+  }
+  .hud-chip {
+    padding: 4px 8px;
+    gap: 4px;
+  }
+  .hud-chip .chip-value {
+    font-size: 12px;
+  }
+  .hud-timer-frame {
+    padding: 4px 10px;
+  }
+  .hud-timer-value {
+    font-size: 16px;
+    min-width: 68px;
+  }
+  .hud-boss-section {
+    max-width: calc(100% - 32px);
+    margin-top: var(--space-xs);
+  }
+}
+
+@media (max-width: 600px) {
+  .hud-btn .btn-label {
+    display: none;
+  }
+  .hud-btn {
+    padding: 6px;
+  }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ==========================================================================
    Pause Modal & Menu Navigation Styling
    ========================================================================== */
 .pause-modal-backdrop {

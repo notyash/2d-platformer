@@ -13,6 +13,16 @@ export interface BossHpData {
   isVisible: boolean;
 }
 
+export interface BossPhaseData {
+  phase: number;
+  invulnerable: boolean;
+}
+
+export interface OrbsData {
+  collected: number;
+  total: number;
+}
+
 export interface EquipmentState {
   hasGun: boolean;
   gunCount: number;
@@ -33,10 +43,20 @@ export type GameAction =
   | { type: 'OPEN_LEADERBOARD' }
   | { type: 'CLOSE_MODAL' };
 
+export interface ToastData {
+  title?: string;
+  message: string;
+  variant?: 'info' | 'success' | 'warning' | 'danger' | 'victory';
+  durationMs?: number;
+}
+
 export interface EventMap {
   'stats:changed': GameStats;
   'time:tick': string; // Formatted time string, throttled to ~10Hz
   'boss:hp': BossHpData;
+  'boss:phase': BossPhaseData;
+  'orbs:updated': OrbsData;
+  'toast:show': ToastData;
   'equipment:changed': EquipmentState;
   'game:state': GameState;
   'action:trigger': GameAction;
@@ -55,7 +75,9 @@ export class GameEventBus {
   private lastStats: GameStats = { coins: 0, kills: 0, deaths: 0 };
   private lastFormattedTime: string = '00:00.00';
   private lastTimeEmitMs: number = 0;
-  private lastBossHp: BossHpData = { currentHp: 50, maxHp: 50, bossName: '⚡ AKUMA / ELECKING ⚡', isVisible: false };
+  private lastBossHp: BossHpData = { currentHp: 50, maxHp: 50, bossName: 'ELECKING', isVisible: false };
+  private lastBossPhase: BossPhaseData = { phase: 1, invulnerable: true };
+  private lastOrbs: OrbsData = { collected: 0, total: 0 };
   private lastState: GameState = 'PLAYING';
 
   public static getInstance(): GameEventBus {
@@ -70,6 +92,25 @@ export class GameEventBus {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event)!.add(callback);
+
+    // Immediately deliver cached state upon subscription so late-mounting components receive latest values
+    try {
+      if (event === 'stats:changed') {
+        callback(this.lastStats as EventMap[K]);
+      } else if (event === 'boss:hp') {
+        callback(this.lastBossHp as EventMap[K]);
+      } else if (event === 'boss:phase') {
+        callback(this.lastBossPhase as EventMap[K]);
+      } else if (event === 'orbs:updated') {
+        callback(this.lastOrbs as EventMap[K]);
+      } else if (event === 'game:state') {
+        callback(this.lastState as EventMap[K]);
+      } else if (event === 'time:tick') {
+        callback(this.lastFormattedTime as EventMap[K]);
+      }
+    } catch (err) {
+      console.error(`[GameEventBus] Error in initial cached callback for "${String(event)}":`, err);
+    }
 
     // Return cleanup unsubscribe function
     return () => {
@@ -98,6 +139,30 @@ export class GameEventBus {
         }
       }
     }
+  }
+
+  public getStats(): GameStats {
+    return { ...this.lastStats };
+  }
+
+  public getBossHp(): BossHpData {
+    return { ...this.lastBossHp };
+  }
+
+  public getBossPhase(): BossPhaseData {
+    return { ...this.lastBossPhase };
+  }
+
+  public getOrbs(): OrbsData {
+    return { ...this.lastOrbs };
+  }
+
+  public getGameState(): GameState {
+    return this.lastState;
+  }
+
+  public getFormattedTime(): string {
+    return this.lastFormattedTime;
   }
 
   /**
@@ -141,6 +206,32 @@ export class GameEventBus {
   }
 
   /**
+   * Emit boss phase and invulnerability state only on change
+   */
+  public emitBossPhaseIfChanged(phaseData: BossPhaseData): void {
+    if (
+      phaseData.phase !== this.lastBossPhase.phase ||
+      phaseData.invulnerable !== this.lastBossPhase.invulnerable
+    ) {
+      this.lastBossPhase = { ...phaseData };
+      this.emit('boss:phase', this.lastBossPhase);
+    }
+  }
+
+  /**
+   * Emit orbs count only on change
+   */
+  public emitOrbsIfChanged(orbsData: OrbsData): void {
+    if (
+      orbsData.collected !== this.lastOrbs.collected ||
+      orbsData.total !== this.lastOrbs.total
+    ) {
+      this.lastOrbs = { ...orbsData };
+      this.emit('orbs:updated', this.lastOrbs);
+    }
+  }
+
+  /**
    * Emit game state changed
    */
   public emitGameState(state: GameState): void {
@@ -157,7 +248,9 @@ export class GameEventBus {
     this.lastStats = { coins: 0, kills: 0, deaths: 0 };
     this.lastFormattedTime = '00:00.00';
     this.lastTimeEmitMs = 0;
-    this.lastBossHp = { currentHp: 50, maxHp: 50, bossName: '⚡ AKUMA / ELECKING ⚡', isVisible: false };
+    this.lastBossHp = { currentHp: 50, maxHp: 50, bossName: 'ELECKING', isVisible: false };
+    this.lastBossPhase = { phase: 1, invulnerable: true };
+    this.lastOrbs = { collected: 0, total: 0 };
     this.lastState = 'PLAYING';
   }
 }

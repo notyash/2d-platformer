@@ -5,6 +5,8 @@ import { EnemyManager } from '../managers/EnemyManager';
 import { EnvironmentManager } from '../managers/EnvironmentManager';
 import { SoundManager } from '../managers/SoundManager';
 import { InventoryManager } from '../managers/InventoryManager';
+import { GameEventBus } from '../services/GameEventBus';
+import { TOKENS } from '../theme/tokens';
 
 export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private player: Player;
@@ -37,6 +39,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private tempClouds: Phaser.Physics.Arcade.Sprite[] = [];
     private collectedOrbs: number = 0;
     private victoryOrb?: Phaser.Physics.Arcade.Sprite;
+    private hasShownShieldedToast: boolean = false;
     
     // State Tracking
     private bossState: 'idle' | 'memory-telegraph' | 'vanished' | 'striking' | 'descending' | 'patrolling' | 'summoning' = 'idle';
@@ -121,6 +124,16 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             // Phase 2: Deal damage only if boss is vulnerable and not vanished/dead
             if (this.phase === 2 && !this.isInvulnerable && !this.isDead && this.bossState !== 'vanished') {
                 this.takeDamage();
+            } else if (this.isInvulnerable || this.phase === 1) {
+                if (!this.hasShownShieldedToast) {
+                    this.hasShownShieldedToast = true;
+                    GameEventBus.getInstance().emit('toast:show', {
+                        title: 'BOSS SHIELDED',
+                        message: 'The boss is shielded. Collect the gravity orbs.',
+                        variant: 'warning',
+                        durationMs: 4000,
+                    });
+                }
             }
         });
 
@@ -677,6 +690,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         const hasSequentialIds = sortedUniqueIds.length > 0;
         const firstActiveId = hasSequentialIds ? sortedUniqueIds[0] : undefined;
         const totalOrbs = this.rawGravityOrbData.length > 0 ? this.rawGravityOrbData.length : 7;
+        GameEventBus.getInstance().emitOrbsIfChanged({ collected: this.collectedOrbs, total: totalOrbs });
 
         this.rawGravityOrbData.forEach(pos => {
             const orb = this.scene.physics.add.sprite(pos.x, pos.y, 'gravity-orb');
@@ -721,9 +735,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 orb.destroy();
                 this.collectedOrbs++;
 
-                // Sound & Floating text notification
+                // Sound & Floating '+1' token pop notification
                 this.soundManager?.playPowerup();
-                this.uiManager.showFloatingText(orb.x, orb.y - 10, `ORB ${this.collectedOrbs}/${totalOrbs}`, '#38BDF8');
+                this.uiManager.showFloatingText(orb.x, orb.y - 10, '+1', TOKENS.colors.orbCyan, 600, 20);
+                GameEventBus.getInstance().emitOrbsIfChanged({ collected: this.collectedOrbs, total: totalOrbs });
 
                 if (this.collectedOrbs >= totalOrbs && this.phase === 1) {
                     if (this.orbRevealTimer) {
@@ -897,7 +912,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         });
 
         // Show top-screen boss health bar immediately on encounter start
-        this.uiManager.showBossHealthBar('⚡ ELECKING ⚡', this.maxHp, this.hp);
+        this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp);
 
         if (this.hasReachedPhase2) {
             this.startPhase2Directly();
@@ -938,8 +953,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             body.setAllowGravity(false);
         }
 
-        this.uiManager.showBossHealthBar('⚡ ELECKING ⚡', 50, this.hp);
+        this.uiManager.showBossHealthBar('ELECKING', 50, this.hp);
         this.uiManager.updateBossHealthBar(this.hp, 50);
+        GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 2, invulnerable: false });
         this.startGroundedPatrol();
 
         // Start periodic Orbs of Rage using configured interval
@@ -985,6 +1001,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
             // Hide Boss Health Bar
             this.uiManager.hideBossHealthBar();
+            this.hasShownShieldedToast = false;
+            GameEventBus.getInstance().emitOrbsIfChanged({ collected: 0, total: 7 });
+            GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 1, invulnerable: true });
 
             // Reset gravity orbs to full
             this.spawnGravityOrbs();
@@ -1093,6 +1112,16 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.setTexture('elecking-power');
         this.setBossFrame(0);
         this.setVisible(true);
+        GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 1, invulnerable: true });
+        if (!this.hasShownShieldedToast) {
+            this.hasShownShieldedToast = true;
+            GameEventBus.getInstance().emit('toast:show', {
+                title: 'BOSS ENCOUNTER',
+                message: 'The boss is shielded. Collect the gravity orbs.',
+                variant: 'warning',
+                durationMs: 4000,
+            });
+        }
         const body = this.body as Phaser.Physics.Arcade.Body;
         if (body) {
             body.setEnable(true);
@@ -1107,6 +1136,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         if (!this.hasStarted || this.isDead) return;
         this.bossState = 'memory-telegraph';
         this.isInvulnerable = true; // Boss is invulnerable when initiating thunder attacks in Phase 2
+        GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 2, invulnerable: true });
         this.anims.stop();
         (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
         
@@ -1364,10 +1394,11 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.phase2ThunderTimer = 15000;
         this.pendingPhase2Transition = false;
         this.bossState = 'descending';
+        GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 2, invulnerable: false });
 
         // Show phase transition banner & Top-Screen Boss Health Bar
         this.uiManager.showFloatingText(this.x, this.y - 40, 'PHASE 2 - VULNERABLE', '#FF0000');
-        this.uiManager.showBossHealthBar('⚡ ELECKING ⚡', 50, this.hp);
+        this.uiManager.showBossHealthBar('ELECKING', 50, this.hp);
 
         // Find ground position directly beneath boss.
         // Boss sprite is 96px high with origin (0.5, 0.5), so sprite bottom is y + 48.
@@ -1435,6 +1466,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private startGroundedPatrol() {
         this.bossState = 'patrolling';
         this.isInvulnerable = false; // Vulnerable during grounded combat
+        GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 2, invulnerable: false });
         this.p2MoveDuration = Phaser.Math.Between(2000, 3200);
         this.p2PaceFlipTimer = 0;
         this.p2PaceDir = this.player.x > this.x ? 1 : -1;
@@ -1638,7 +1670,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                     this.victoryOrb = undefined;
 
                     this.soundManager?.playVictory();
-                    this.uiManager.showFloatingText(orbX, orbY - 25, '🏆 ORB OF VICTORY COLLECTED!', '#FFD700', 1600);
+                    this.uiManager.showFloatingText(orbX, orbY - 25, 'ORB OF VICTORY COLLECTED!', '#FFD700', 1600);
                     this.uiManager.spawnParticles(orbX, orbY, 0xFFD700);
 
                     // Complete the stage & submit run to SurrealDB

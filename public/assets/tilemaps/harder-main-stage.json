@@ -1,4 +1,12 @@
 { "compressionlevel":-1,
+ "editorsettings":
+    {
+     "export":
+        {
+         "format":"json",
+         "target":"harder-main-stage.json"
+        }
+    },
  "height":45,
  "infinite":false,
  "layers":[
@@ -2113,8 +2121,8 @@
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":477.969696969696,
-                 "y":888.80303030303
+                 "x":113.969696969696,
+                 "y":177.80303030303
                 }, 
                 {
                  "height":31.93,

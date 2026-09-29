@@ -13,6 +13,7 @@ export type IconName =
   | 'gun'
   | 'totem'
   | 'orb'
+  | 'shield'
   | 'close'
   | 'check'
   | 'arrow-up'
@@ -157,6 +158,13 @@ export const Icon: React.FC<IconProps> = ({
           <>
             <line x1="12" y1="5" x2="12" y2="19" />
             <polyline points="19 12 12 19 5 12" />
+          </>
+        );
+
+      case 'shield':
+        return (
+          <>
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </>
         );
 

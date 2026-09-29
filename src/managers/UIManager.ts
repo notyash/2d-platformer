@@ -182,125 +182,21 @@ export class UIManager {
     };
 
     createHUD(_onPauseToggle?: () => void, _onRestartRun?: () => void) {
-        // Visual HUD now handled exclusively by KamiZuki React HUD
-        this.scene.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
-            if (this.bossHealthContainer) this.bossHealthContainer.setX(gameSize.width / 2);
-        });
+        // Visual HUD and Boss Bar now handled exclusively by KamiZuki React HUD / BossBar
     }
 
-    // Boss Health Bar UI Container & Elements
-    private bossHealthContainer?: Phaser.GameObjects.Container;
-    private bossHealthBarGraphics?: Phaser.GameObjects.Graphics;
-    private bossHealthNameText?: Phaser.GameObjects.Text;
-    private readonly bossBarWidth: number = 340;
-    private readonly bossBarHeight: number = 12;
-    private bossBarTweenObj = { pct: 1 };
-
-    public showBossHealthBar(bossName: string = '⚡ ELECKING ⚡', maxHp: number = 50, currentHp: number = 50) {
-        if (!this.bossHealthContainer) {
-            const screenCenterX = this.scene.scale.width / 2;
-            const topY = 56;
-
-            this.bossHealthContainer = this.scene.add.container(screenCenterX, topY).setScrollFactor(0).setDepth(20);
-
-            // Boss Title / Name on top of the health bar
-            this.bossHealthNameText = this.scene.add.text(0, -12, bossName, {
-                fontSize: '13px',
-                fontFamily: 'Arial',
-                color: '#fca5a5',
-                stroke: '#000000',
-                strokeThickness: 3,
-                fontStyle: 'bold'
-            }).setOrigin(0.5);
-
-            // Health Bar Graphics (Rounded health bar with track and dynamic fill, no border, no background card)
-            this.bossHealthBarGraphics = this.scene.add.graphics();
-
-            this.bossHealthContainer.add([this.bossHealthBarGraphics, this.bossHealthNameText]);
-        }
-
-        if (this.bossHealthNameText) this.bossHealthNameText.setText(bossName);
-        this.bossBarTweenObj.pct = Math.min(1, Math.max(0, currentHp / maxHp));
-        this.renderBossHealthBar(this.bossBarTweenObj.pct);
-        this.bossHealthContainer.setAlpha(0);
-        this.bossHealthContainer.setVisible(true);
-
-        GameEventBus.getInstance().emitBossHpIfChanged({ currentHp, maxHp, bossName, isVisible: true });
-
-        this.scene.tweens.add({
-            targets: this.bossHealthContainer,
-            alpha: 1,
-            y: 56,
-            duration: 300,
-            ease: 'Cubic.easeOut'
-        });
-    }
-
-    private renderBossHealthBar(pct: number) {
-        if (!this.bossHealthBarGraphics) return;
-        this.bossHealthBarGraphics.clear();
-
-        const x = -this.bossBarWidth / 2;
-        const y = 2;
-        const radius = 6;
-
-        // Dark track for empty health portion
-        this.bossHealthBarGraphics.fillStyle(0x0f172a, 0.7);
-        this.bossHealthBarGraphics.fillRoundedRect(x, y, this.bossBarWidth, this.bossBarHeight, radius);
-
-        const safePct = Math.min(1, Math.max(0, pct));
-        const fillWidth = this.bossBarWidth * safePct;
-
-        if (fillWidth > 0) {
-            // Color shift: bright red -> orange -> crimson on low hp
-            const color = safePct <= 0.3 ? 0xdc2626 : (safePct <= 0.6 ? 0xf97316 : 0xef4444);
-            this.bossHealthBarGraphics.fillStyle(color, 1);
-            const fillRadius = fillWidth < radius * 2 ? Math.floor(fillWidth / 2) : radius;
-            this.bossHealthBarGraphics.fillRoundedRect(x, y, fillWidth, this.bossBarHeight, fillRadius);
-        }
+    public showBossHealthBar(bossName: string = 'ELECKING', maxHp: number = 50, currentHp: number = 50) {
+        const cleanName = bossName.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}⚡]/gu, '').trim().toUpperCase() || 'ELECKING';
+        GameEventBus.getInstance().emitBossHpIfChanged({ currentHp, maxHp, bossName: cleanName, isVisible: true });
     }
 
     public updateBossHealthBar(currentHp: number, maxHp: number = 50) {
-        if (!this.bossHealthContainer || !this.bossHealthBarGraphics) {
-            this.showBossHealthBar('⚡ ELECKING ⚡', maxHp, currentHp);
-            return;
-        }
-
         const safeHp = Math.max(0, currentHp);
-        const targetPct = Math.min(1, Math.max(0, safeHp / maxHp));
-
-        GameEventBus.getInstance().emitBossHpIfChanged({ currentHp: safeHp, maxHp, bossName: '⚡ ELECKING ⚡', isVisible: true });
-
-        try {
-            this.scene.tweens.killTweensOf(this.bossBarTweenObj);
-            this.scene.tweens.add({
-                targets: this.bossBarTweenObj,
-                pct: targetPct,
-                duration: 180,
-                ease: 'Cubic.easeOut',
-                onUpdate: () => {
-                    this.renderBossHealthBar(this.bossBarTweenObj.pct);
-                }
-            });
-        } catch (_e) {
-            this.bossBarTweenObj.pct = targetPct;
-            this.renderBossHealthBar(targetPct);
-        }
+        GameEventBus.getInstance().emitBossHpIfChanged({ currentHp: safeHp, maxHp, bossName: 'ELECKING', isVisible: true });
     }
 
     public hideBossHealthBar() {
-        if (this.bossHealthContainer && this.bossHealthContainer.visible) {
-            this.scene.tweens.add({
-                targets: this.bossHealthContainer,
-                alpha: 0,
-                duration: 250,
-                ease: 'Linear',
-                onComplete: () => {
-                    if (this.bossHealthContainer) this.bossHealthContainer.setVisible(false);
-                    GameEventBus.getInstance().emitBossHpIfChanged({ currentHp: 0, maxHp: 50, bossName: '⚡ ELECKING ⚡', isVisible: false });
-                }
-            });
-        }
+        GameEventBus.getInstance().emitBossHpIfChanged({ currentHp: 0, maxHp: 50, bossName: 'ELECKING', isVisible: false });
     }
 
     updateHUD(formattedTime: string, coins: number, kills: number, deaths: number) {

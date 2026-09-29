@@ -1,5 +1,5 @@
 // src/ui/kit/SlotCard.tsx
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Icon, type IconName } from './Icon';
 import { KeyCap } from './KeyCap';
 import './kit.css';
@@ -29,8 +29,8 @@ export const SlotCard: React.FC<SlotCardProps> = ({
 }) => {
   const stateClass = `kz-slot-card--${state}`;
 
-  // Calculate CSS animation delay if cooldown started in the past
-  const getCooldownStyle = (): React.CSSProperties | undefined => {
+  // Calculate CSS animation delay once when cooldown starts, not on every re-render
+  const cooldownStyle = useMemo<React.CSSProperties | undefined>(() => {
     if (state !== 'cooldown') return undefined;
 
     const elapsed = cooldownStartTime ? Math.max(0, Date.now() - cooldownStartTime) : 0;
@@ -38,7 +38,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({
       animationDuration: `${cooldownDurationMs}ms`,
       animationDelay: elapsed > 0 ? `-${elapsed}ms` : '0ms',
     };
-  };
+  }, [state, cooldownStartTime, cooldownDurationMs]);
 
   return (
     <div className={`kz-slot-card ${stateClass} ${className}`.trim()} {...props}>
@@ -68,7 +68,8 @@ export const SlotCard: React.FC<SlotCardProps> = ({
               cx="35"
               cy="35"
               r="30"
-              style={getCooldownStyle()}
+              pathLength="100"
+              style={cooldownStyle}
             />
           </svg>
         </div>

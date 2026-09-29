@@ -17,7 +17,7 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
   const [bossHp, setBossHp] = useState<BossHpData>({
     currentHp: 50,
     maxHp: 50,
-    bossName: '⚡ AKUMA / ELECKING ⚡',
+    bossName: 'ELECKING',
     isVisible: false,
   });
   const [gameState, setGameState] = useState<GameState>('PLAYING');
@@ -77,29 +77,29 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
         <span>EVENT BUS BRIDGE</span>
       </div>
       <div className="debug-row">
-        <span>⏱️ Time:</span>
+        <span>Time:</span>
         <span className="debug-val debug-gold">{time}</span>
       </div>
       <div className="debug-row">
-        <span>🪙 Coins:</span>
+        <span>Coins:</span>
         <span className="debug-val debug-gold">{stats.coins}</span>
       </div>
       <div className="debug-row">
-        <span>⚔️ Kills:</span>
+        <span>Kills:</span>
         <span className="debug-val debug-crimson">{stats.kills}</span>
       </div>
       <div className="debug-row">
-        <span>💀 Deaths:</span>
+        <span>Deaths:</span>
         <span className="debug-val">{stats.deaths}</span>
       </div>
       <div className="debug-row">
-        <span>⚡ Boss HP:</span>
+        <span>Boss HP:</span>
         <span className="debug-val">
           {bossHp.isVisible ? `${bossHp.currentHp}/${bossHp.maxHp}` : 'Inactive'}
         </span>
       </div>
       <div className="debug-row">
-        <span>🎮 Game State:</span>
+        <span>Game State:</span>
         <span className="debug-val debug-crimson">{gameState}</span>
       </div>
       <div
@@ -124,7 +124,7 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
             style={{ width: '100%', fontSize: '10px', padding: '4px 8px' }}
             onClick={onOpenUIKit}
           >
-            🎨 Open UI Kit Showcase (/ui-kit)
+            Open UI Kit Showcase (/ui-kit)
           </button>
         </div>
       )}

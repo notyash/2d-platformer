@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { GameEventBus, type GameState, type GameStats } from '../services/GameEventBus';
 import { useMenuNavigation } from '../hooks/useMenuNavigation';
+import { Icon } from './kit/Icon';
 
 interface PauseModalProps {
   gameState: GameState;
@@ -11,7 +12,7 @@ interface PauseModalProps {
 interface MenuEntry {
   id: string;
   label: string;
-  subLabel?: string;
+  subLabel?: React.ReactNode;
   action: () => void;
   variant?: 'primary' | 'crimson' | 'gold' | 'default';
 }
@@ -81,14 +82,14 @@ export const PauseModal: React.FC<PauseModalProps> = ({ gameState, stats }) => {
     {
       id: 'leaderboard',
       label: 'Global Leaderboard',
-      subLabel: '🏆',
+      subLabel: <Icon name="trophy" size={14} />,
       variant: 'default',
       action: handleOpenLeaderboard,
     },
     {
       id: 'sound',
       label: `Audio: ${soundEnabled ? 'ON' : 'MUTED'}`,
-      subLabel: soundEnabled ? '🔊' : '🔇',
+      subLabel: <Icon name={soundEnabled ? 'volume' : 'volume-mute'} size={14} />,
       variant: 'default',
       action: handleToggleSound,
     },
@@ -128,17 +129,17 @@ export const PauseModal: React.FC<PauseModalProps> = ({ gameState, stats }) => {
         {/* Current Run Quick Stats */}
         <div className="modal-stats-grid">
           <div className="modal-stat-box">
-            <span className="stat-box-icon">🪙</span>
+            <Icon name="coin" size={16} />
             <span className="stat-box-label">COINS</span>
             <span className="stat-box-value gold">{stats.coins}</span>
           </div>
           <div className="modal-stat-box">
-            <span className="stat-box-icon">⚔️</span>
+            <Icon name="sword" size={16} />
             <span className="stat-box-label">KILLS</span>
             <span className="stat-box-value crimson">{stats.kills}</span>
           </div>
           <div className="modal-stat-box">
-            <span className="stat-box-icon">💀</span>
+            <Icon name="skull" size={16} />
             <span className="stat-box-label">DEATHS</span>
             <span className="stat-box-value">{stats.deaths}</span>
           </div>

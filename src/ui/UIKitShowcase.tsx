@@ -46,7 +46,9 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   // State for BossBar
   const [bossHp, setBossHp] = useState<number>(38);
   const [bossVisible, setBossVisible] = useState<boolean>(true);
-  const [bossPhases, setBossPhases] = useState<number>(2);
+  const [bossPhase, setBossPhase] = useState<number>(1);
+  const [bossInvulnerable, setBossInvulnerable] = useState<boolean>(true);
+  const [bossShowTicks, setBossShowTicks] = useState<boolean>(false);
 
   // State for KeyCap pressed
   const [isKeyPressed, setIsKeyPressed] = useState<boolean>(false);
@@ -239,16 +241,18 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           <div className="ui-kit-section-full">
             <Panel variant="crimson-border" style={{ padding: '20px' }}>
               <h2 className="ui-kit-section-title">
-                <Icon name="skull" size={16} /> 6. BossBar (Ghost Damage & Phase Ticks)
+                <Icon name="skull" size={16} /> 6. BossBar (Shielded, Phase Badge & Shield Break)
               </h2>
               <div style={{ margin: '20px 0' }}>
                 <BossBar
                   name="AKUMA • ELECKING"
                   hp={bossHp}
                   maxHp={50}
-                  phases={bossPhases}
+                  phase={bossPhase}
+                  invulnerable={bossInvulnerable}
+                  showPhaseTicks={bossShowTicks}
                   visible={bossVisible}
-                  hankoText="鬼"
+                  sealText="神月"
                 />
               </div>
               <div className="ui-kit-controls-row" style={{ alignItems: 'center' }}>
@@ -266,9 +270,30 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                 <button
                   type="button"
                   className="hud-btn hud-btn-outline"
-                  onClick={() => setBossPhases((p) => (p === 2 ? 3 : p === 3 ? 4 : 2))}
+                  onClick={() => {
+                    setBossInvulnerable((inv) => !inv);
+                    if (bossInvulnerable) {
+                      setBossPhase(2);
+                    } else {
+                      setBossPhase(1);
+                    }
+                  }}
                 >
-                  Phases ({bossPhases})
+                  {bossInvulnerable ? 'Break Shield (Phase II)' : 'Shield Boss (Phase I)'}
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-outline"
+                  onClick={() => setBossPhase((p) => (p === 1 ? 2 : 1))}
+                >
+                  Phase: {bossPhase === 1 ? 'I' : 'II'}
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-outline"
+                  onClick={() => setBossShowTicks((t) => !t)}
+                >
+                  Ticks: {bossShowTicks ? 'ON' : 'OFF'}
                 </button>
                 <button
                   type="button"
@@ -282,7 +307,7 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                   className="hud-btn hud-btn-crimson"
                   onClick={() => setBossHp((h) => Math.max(0, h - 10))}
                 >
-                  -10 HP (Trigger Ghost Bar)
+                  -10 HP (Ghost Bar)
                 </button>
               </div>
             </Panel>

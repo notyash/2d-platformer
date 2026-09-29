@@ -178,7 +178,7 @@
   fill: rgba(8, 9, 13, 0.7);
   stroke: var(--crimson-light);
   stroke-width: 3;
-  stroke-dasharray: 200;
+  stroke-dasharray: 100;
   stroke-dashoffset: 0;
   animation-name: kzSlotCooldownWipe;
   animation-timing-function: linear;
@@ -190,7 +190,7 @@
     stroke-dashoffset: 0;
   }
   100% {
-    stroke-dashoffset: 200;
+    stroke-dashoffset: 100;
   }
 }
 
@@ -405,17 +405,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
+  min-width: 22px;
   height: 20px;
+  padding: 0 4px;
   background: var(--crimson-dark);
   border: 1px solid var(--crimson-light);
   border-radius: var(--radius-xs);
   color: #ffffff;
   font-family: var(--font-kanji);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
   line-height: 1;
   box-shadow: 0 0 8px var(--crimson-glow);
+  letter-spacing: 0.05em;
 }
 
 .kz-boss-bar-name {
@@ -428,6 +430,39 @@
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
 }
 
+.kz-boss-bar-phase-badge {
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+  padding: 1px 6px;
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: var(--radius-xs);
+  text-transform: uppercase;
+}
+
+.kz-boss-bar-shield-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--orb-cyan);
+  filter: drop-shadow(0 0 6px var(--orb-cyan-glow));
+  animation: kzShieldPulse 2s infinite ease-in-out;
+}
+
+@keyframes kzShieldPulse {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
 .kz-boss-bar-frame {
   position: relative;
   width: 100%;
@@ -437,6 +472,38 @@
   border-radius: var(--radius-xs);
   box-shadow: var(--shadow-panel), 0 0 16px var(--crimson-glow);
   overflow: hidden;
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+/* Shielded Boss Bar Frame (Invulnerable) */
+.kz-boss-bar-frame--shielded {
+  border-color: var(--orb-cyan);
+  box-shadow: var(--shadow-panel), 0 0 14px var(--orb-cyan-glow);
+}
+
+/* Shield Break Transition */
+.kz-boss-bar-frame--breaking {
+  animation: kzShieldBreak 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes kzShieldBreak {
+  0% {
+    border-color: #ffffff;
+    box-shadow: 0 0 24px rgba(255, 255, 255, 0.9), 0 0 35px var(--crimson-glow);
+    filter: brightness(1.8);
+    transform: scale(1.03);
+  }
+  50% {
+    border-color: var(--crimson-light);
+    box-shadow: 0 0 20px var(--crimson-glow);
+    filter: brightness(1.3);
+  }
+  100% {
+    border-color: var(--border-crimson);
+    box-shadow: var(--shadow-panel), 0 0 16px var(--crimson-glow);
+    filter: brightness(1);
+    transform: scale(1);
+  }
 }
 
 /* Ghost damage bar layer (underneath main bar, delayed transition) */
@@ -457,8 +524,14 @@
   left: 0;
   height: 100%;
   background: linear-gradient(90deg, var(--crimson) 0%, var(--crimson-light) 100%);
-  transition: width 80ms ease-out;
+  transition: width 80ms ease-out, background var(--transition-normal);
   z-index: 2;
+}
+
+/* Desaturated steel/navy fill when shielded */
+.kz-boss-bar-fill--shielded {
+  background: linear-gradient(90deg, #1e293b 0%, #475569 50%, #334155 100%);
+  box-shadow: inset 0 0 8px var(--orb-cyan-glow);
 }
 
 /* Phase tick dividers */
