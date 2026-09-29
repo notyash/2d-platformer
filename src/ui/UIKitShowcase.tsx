@@ -264,12 +264,9 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             </h2>
             <div className="ui-kit-row" style={{ alignItems: 'flex-start' }}>
               <div className="ui-kit-slot-demo">
-                <span className="ui-kit-label">With KeyHint (Totem):</span>
+                <span className="ui-kit-label">Totem Shield Slot:</span>
                 <SlotCard
-                  state={slotState}
-                  keyHint="E"
-                  badgeCount={1}
-                  cooldownDurationMs={2000}
+                  state="active"
                 >
                   <img
                     src="/assets/sprites/collectibles/frog_doll_totem.png"
@@ -568,8 +565,7 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                       id: 'totem-acquired',
                       title: 'TOTEM ACQUIRED',
                       iconSrc: '/assets/sprites/collectibles/frog_doll_totem.png',
-                      keys: ['E'],
-                      hint: 'to activate the shield',
+                      hint: 'Shield active',
                       variant: 'success',
                     })
                   }

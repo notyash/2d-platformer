@@ -66,11 +66,9 @@ export class InventoryManager {
             ? 'cooldown'
             : 'ready';
 
-        const totemState: EquipmentSlotState = !hasTotem
-            ? 'disabled'
-            : this.player.hasTotem
+        const totemState: EquipmentSlotState = hasTotem
             ? 'active'
-            : 'ready';
+            : 'disabled';
 
         GameEventBus.getInstance().emitEquipmentIfChanged({
             gun: {
@@ -82,7 +80,7 @@ export class InventoryManager {
             },
             totem: {
                 acquired: hasTotem,
-                count: this.totemCount,
+                count: hasTotem ? 1 : 0,
                 state: totemState,
             },
         });
@@ -93,11 +91,9 @@ export class InventoryManager {
         if (!hasGun) return;
 
         const hasTotem = Boolean(this.player.hasTotem && this.totemCount > 0);
-        const totemState: EquipmentSlotState = !hasTotem
-            ? 'disabled'
-            : this.player.hasTotem
+        const totemState: EquipmentSlotState = hasTotem
             ? 'active'
-            : 'ready';
+            : 'disabled';
 
         // Plain gun shot: brief pulse on the slot instead of rapid sweep ring
         GameEventBus.getInstance().emitEquipmentIfChanged({
@@ -108,7 +104,7 @@ export class InventoryManager {
             },
             totem: {
                 acquired: hasTotem,
-                count: this.totemCount,
+                count: hasTotem ? 1 : 0,
                 state: totemState,
             },
         });
@@ -148,23 +144,22 @@ export class InventoryManager {
     }
 
     public addTotem() {
-        this.totemCount++;
+        // Immediate shield activation, non-stackable
+        this.totemCount = 1;
         this.player.hasTotem = true;
         this.updatePlayerTint();
         const goldColor = parseInt(TOKENS.colors.gold.replace('#', '0x'), 16);
-        this.uiManager.showFloatingText(this.player.x, this.player.y - 20, 'TOTEM SHIELD ACTIVATED!', TOKENS.colors.gold, 1200);
         this.uiManager.spawnParticles(this.player.x, this.player.y, goldColor);
         this.scene.cameras.main.shake(150, 0.006);
         this.soundManager?.playPowerup();
         this.syncEquipment();
 
-        // Structured control hint toast on pickup (ephemeral, not cached/replayed)
+        // Structured toast on pickup (ephemeral, not cached/replayed)
         GameEventBus.getInstance().emit('toast:show', {
             id: 'totem-acquired',
             title: 'TOTEM ACQUIRED',
             iconSrc: '/assets/sprites/collectibles/frog_doll_totem.png',
-            keys: ['E'],
-            hint: 'to activate the shield',
+            hint: 'Shield active',
             variant: 'success',
             durationMs: 3500,
         });
@@ -178,6 +173,8 @@ export class InventoryManager {
         if ((this.scene as any).collectiblesManager) {
             (this.scene as any).collectiblesManager.onTotemConsumed();
         }
+        const goldColor = parseInt(TOKENS.colors.gold.replace('#', '0x'), 16);
+        this.uiManager.spawnParticles(this.player.x, this.player.y, goldColor);
         this.updatePlayerTint();
         this.syncEquipment();
     }
@@ -186,21 +183,6 @@ export class InventoryManager {
         this.gunCount = 0;
         this.player.hasGun = false;
         this.updatePlayerTint();
-        this.syncEquipment();
-    }
-
-    public activateShield() {
-        if (this.player.isDying || this.player.isTeleporting) return;
-
-        if (!this.player.hasTotem && this.totemCount > 0) {
-            this.player.hasTotem = true;
-            this.updatePlayerTint();
-            this.uiManager.showFloatingText(this.player.x, this.player.y - 20, 'TOTEM SHIELD ACTIVATED!', '#FFD700', 1200);
-            this.uiManager.spawnParticles(this.player.x, this.player.y, 0xFFD700);
-            this.scene.cameras.main.shake(150, 0.006);
-            this.soundManager?.playPowerup();
-        }
-
         this.syncEquipment();
     }
 

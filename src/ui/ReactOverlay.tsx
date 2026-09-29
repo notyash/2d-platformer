@@ -309,10 +309,6 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
           {equipment.totem.acquired && (
             <SlotCard
               state={equipment.totem.state}
-              keyHint="E"
-              badgeCount={equipment.totem.count && equipment.totem.count > 1 ? equipment.totem.count : undefined}
-              cooldownStartTime={equipment.totem.cooldownStartTime}
-              cooldownDurationMs={equipment.totem.cooldownDurationMs}
               aria-label="Totem Shield Slot"
             >
               <img
