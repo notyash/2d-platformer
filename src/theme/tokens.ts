@@ -82,6 +82,11 @@ export const TOKENS = {
     normal: '200ms cubic-bezier(0.16, 1, 0.3, 1)',
     slow: '350ms cubic-bezier(0.16, 1, 0.3, 1)',
   },
+  layout: {
+    uiScale: '1.3',
+    bossBarWidth: 'clamp(370px, 45vw, 615px)',
+    bossBarHeight: '22px',
+  },
 } as const;
 
 export type Tokens = typeof TOKENS;

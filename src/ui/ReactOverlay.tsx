@@ -153,7 +153,7 @@ const ReactOverlayContent: React.FC = () => {
                 total={orbs.total}
                 filled={orbs.collected}
                 variant="cyan"
-                size="md"
+                size="lg"
                 aria-label={`Gravity Orbs: ${orbs.collected} of ${orbs.total}`}
               />
             </div>

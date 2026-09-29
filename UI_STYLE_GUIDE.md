@@ -81,3 +81,14 @@ This document establishes the mandatory design rules and coding standards for al
 - **Kanji**: `'Noto Serif JP', serif` (`--font-kanji`) — Hanko stamps, Japanese decorative subtitles
 - **Sans**: `'Inter', sans-serif` (`--font-sans`) — Descriptions, helper copy, body text
 - **Mono**: `'Space Grotesk', monospace` (`--font-mono`) — Timers, stats, KeyCaps, numeric readouts (always `font-variant-numeric: tabular-nums`)
+
+---
+
+## 📐 Layout Tokens Reference
+
+| Token Name | CSS Variable | Value | Purpose |
+| :--- | :--- | :--- | :--- |
+| **uiScale** | `--ui-scale` | `1.3` | Global React UI overlay zoom scale |
+| **bossBarWidth** | `--boss-bar-width` | `clamp(370px, 45vw, 615px)` | Responsive boss bar container width |
+| **bossBarHeight** | `--boss-bar-height`| `22px` | Boss health bar track height |
+

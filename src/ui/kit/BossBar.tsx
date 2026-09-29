@@ -154,7 +154,7 @@ export const BossBar: React.FC<BossBarProps> = ({
             className={`kz-boss-bar-shield-badge ${isShieldBreaking ? 'kz-boss-bar-shield-badge--breaking' : ''}`}
             title="Shielded / Invulnerable"
           >
-            <Icon name="shield" size={13} />
+            <Icon name="shield" size={15} />
           </span>
         )}
 

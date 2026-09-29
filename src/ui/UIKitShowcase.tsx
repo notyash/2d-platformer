@@ -103,21 +103,49 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     setIsDemoPipsFading(false);
   };
 
+  // State for Global UI Scale preview slider
+  const [previewScale, setPreviewScale] = useState<number>(1.3);
+
+  const handleScaleChange = (newScale: number) => {
+    setPreviewScale(newScale);
+    document.documentElement.style.setProperty('--ui-scale', String(newScale));
+  };
+
   return (
     <div className="ui-kit-showcase-backdrop react-interactive">
       <div className="ui-kit-showcase-container">
         {/* Header */}
-        <div className="ui-kit-header">
+        <div className="ui-kit-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <span className="modal-kanji-tag">神月 UI KIT</span>
             <h1 className="ui-kit-title">KamiZuki Shared Component Kit</h1>
             <p className="ui-kit-subtitle">Dev-Only Interactive Component Showcase & Token Verification</p>
           </div>
-          {onClose && (
-            <button type="button" className="ui-kit-close-btn" onClick={onClose} aria-label="Close Showcase">
-              <Icon name="close" size={20} />
-            </button>
-          )}
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {/* UI Scale Slider */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', background: 'rgba(17, 19, 28, 0.9)', padding: '6px 12px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-line)' }}>
+              <span style={{ fontSize: '11px', fontFamily: 'var(--font-heading)', color: 'var(--parchment)', letterSpacing: '0.08em' }}>
+                UI SCALE: <strong style={{ color: 'var(--gold)', fontFamily: 'var(--font-mono)' }}>{previewScale.toFixed(2)}x</strong>
+              </span>
+              <input
+                type="range"
+                min="1.0"
+                max="1.6"
+                step="0.05"
+                value={previewScale}
+                onChange={(e) => handleScaleChange(Number(e.target.value))}
+                style={{ cursor: 'pointer', width: '130px' }}
+                aria-label="UI Scale Slider"
+              />
+            </div>
+
+            {onClose && (
+              <button type="button" className="ui-kit-close-btn" onClick={onClose} aria-label="Close Showcase">
+                <Icon name="close" size={20} />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="ui-kit-grid">
@@ -330,7 +358,7 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                       total={7}
                       filled={bossOrbs}
                       variant="cyan"
-                      size="md"
+                      size="lg"
                       aria-label={`Gravity Orbs: ${bossOrbs} of 7`}
                     />
                   </div>

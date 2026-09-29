@@ -108,6 +108,7 @@ html, body {
   justify-content: space-between;
   font-family: var(--font-sans);
   user-select: none;
+  zoom: var(--ui-scale);
 }
 
 /* Allow interactive child elements in the overlay */
@@ -308,9 +309,9 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: var(--space-xs);
-  margin-top: var(--space-sm);
+  margin-top: var(--space-xs);
   width: 100%;
-  max-width: 460px;
+  max-width: var(--boss-bar-width);
   pointer-events: none;
   z-index: var(--z-hud);
 }

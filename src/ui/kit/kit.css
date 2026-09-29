@@ -429,7 +429,7 @@
   align-items: center;
   gap: var(--space-xs);
   width: 100%;
-  max-width: 440px;
+  max-width: var(--boss-bar-width);
   margin: 0 auto;
   transition: opacity var(--transition-normal), transform var(--transition-normal);
   z-index: var(--z-hud);
@@ -450,21 +450,22 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  margin-bottom: var(--space-2xs);
 }
 
 .kz-boss-bar-seal {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;
-  height: 20px;
-  padding: 0 4px;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 5px;
   background: var(--crimson-dark);
   border: 1px solid var(--crimson-light);
   border-radius: var(--radius-xs);
   color: #ffffff;
   font-family: var(--font-kanji);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
   line-height: 1;
   box-shadow: 0 0 8px var(--crimson-glow);
@@ -473,9 +474,9 @@
 
 .kz-boss-bar-name {
   font-family: var(--font-heading);
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.16em;
   color: var(--parchment);
   text-transform: uppercase;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
@@ -483,11 +484,11 @@
 
 .kz-boss-bar-phase-badge {
   font-family: var(--font-heading);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   color: var(--gold);
-  padding: 1px 6px;
+  padding: 2px 8px;
   background: rgba(212, 175, 55, 0.12);
   border: 1px solid rgba(212, 175, 55, 0.35);
   border-radius: var(--radius-xs);
@@ -556,13 +557,38 @@
 .kz-boss-bar-frame {
   position: relative;
   width: 100%;
-  height: 14px;
+  height: var(--boss-bar-height);
   background: var(--bg-panel);
   border: 1.5px solid var(--border-crimson);
   border-radius: var(--radius-xs);
-  box-shadow: var(--shadow-panel), 0 0 16px var(--crimson-glow);
+  box-shadow: var(--shadow-panel), 0 0 18px var(--crimson-glow);
   overflow: hidden;
   transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+/* Ornate corner ornaments / end caps on frame */
+.kz-boss-bar-frame::before,
+.kz-boss-bar-frame::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--crimson-light) 0%, var(--crimson-dark) 100%);
+  border: 1px solid var(--border-crimson);
+  box-shadow: 0 0 6px var(--crimson-glow);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.kz-boss-bar-frame::before {
+  left: 0;
+  border-left: none;
+}
+
+.kz-boss-bar-frame::after {
+  right: 0;
+  border-right: none;
 }
 
 /* Shield Hit Pulse (250ms scale & brightness pulse on frame) */
