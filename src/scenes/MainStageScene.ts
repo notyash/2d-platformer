@@ -39,7 +39,9 @@ export class MainStageScene extends Phaser.Scene {
     public isGamePaused: boolean = false;
     public isGameComplete: boolean = false;
     public totalDeaths: number = 0;
-    private lastRPressTime: number = 0;
+    private restartPromptActive: boolean = false;
+    private restartPromptElapsedMs: number = 0;
+    private readonly RESTART_WINDOW_MS: number = 650;
     private lastFullscreenExitTime: number = 0;
     private escKey!: Phaser.Input.Keyboard.Key;
     private rKey!: Phaser.Input.Keyboard.Key;
@@ -417,20 +419,15 @@ export class MainStageScene extends Phaser.Scene {
 
             this.rKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
             this.rKey.on('down', () => {
-                const now = Date.now();
-                if (now - this.lastRPressTime <= 650) {
-                    this.lastRPressTime = 0;
+                if (this.restartPromptActive && this.restartPromptElapsedMs < this.RESTART_WINDOW_MS) {
+                    this.restartPromptActive = false;
+                    this.restartPromptElapsedMs = 0;
+                    GameEventBus.getInstance().emit('prompt:restart', { active: false, progress: 0 });
                     this.restartFullRun();
                 } else {
-                    this.lastRPressTime = now;
-                    this.uiManager.showFloatingText(
-                        this.player.x, 
-                        this.player.y - 25, 
-                        'PRESS [R] AGAIN TO RESTART', 
-                        '#F87171', 
-                        800, 
-                        25
-                    );
+                    this.restartPromptActive = true;
+                    this.restartPromptElapsedMs = 0;
+                    GameEventBus.getInstance().emit('prompt:restart', { active: true, progress: 1.0 });
                 }
             });
 
@@ -802,7 +799,16 @@ export class MainStageScene extends Phaser.Scene {
         InputRecorder.getInstance().reset();
         SurrealService.getInstance().startRun();
 
-        this.uiManager.showFloatingText(this.player.x, this.player.y - 20, 'RUN RESTARTED', '#38BDF8', 1200);
+        this.restartPromptActive = false;
+        this.restartPromptElapsedMs = 0;
+
+        GameEventBus.getInstance().resetCache();
+        GameEventBus.getInstance().emit('toast:show', {
+            title: 'RUN RESTARTED',
+            icon: 'restart',
+            variant: 'info',
+            durationMs: 1500,
+        });
         this.soundManager?.playPowerup();
     }
 
@@ -1521,6 +1527,19 @@ export class MainStageScene extends Phaser.Scene {
         if (this.isGamePaused) {
             this.uiManager.updatePauseMenu();
             return;
+        }
+
+        // Update draining restart confirmation prompt
+        if (this.restartPromptActive) {
+            this.restartPromptElapsedMs += delta;
+            const progress = Math.max(0, 1 - this.restartPromptElapsedMs / this.RESTART_WINDOW_MS);
+            if (progress <= 0) {
+                this.restartPromptActive = false;
+                this.restartPromptElapsedMs = 0;
+                GameEventBus.getInstance().emit('prompt:restart', { active: false, progress: 0 });
+            } else {
+                GameEventBus.getInstance().emit('prompt:restart', { active: true, progress });
+            }
         }
 
         // Only accumulate active run time when player is alive (strictly paused during all deaths)

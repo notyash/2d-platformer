@@ -20,7 +20,9 @@ export type IconName =
   | 'arrow-down'
   | 'trophy'
   | 'fullscreen'
-  | 'fullscreen-exit';
+  | 'fullscreen-exit'
+  | 'checkpoint'
+  | 'flag';
 
 export interface IconProps extends React.SVGProps<SVGSVGElement> {
   name: IconName;
@@ -195,6 +197,15 @@ export const Icon: React.FC<IconProps> = ({
             <path d="M20 9h-5V4" />
             <path d="M4 15h5v5" />
             <path d="M20 15h-5v5" />
+          </>
+        );
+
+      case 'checkpoint':
+      case 'flag':
+        return (
+          <>
+            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <line x1="4" y1="22" x2="4" y2="15" strokeWidth="2" strokeLinecap="round" />
           </>
         );
 

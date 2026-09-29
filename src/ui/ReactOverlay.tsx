@@ -17,7 +17,9 @@ import { BossBar } from './kit/BossBar';
 import { ProgressPips } from './kit/ProgressPips';
 import { SlotCard } from './kit/SlotCard';
 import { Panel } from './kit/Panel';
+import { PromptChip } from './kit/PromptChip';
 import { ToastProvider, useToast } from './kit/ToastContext';
+import type { RestartPromptData } from '../services/GameEventBus';
 
 interface ReactOverlayContentProps {
   gameState: GameState;
@@ -57,6 +59,7 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
     totem: { acquired: false, count: 0, state: 'disabled' },
   });
   const [shieldHitPulse, setShieldHitPulse] = useState<number>(0);
+  const [restartPrompt, setRestartPrompt] = useState<RestartPromptData>({ active: false, progress: 0 });
 
   // Orb Pips lifecycle: visible only in Phase 1; on transition to Phase 2, fade out over 600ms then remove from DOM
   const [isPipsFadingOut, setIsPipsFadingOut] = useState<boolean>(false);
@@ -178,10 +181,16 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
       setShieldHitPulse(Date.now());
     });
 
+    const unsubRestartPrompt = bus.on('prompt:restart', (data) => {
+      setRestartPrompt(data);
+    });
+
     const unsubToast = bus.on('toast:show', (toastData) => {
       showToast({
+        id: toastData.id,
         title: toastData.title,
         iconSrc: toastData.iconSrc,
+        icon: toastData.icon as any,
         keys: toastData.keys,
         hint: toastData.hint,
         message: toastData.message,
@@ -197,6 +206,7 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
       unsubOrbs();
       unsubEquipment();
       unsubShieldHit();
+      unsubRestartPrompt();
       unsubToast();
     };
   }, [showToast]);
@@ -224,34 +234,47 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
       <div className="hud-top-wrapper">
         <KamiZukiHUD />
 
-        {/* Boss Health Bar & Gravity Orbs Pips Container */}
-        <div className="hud-boss-section">
-          <BossBar
-            name={bossHp.bossName || 'ELECKING'}
-            hp={bossHp.currentHp}
-            maxHp={bossHp.maxHp}
-            phase={bossPhase.phase}
-            invulnerable={bossPhase.invulnerable}
-            visible={bossHp.isVisible}
-            sealText="神月"
-            shieldHitPulse={shieldHitPulse}
-          />
+        {/* Boss Health Bar & Gravity Orbs Pips Container (Mounted only when active) */}
+        {bossHp.isVisible && (
+          <div className="hud-boss-section">
+            <BossBar
+              name={bossHp.bossName || 'ELECKING'}
+              hp={bossHp.currentHp}
+              maxHp={bossHp.maxHp}
+              phase={bossPhase.phase}
+              invulnerable={bossPhase.invulnerable}
+              visible={bossHp.isVisible}
+              sealText="神月"
+              shieldHitPulse={shieldHitPulse}
+            />
 
-          {bossHp.isVisible && isPipsRendered && orbs.total > 0 && (
-            <div
-              ref={orbsContainerRef}
-              className={`hud-boss-orbs ${isPipsFadingOut ? 'hud-boss-orbs--fading' : ''}`}
-            >
-              <ProgressPips
-                total={orbs.total}
-                filled={orbs.collected}
-                variant="mint"
-                size="md"
-                aria-label={`Gravity Orbs: ${orbs.collected} of ${orbs.total}`}
-              />
-            </div>
-          )}
-        </div>
+            {isPipsRendered && orbs.total > 0 && (
+              <div
+                ref={orbsContainerRef}
+                className={`hud-boss-orbs ${isPipsFadingOut ? 'hud-boss-orbs--fading' : ''}`}
+              >
+                <ProgressPips
+                  total={orbs.total}
+                  filled={orbs.collected}
+                  variant="mint"
+                  size="md"
+                  aria-label={`Gravity Orbs: ${orbs.collected} of ${orbs.total}`}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Restart Confirmation Prompt Chip */}
+        {restartPrompt.active && (
+          <div className="hud-prompt-container">
+            <PromptChip
+              keyName="R"
+              label="again to restart"
+              variant="warning"
+            />
+          </div>
+        )}
       </div>
 
       {/* Bottom-Left Equipment Dock */}

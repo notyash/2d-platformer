@@ -9,6 +9,7 @@ import {
   type SlotCardState,
   ProgressPips,
   BossBar,
+  PromptChip,
   useToast,
   ToastProvider,
 } from './kit';
@@ -31,6 +32,8 @@ const ALL_ICONS: IconName[] = [
   'shield',
   'close',
   'check',
+  'checkpoint',
+  'flag',
   'arrow-up',
   'arrow-down',
   'trophy',
@@ -545,13 +548,42 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                   className="hud-btn hud-btn-outline"
                   onClick={() =>
                     showToast({
-                      title: 'CHECKPOINT',
-                      message: 'Checkpoint registered at Shrine Gate.',
+                      title: 'RUN RESTARTED',
+                      icon: 'restart',
                       variant: 'info',
+                      durationMs: 1500,
                     })
                   }
                 >
-                  Info Toast
+                  Run Restarted Toast (1.5s)
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-restart"
+                  onClick={() =>
+                    showToast({
+                      title: 'GUN DISARMED',
+                      icon: 'gun',
+                      variant: 'warning',
+                    })
+                  }
+                >
+                  Gun Disarmed Toast
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-outline"
+                  onClick={() =>
+                    showToast({
+                      id: 'checkpoint-saved',
+                      title: 'CHECKPOINT SAVED',
+                      message: '1',
+                      icon: 'checkpoint',
+                      variant: 'success',
+                    })
+                  }
+                >
+                  Checkpoint Saved Toast
                 </button>
                 <button
                   type="button"
@@ -579,6 +611,33 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                 >
                   Victory Toast
                 </button>
+              </div>
+            </Panel>
+
+            {/* Section 7: Kit PromptChip */}
+            <Panel variant="crimson-border" className="ui-kit-section">
+              <h2 className="ui-kit-section-title">
+                <Icon name="restart" size={16} /> 7. Action & Restart Prompt Chips
+              </h2>
+              <p className="ui-kit-text">
+                Compact kit prompt chips with KeyCap and high-contrast labels for in-game prompts.
+              </p>
+              <div className="ui-kit-controls-row" style={{ alignItems: 'center', gap: '16px' }}>
+                <PromptChip
+                  keyName="R"
+                  label="again to restart"
+                  variant="warning"
+                />
+                <PromptChip
+                  keyName="E"
+                  label="Activate"
+                  variant="default"
+                />
+                <PromptChip
+                  keyName="ESC"
+                  label="Pause Menu"
+                  variant="crimson"
+                />
               </div>
             </Panel>
           </div>

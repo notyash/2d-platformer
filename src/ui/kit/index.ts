@@ -8,3 +8,4 @@ export * from './ProgressPips';
 export * from './Toast';
 export * from './ToastContext';
 export * from './BossBar';
+export * from './PromptChip';

@@ -76,6 +76,65 @@
 }
 
 /* --------------------------------------------------------------------------
+   PromptChip Primitive
+   -------------------------------------------------------------------------- */
+.kz-prompt-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  background: rgba(17, 19, 28, 0.95);
+  border: 1px solid var(--border-line);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 10px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+  user-select: none;
+  animation: kzPromptFadeIn 150ms ease-out;
+}
+
+.kz-prompt-chip--warning {
+  border-color: rgba(245, 158, 11, 0.45);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 12px rgba(245, 158, 11, 0.15);
+}
+
+.kz-prompt-chip--crimson {
+  border-color: var(--border-crimson);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 12px var(--crimson-glow);
+}
+
+.kz-prompt-chip__body {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.kz-prompt-chip__label {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--warning);
+  text-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+}
+
+.kz-prompt-chip--crimson .kz-prompt-chip__label {
+  color: var(--crimson-light);
+  text-shadow: 0 0 8px var(--crimson-glow);
+}
+
+@keyframes kzPromptFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* --------------------------------------------------------------------------
    Icon Component
    -------------------------------------------------------------------------- */
 .kz-icon {
@@ -444,9 +503,7 @@
 }
 
 .kz-boss-bar-wrapper--hidden {
-  opacity: 0;
-  transform: translateY(-1.25rem);
-  pointer-events: none;
+  display: none !important;
 }
 
 .kz-boss-bar-header {

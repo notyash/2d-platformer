@@ -5,6 +5,7 @@ import { UIManager } from './UIManager';
 import { InventoryManager } from './InventoryManager';
 import { SoundManager } from './SoundManager';
 import { TOKENS } from '../theme/tokens';
+import { GameEventBus } from '../services/GameEventBus';
 import type { Firebar } from '../types';
 
 export interface WindZoneData {
@@ -126,7 +127,13 @@ export class EnvironmentManager {
         this.player.lastSafeY = cp.spawnY;
 
         this.scene.cameras.main.flash(200, 255, 255, 255);
-        this.uiManager.showFloatingText(cp.spawnX, cp.spawnY - 20, cp.label, '#FFD700', 2500, 30);
+        GameEventBus.getInstance().emit('toast:show', {
+            id: 'checkpoint-saved',
+            title: 'CHECKPOINT SAVED',
+            message: String(cp.id || '1'),
+            icon: 'checkpoint',
+            variant: 'success',
+        });
         this.uiManager.spawnParticles(cp.spawnX, cp.spawnY, 0xFFD700);
         this.soundManager?.playCheckpoint();
 
@@ -1835,7 +1842,11 @@ export class EnvironmentManager {
             for (const zone of this.disarmZones) {
                 if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, zone.getBounds())) {
                     this.inventoryManager.disarmGun();
-                    this.uiManager.showFloatingText(this.player.x, this.player.y - 20, 'GUN DISARMED', '#00FFFF');
+                    GameEventBus.getInstance().emit('toast:show', {
+                        title: 'GUN DISARMED',
+                        icon: 'gun',
+                        variant: 'warning',
+                    });
                     this.uiManager.spawnParticles(this.player.x, this.player.y, 0x00FFFF);
                     this.scene.cameras.main.shake(150, 0.005);
                     break;

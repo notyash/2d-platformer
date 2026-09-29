@@ -65,7 +65,22 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ paused = false, ch
         timerId,
       });
 
-      setToasts((prev) => [...prev.filter((t) => t.id !== id), toastData]);
+      setToasts((prev) => {
+        const filtered = prev.filter((t) => t.id !== id);
+        const next = [...filtered, toastData];
+        if (next.length > 3) {
+          const overflow = next.slice(0, next.length - 3);
+          overflow.forEach((item) => {
+            const rec = recordsRef.current.get(item.id);
+            if (rec?.timerId) {
+              window.clearTimeout(rec.timerId);
+            }
+            recordsRef.current.delete(item.id);
+          });
+          return next.slice(-3);
+        }
+        return next;
+      });
       return id;
     },
     [dismissToast, paused]

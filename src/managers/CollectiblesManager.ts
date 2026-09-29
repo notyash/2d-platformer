@@ -86,7 +86,6 @@ export class CollectiblesManager {
         });
 
         this.gunSprites = this.createGroup('GunPowerup', 'gun-powerup', '', (g) => {
-            this.uiManager.showFloatingText(g.x, g.y - 10, '+1 BLASTER [SLOT 1]', '#00FFFF');
             this.uiManager.spawnParticles(g.x, g.y, 0x00FFFF);
             this.scene.cameras.main.shake(150, 0.006);
             this.inventoryManager.addGun();

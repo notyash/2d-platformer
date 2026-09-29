@@ -129,8 +129,12 @@ export const BossBar: React.FC<BossBarProps> = ({
     return [];
   };
 
+  if (!visible) {
+    return null;
+  }
+
   const ticks = getPhaseTicks();
-  const visibilityClass = visible ? 'kz-boss-bar-wrapper--visible' : 'kz-boss-bar-wrapper--hidden';
+  const visibilityClass = 'kz-boss-bar-wrapper--visible';
   const breakingClass = isShieldBreaking ? 'kz-boss-bar-frame--breaking' : '';
 
   return (

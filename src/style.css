@@ -319,7 +319,20 @@ html, body {
   align-items: center;
   width: 100%;
   max-width: var(--boss-bar-max-width);
-  margin-top: 0.35rem;
+  margin-top: var(--space-xs);
+  pointer-events: none;
+  z-index: var(--z-hud);
+}
+
+.hud-boss-section:empty {
+  display: none;
+}
+
+.hud-prompt-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: var(--space-xs);
   pointer-events: none;
   z-index: var(--z-hud);
 }

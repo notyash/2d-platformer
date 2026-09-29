@@ -76,13 +76,20 @@ export type GameAction =
   | { type: 'CLOSE_MODAL' };
 
 export interface ToastData {
+  id?: string;
   title?: string;
   iconSrc?: string;
+  icon?: string;
   keys?: string[];
   hint?: string;
   message?: string;
   variant?: 'info' | 'success' | 'warning' | 'danger' | 'victory';
   durationMs?: number;
+}
+
+export interface RestartPromptData {
+  active: boolean;
+  progress: number;
 }
 
 export interface CoinTargetData {
@@ -112,6 +119,7 @@ export interface EventMap {
   'hud:orb-target': OrbTargetData;
   'coin:bump': void;
   'boss:shield-hit': void;
+  'prompt:restart': RestartPromptData;
 }
 
 type EventCallback<T> = (data: T) => void;
@@ -134,6 +142,7 @@ export class GameEventBus {
   private lastState: GameState = 'PLAYING';
   private lastCoinTarget: CoinTargetData = { x: 80, y: 30 };
   private lastOrbTarget: OrbTargetData = { pips: [], center: { x: 427, y: 55 } };
+  private lastRestartPrompt: RestartPromptData = { active: false, progress: 0 };
 
   public static getInstance(): GameEventBus {
     if (!GameEventBus.instance) {
@@ -171,6 +180,8 @@ export class GameEventBus {
         callback(this.lastCoinTarget as EventMap[K]);
       } else if (event === 'hud:orb-target') {
         callback(this.lastOrbTarget as EventMap[K]);
+      } else if (event === 'prompt:restart') {
+        callback(this.lastRestartPrompt as EventMap[K]);
       }
     } catch (err) {
       console.error(`[GameEventBus] Error in initial cached callback for "${String(event)}":`, err);
@@ -382,5 +393,7 @@ export class GameEventBus {
     this.lastState = 'PLAYING';
     this.lastCoinTarget = { x: 80, y: 30 };
     this.lastOrbTarget = { pips: [], center: { x: 427, y: 55 } };
+    this.lastRestartPrompt = { active: false, progress: 0 };
+    this.emit('prompt:restart', { active: false, progress: 0 });
   }
 }
