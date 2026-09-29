@@ -2121,8 +2121,8 @@
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":4704,
-                 "y":352
+                 "x":4690.66666666667,
+                 "y":417.333333333333
                 }, 
                 {
                  "height":31.93,
@@ -4359,6 +4359,19 @@
                  "width":64,
                  "x":4206,
                  "y":1183
+                }, 
+                {
+                 "capsule":true,
+                 "height":0,
+                 "id":498,
+                 "name":"GunPowerup",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":4689.0303030303,
+                 "y":1294.51515151515
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -4443,7 +4456,7 @@
          "y":0
         }],
  "nextlayerid":14,
- "nextobjectid":497,
+ "nextobjectid":499,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.12.2",

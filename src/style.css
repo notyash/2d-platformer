@@ -315,11 +315,39 @@ html, body {
   z-index: var(--z-hud);
 }
 
+/* Coin Chip Bump Animation (Triggered on flying coin arrival) */
+@keyframes kzChipBump {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.22);
+    border-color: var(--gold);
+    box-shadow: 0 0 16px var(--gold-glow);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.hud-chip--bump {
+  animation: kzChipBump 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .hud-boss-orbs {
   display: flex;
   justify-content: center;
   align-items: center;
   margin-top: var(--space-xs);
+  transition: opacity 600ms cubic-bezier(0.16, 1, 0.3, 1), transform 600ms cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hud-boss-orbs--fading {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
 }
 
 /* ==========================================================================

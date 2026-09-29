@@ -42,6 +42,29 @@ const ReactOverlayContent: React.FC = () => {
     totem: { acquired: false, count: 0, state: 'disabled' },
   });
 
+  // Orb Pips lifecycle: visible only in Phase 1; on transition to Phase 2, fade out over 600ms then remove from DOM
+  const [isPipsFadingOut, setIsPipsFadingOut] = useState<boolean>(false);
+  const [isPipsRendered, setIsPipsRendered] = useState<boolean>(() => bossPhase.phase === 1);
+  const prevPhaseRef = React.useRef<number>(bossPhase.phase);
+
+  useEffect(() => {
+    if (bossPhase.phase === 1) {
+      setIsPipsRendered(true);
+      setIsPipsFadingOut(false);
+    } else if (prevPhaseRef.current === 1 && bossPhase.phase === 2) {
+      setIsPipsFadingOut(true);
+      const timer = window.setTimeout(() => {
+        setIsPipsRendered(false);
+        setIsPipsFadingOut(false);
+      }, 600);
+      return () => window.clearTimeout(timer);
+    } else {
+      setIsPipsRendered(false);
+      setIsPipsFadingOut(false);
+    }
+    prevPhaseRef.current = bossPhase.phase;
+  }, [bossPhase.phase]);
+
   // Check if URL specifies /ui-kit showcase
   const [showUIKit, setShowUIKit] = useState<boolean>(() => {
     if (typeof window !== 'undefined' && isDev) {
@@ -124,8 +147,8 @@ const ReactOverlayContent: React.FC = () => {
             sealText="神月"
           />
 
-          {bossHp.isVisible && orbs.total > 0 && (
-            <div className="hud-boss-orbs">
+          {bossHp.isVisible && isPipsRendered && orbs.total > 0 && (
+            <div className={`hud-boss-orbs ${isPipsFadingOut ? 'hud-boss-orbs--fading' : ''}`}>
               <ProgressPips
                 total={orbs.total}
                 filled={orbs.collected}

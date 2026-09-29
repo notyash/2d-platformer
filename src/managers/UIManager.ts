@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { SoundManager } from './SoundManager';
 import { LeaderboardManager } from './LeaderboardManager';
 import { GameEventBus } from '../services/GameEventBus';
+import { TOKENS } from '../theme/tokens';
 
 export interface MenuOption {
     id: string;
@@ -13,6 +14,7 @@ export class UIManager {
     private scene: Phaser.Scene;
     private soundManager?: SoundManager;
     private hudText?: Phaser.GameObjects.Text;
+    private activeFlyingCoins: Phaser.GameObjects.Sprite[] = [];
     
     // Pause Menu Container & State
     private pauseContainer?: Phaser.GameObjects.Container;
@@ -253,7 +255,114 @@ export class UIManager {
         });
         particles.setDepth(25); 
         particles.explode(15);
-        this.scene.time.delayedCall(700, () => particles.destroy());
+        this.scene.time.delayedCall(700, () => {
+            if (particles && particles.active) particles.destroy();
+        });
+    }
+
+    public spawnCoinSparkles(x: number, y: number) {
+        if (x === undefined || y === undefined || isNaN(x) || isNaN(y)) return;
+        const goldColor = parseInt(TOKENS.colors.gold.replace('#', '0x'), 16);
+        const count = Phaser.Math.Between(3, 5);
+        const particles = this.scene.add.particles(x, y, 'particle', {
+            speed: { min: 30, max: 80 },
+            scale: { start: 0.8, end: 0 },
+            tint: goldColor,
+            lifespan: 350,
+            blendMode: 'ADD',
+            emitting: false
+        });
+        particles.setDepth(25);
+        particles.explode(count);
+        this.scene.time.delayedCall(400, () => {
+            if (particles && particles.active) particles.destroy();
+        });
+    }
+
+    public playCoinPickupEffect(worldX: number, worldY: number, _amount: number = 1) {
+        if (worldX === undefined || worldY === undefined || isNaN(worldX) || isNaN(worldY)) return;
+
+        const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (prefersReducedMotion) {
+            GameEventBus.getInstance().emit('coin:bump', undefined);
+            return;
+        }
+
+        // 1. Burst 3-5 gold sparkle pixels at pickup point
+        this.spawnCoinSparkles(worldX, worldY);
+
+        // 2. Cap at 8 active flying coins simultaneously (extra coins skip flight and directly trigger bump)
+        const currentFlyingCount = this.activeFlyingCoins.filter(s => s && s.active).length;
+        if (currentFlyingCount >= 8) {
+            GameEventBus.getInstance().emit('coin:bump', undefined);
+            return;
+        }
+
+        // 3. Screen space sprite (scrollFactor 0) so flight pauses with the game on the Phaser clock
+        const camera = this.scene.cameras.main;
+        const screenStartX = worldX - camera.scrollX;
+        const screenStartY = worldY - camera.scrollY;
+
+        const coinSprite = this.scene.add.sprite(screenStartX, screenStartY, 'coin');
+        coinSprite.setScrollFactor(0);
+        coinSprite.setDepth(100);
+        if (this.scene.anims.exists('coin-spin')) {
+            coinSprite.play({ key: 'coin-spin', frameRate: 6 });
+        }
+        coinSprite.setScale(0.8);
+
+        const target = GameEventBus.getInstance().getCoinTarget();
+        this.activeFlyingCoins.push(coinSprite);
+
+        // Step 1: 150ms pop at pickup point (scale 0.8 -> 1.35, slight rise)
+        const popTargetY = screenStartY - 14;
+        this.scene.tweens.add({
+            targets: coinSprite,
+            y: popTargetY,
+            scale: 1.35,
+            duration: 150,
+            ease: 'Cubic.easeOut',
+            onComplete: () => {
+                if (!coinSprite || !coinSprite.active) return;
+
+                const startX = coinSprite.x;
+                const startY = coinSprite.y;
+                const targetX = target.x;
+                const targetY = target.y;
+
+                // Quadratic Bezier arc control point: smooth upward curve towards target
+                const midX = (startX + targetX) / 2 + (startX < targetX ? -20 : 20);
+                const midY = Math.min(startY, targetY) - 50;
+
+                const tweenData = { t: 0 };
+
+                // Step 2: 650ms Bezier flight to HUD coin chip, shrinking to ~0.6
+                this.scene.tweens.add({
+                    targets: tweenData,
+                    t: 1,
+                    duration: 650,
+                    ease: 'Cubic.easeInOut',
+                    onUpdate: () => {
+                        if (!coinSprite || !coinSprite.active) return;
+                        const t = tweenData.t;
+                        const curX = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * midX + t * t * targetX;
+                        const curY = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * midY + t * t * targetY;
+                        coinSprite.setPosition(curX, curY);
+                        coinSprite.setScale(1.35 - 0.75 * t); // Shrinks smoothly from 1.35 to 0.60
+                    },
+                    onComplete: () => {
+                        const idx = this.activeFlyingCoins.indexOf(coinSprite);
+                        if (idx !== -1) {
+                            this.activeFlyingCoins.splice(idx, 1);
+                        }
+                        if (coinSprite && coinSprite.active) {
+                            coinSprite.destroy();
+                        }
+                        GameEventBus.getInstance().emit('coin:bump', undefined);
+                    }
+                });
+            }
+        });
     }
 
     showPauseMenu(

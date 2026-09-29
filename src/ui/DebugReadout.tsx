@@ -1,6 +1,12 @@
-// src/ui/DebugReadout.tsx
 import React, { useEffect, useState, useRef } from 'react';
-import { GameEventBus, type GameStats, type BossHpData, type GameState } from '../services/GameEventBus';
+import {
+  GameEventBus,
+  type GameStats,
+  type BossHpData,
+  type BossPhaseData,
+  type OrbsData,
+  type GameState,
+} from '../services/GameEventBus';
 
 export interface DebugReadoutProps {
   onOpenUIKit?: () => void;
@@ -19,6 +25,14 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
     maxHp: 50,
     bossName: 'ELECKING',
     isVisible: false,
+  });
+  const [bossPhase, setBossPhase] = useState<BossPhaseData>({
+    phase: 1,
+    invulnerable: true,
+  });
+  const [orbs, setOrbs] = useState<OrbsData>({
+    collected: 0,
+    total: 0,
   });
   const [gameState, setGameState] = useState<GameState>('PLAYING');
   const [tickCount, setTickCount] = useState<number>(0);
@@ -53,6 +67,14 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
       setBossHp(newBossHp);
     });
 
+    const unsubPhase = bus.on('boss:phase', (newPhase) => {
+      setBossPhase(newPhase);
+    });
+
+    const unsubOrbs = bus.on('orbs:updated', (newOrbs) => {
+      setOrbs(newOrbs);
+    });
+
     const unsubState = bus.on('game:state', (newState) => {
       setGameState(newState);
     });
@@ -62,6 +84,8 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
       unsubStats();
       unsubTime();
       unsubBoss();
+      unsubPhase();
+      unsubOrbs();
       unsubState();
     };
   }, [isDev]);
@@ -98,6 +122,22 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
           {bossHp.isVisible ? `${bossHp.currentHp}/${bossHp.maxHp}` : 'Inactive'}
         </span>
       </div>
+      <div className="debug-row">
+        <span>Boss Phase:</span>
+        <span className="debug-val debug-gold">
+          {bossHp.isVisible
+            ? `Phase ${bossPhase.phase === 1 ? 'I' : 'II'} (${bossPhase.invulnerable ? 'Shielded' : 'Vulnerable'})`
+            : 'Inactive'}
+        </span>
+      </div>
+      {bossHp.isVisible && (
+        <div className="debug-row">
+          <span>Orbs:</span>
+          <span className="debug-val" style={{ color: 'var(--orb-cyan)' }}>
+            {orbs.collected}/{orbs.total}
+          </span>
+        </div>
+      )}
       <div className="debug-row">
         <span>Game State:</span>
         <span className="debug-val debug-crimson">{gameState}</span>

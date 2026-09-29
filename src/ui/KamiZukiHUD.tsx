@@ -7,6 +7,7 @@ export const KamiZukiHUD: React.FC = () => {
   const [stats, setStats] = useState<GameStats>({ coins: 0, kills: 0, deaths: 0 });
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const timerRef = useRef<HTMLDivElement | null>(null);
+  const coinChipRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const bus = GameEventBus.getInstance();
@@ -28,10 +29,51 @@ export const KamiZukiHUD: React.FC = () => {
       setSoundEnabled(enabled);
     });
 
+    // 4. Coin bump animation on coin collection arrival
+    const unsubCoinBump = bus.on('coin:bump', () => {
+      if (coinChipRef.current) {
+        coinChipRef.current.classList.remove('hud-chip--bump');
+        // Force reflow so rapid coin bumps retrigger cleanly
+        void coinChipRef.current.offsetWidth;
+        coinChipRef.current.classList.add('hud-chip--bump');
+      }
+    });
+
+    // 5. Calculate and share HUD Coin Chip coordinates in Phaser game coordinate space
+    const updateCoinTarget = () => {
+      if (!coinChipRef.current) return;
+      const chipRect = coinChipRef.current.getBoundingClientRect();
+      const canvas = document.querySelector('#game-canvas-host canvas') as HTMLCanvasElement | null;
+      if (!canvas) return;
+      const canvasRect = canvas.getBoundingClientRect();
+      if (canvasRect.width <= 0 || canvasRect.height <= 0) return;
+
+      const scaleX = (canvas.width || 854) / canvasRect.width;
+      const scaleY = (canvas.height || 480) / canvasRect.height;
+      const gameX = (chipRect.left + chipRect.width / 2 - canvasRect.left) * scaleX;
+      const gameY = (chipRect.top + chipRect.height / 2 - canvasRect.top) * scaleY;
+
+      bus.emitCoinTarget({ x: gameX, y: gameY });
+    };
+
+    updateCoinTarget();
+
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => updateCoinTarget()) : null;
+    if (ro) {
+      if (coinChipRef.current) ro.observe(coinChipRef.current);
+      const canvasHost = document.getElementById('game-canvas-host');
+      if (canvasHost) ro.observe(canvasHost);
+    }
+
+    window.addEventListener('resize', updateCoinTarget);
+
     return () => {
       unsubStats();
       unsubTime();
       unsubSound();
+      unsubCoinBump();
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', updateCoinTarget);
     };
   }, []);
 
@@ -47,7 +89,7 @@ export const KamiZukiHUD: React.FC = () => {
     <header className="kamizuki-hud react-interactive">
       {/* Left: Compact Dark Navy Stat Chips */}
       <div className="hud-chips-group">
-        <div className="hud-chip chip-coins" title="Coins Collected">
+        <div ref={coinChipRef} className="hud-chip chip-coins" title="Coins Collected">
           <Icon name="coin" size={14} className="chip-icon-svg" />
           <span className="chip-value">{stats.coins}</span>
         </div>

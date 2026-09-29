@@ -12,6 +12,7 @@ import {
   useToast,
   ToastProvider,
 } from './kit';
+import { GameEventBus } from '../services/GameEventBus';
 import './kit/kit.css';
 
 const ALL_ICONS: IconName[] = [
@@ -42,12 +43,19 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const [pipFilled, setPipFilled] = useState<number>(3);
   const totalPips = 5;
 
-  // State for BossBar
-  const [bossHp, setBossHp] = useState<number>(38);
+  // State for Coin Bump testing
+  const [demoCoins, setDemoCoins] = useState<number>(42);
+  const demoCoinChipRef = React.useRef<HTMLDivElement | null>(null);
+
+  // State for BossBar & Pips Fade-out integration demo
+  const [bossHp, setBossHp] = useState<number>(50);
   const [bossVisible, setBossVisible] = useState<boolean>(true);
   const [bossPhase, setBossPhase] = useState<number>(1);
   const [bossInvulnerable, setBossInvulnerable] = useState<boolean>(true);
   const [bossShowTicks, setBossShowTicks] = useState<boolean>(false);
+  const [bossOrbs, setBossOrbs] = useState<number>(0);
+  const [isDemoPipsFading, setIsDemoPipsFading] = useState<boolean>(false);
+  const [isDemoPipsRendered, setIsDemoPipsRendered] = useState<boolean>(true);
 
   // State for KeyCap pressed
   const [isKeyPressed, setIsKeyPressed] = useState<boolean>(false);
@@ -57,6 +65,42 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     setTimeout(() => {
       setSlotState('ready');
     }, 2000);
+  };
+
+  const triggerCoinBump = () => {
+    setDemoCoins((c) => c + 1);
+    if (demoCoinChipRef.current) {
+      demoCoinChipRef.current.classList.remove('hud-chip--bump');
+      void demoCoinChipRef.current.offsetWidth;
+      demoCoinChipRef.current.classList.add('hud-chip--bump');
+    }
+    // Also emit to global HUD
+    GameEventBus.getInstance().emit('coin:bump', undefined);
+  };
+
+  const simulateOrbPickupAndBreak = () => {
+    setBossOrbs(7);
+    setPipFilled(totalPips);
+    // Flash pips, then break shield and fade out over 600ms
+    setTimeout(() => {
+      setBossInvulnerable(false);
+      setBossPhase(2);
+      setIsDemoPipsFading(true);
+      setTimeout(() => {
+        setIsDemoPipsRendered(false);
+        setIsDemoPipsFading(false);
+      }, 600);
+    }, 500);
+  };
+
+  const resetBossToPhase1 = () => {
+    setBossInvulnerable(true);
+    setBossPhase(1);
+    setBossHp(50);
+    setBossOrbs(0);
+    setPipFilled(3);
+    setIsDemoPipsRendered(true);
+    setIsDemoPipsFading(false);
   };
 
   return (
@@ -92,32 +136,44 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             </div>
           </Panel>
 
-          {/* Section 2: KeyCaps */}
+          {/* Section 2: KeyCaps & HUD Coin Chip Bump */}
           <Panel variant="default" className="ui-kit-section">
             <h2 className="ui-kit-section-title">
-              <Icon name="check" size={16} /> 2. KeyCap Badges
+              <Icon name="check" size={16} /> 2. KeyCaps & HUD Coin Chip Bump
             </h2>
             <div className="ui-kit-row">
               <div className="ui-kit-item-group">
-                <span className="ui-kit-label">Small:</span>
+                <span className="ui-kit-label">KeyCaps:</span>
                 <KeyCap size="sm">E</KeyCap>
                 <KeyCap size="sm">SPACE</KeyCap>
-                <KeyCap size="sm">ESC</KeyCap>
-              </div>
-              <div className="ui-kit-item-group">
-                <span className="ui-kit-label">Medium:</span>
-                <KeyCap size="md">WASD</KeyCap>
-                <KeyCap size="md">ENTER</KeyCap>
                 <KeyCap size="md" isPressed={isKeyPressed}>
-                  {isKeyPressed ? 'PRESSED' : 'CLICK ME'}
+                  {isKeyPressed ? 'PRESSED' : 'KEYCAP'}
                 </KeyCap>
               </div>
+
+              {/* HUD Coin Chip Demo */}
+              <div className="ui-kit-item-group">
+                <span className="ui-kit-label">HUD Chip:</span>
+                <div ref={demoCoinChipRef} className="hud-chip chip-coins" style={{ pointerEvents: 'auto' }}>
+                  <Icon name="coin" size={14} />
+                  <span className="chip-value">{demoCoins}</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="hud-btn hud-btn-crimson"
+                onClick={triggerCoinBump}
+              >
+                Trigger Coin Chip Bump (coin:bump)
+              </button>
+
               <button
                 type="button"
                 className="hud-btn hud-btn-outline"
                 onClick={() => setIsKeyPressed((p) => !p)}
               >
-                Toggle Pressed State
+                Toggle Pressed
               </button>
             </div>
           </Panel>
@@ -249,13 +305,13 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             </div>
           </Panel>
 
-          {/* Section 6: BossBar */}
+          {/* Section 6: BossBar & Orb Pips Lifecycle */}
           <div className="ui-kit-section-full">
             <Panel variant="crimson-border" style={{ padding: '20px' }}>
               <h2 className="ui-kit-section-title">
-                <Icon name="skull" size={16} /> 6. BossBar (Shielded, Phase Badge & Shield Break)
+                <Icon name="skull" size={16} /> 6. BossBar (Crimson Fill, Shield Indicator & Hit Pulse)
               </h2>
-              <div style={{ margin: '20px 0' }}>
+              <div style={{ margin: '20px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                 <BossBar
                   name="AKUMA • ELECKING"
                   hp={bossHp}
@@ -266,8 +322,42 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                   visible={bossVisible}
                   sealText="神月"
                 />
+
+                {/* Integrated ProgressPips with 600ms fade-out */}
+                {isDemoPipsRendered && (
+                  <div className={`hud-boss-orbs ${isDemoPipsFading ? 'hud-boss-orbs--fading' : ''}`}>
+                    <ProgressPips
+                      total={7}
+                      filled={bossOrbs}
+                      variant="cyan"
+                      size="md"
+                      aria-label={`Gravity Orbs: ${bossOrbs} of 7`}
+                    />
+                  </div>
+                )}
               </div>
               <div className="ui-kit-controls-row" style={{ alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-crimson"
+                  onClick={() => GameEventBus.getInstance().emit('boss:shield-hit', undefined)}
+                >
+                  Trigger Shield Hit Pulse (boss:shield-hit)
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-crimson"
+                  onClick={simulateOrbPickupAndBreak}
+                >
+                  Simulate 7/7 Orbs & Shield Break (600ms Fade-out)
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-outline"
+                  onClick={resetBossToPhase1}
+                >
+                  Reset to Phase I Shielded (0/7 Orbs)
+                </button>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
                   HP: {bossHp}/50
                   <input
@@ -292,13 +382,6 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                   }}
                 >
                   {bossInvulnerable ? 'Break Shield (Phase II)' : 'Shield Boss (Phase I)'}
-                </button>
-                <button
-                  type="button"
-                  className="hud-btn hud-btn-outline"
-                  onClick={() => setBossPhase((p) => (p === 1 ? 2 : 1))}
-                >
-                  Phase: {bossPhase === 1 ? 'I' : 'II'}
                 </button>
                 <button
                   type="button"

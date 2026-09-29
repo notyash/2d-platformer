@@ -1,6 +1,7 @@
 // src/ui/kit/BossBar.tsx
 import React, { useEffect, useState, useRef } from 'react';
 import { Icon } from './Icon';
+import { GameEventBus } from '../../services/GameEventBus';
 import './kit.css';
 
 export interface BossBarProps {
@@ -54,6 +55,11 @@ export const BossBar: React.FC<BossBarProps> = ({
   const [isShieldBreaking, setIsShieldBreaking] = useState<boolean>(false);
   const prevInvulnerableRef = useRef<boolean>(invulnerable);
 
+  // Refs for shield hit pulse animations
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  const shieldBadgeRef = useRef<HTMLSpanElement | null>(null);
+  const lastShieldHitTimeRef = useRef<number>(0);
+
   useEffect(() => {
     // Shield break transition: when invulnerable turns false from true
     if (prevInvulnerableRef.current && !invulnerable && visible) {
@@ -65,6 +71,34 @@ export const BossBar: React.FC<BossBarProps> = ({
     }
     prevInvulnerableRef.current = invulnerable;
   }, [invulnerable, visible]);
+
+  useEffect(() => {
+    // Listen for boss:shield-hit events and trigger reflow-based pulse animation
+    const bus = GameEventBus.getInstance();
+    const unsub = bus.on('boss:shield-hit', () => {
+      const now = performance.now();
+      if (now - lastShieldHitTimeRef.current < 80) return; // Throttle to at most one pulse per 80ms
+      lastShieldHitTimeRef.current = now;
+
+      // Retrigger frame hit pulse via reflow
+      if (frameRef.current) {
+        frameRef.current.classList.remove('kz-boss-bar-frame--shield-hit');
+        void frameRef.current.offsetWidth;
+        frameRef.current.classList.add('kz-boss-bar-frame--shield-hit');
+      }
+
+      // Retrigger shield icon cyan flash via reflow
+      if (shieldBadgeRef.current) {
+        shieldBadgeRef.current.classList.remove('kz-boss-bar-shield-badge--hit');
+        void shieldBadgeRef.current.offsetWidth;
+        shieldBadgeRef.current.classList.add('kz-boss-bar-shield-badge--hit');
+      }
+    });
+
+    return () => {
+      unsub();
+    };
+  }, []);
 
   useEffect(() => {
     if (invulnerable) {
@@ -103,34 +137,38 @@ export const BossBar: React.FC<BossBarProps> = ({
 
   const ticks = getPhaseTicks();
   const visibilityClass = visible ? 'kz-boss-bar-wrapper--visible' : 'kz-boss-bar-wrapper--hidden';
-  const shieldedClass = invulnerable ? 'kz-boss-bar-wrapper--shielded' : '';
   const breakingClass = isShieldBreaking ? 'kz-boss-bar-frame--breaking' : '';
 
   return (
-    <div className={`kz-boss-bar-wrapper ${visibilityClass} ${shieldedClass} ${className}`.trim()}>
-      {/* Header: Hanko Seal + Boss Title + Phase Badge + Shield Icon */}
+    <div className={`kz-boss-bar-wrapper ${visibilityClass} ${className}`.trim()}>
+      {/* Header: Hanko Seal + Boss Title + Shield Badge + Phase Badge */}
       <div className="kz-boss-bar-header">
         <span className="kz-boss-bar-seal" title="KamiZuki Boss Seal">
           {displaySeal}
         </span>
         <h3 className="kz-boss-bar-name">{cleanName}</h3>
 
+        {(invulnerable || isShieldBreaking) && (
+          <span
+            ref={shieldBadgeRef}
+            className={`kz-boss-bar-shield-badge ${isShieldBreaking ? 'kz-boss-bar-shield-badge--breaking' : ''}`}
+            title="Shielded / Invulnerable"
+          >
+            <Icon name="shield" size={13} />
+          </span>
+        )}
+
         {phase !== undefined && (
           <span className="kz-boss-bar-phase-badge" title={`Phase ${toRomanNumeral(phase)}`}>
             PHASE {toRomanNumeral(phase)}
           </span>
         )}
-
-        {invulnerable && (
-          <span className="kz-boss-bar-shield-badge" title="Shielded / Invulnerable">
-            <Icon name="shield" size={13} />
-          </span>
-        )}
       </div>
 
-      {/* Frame: Ghost Bar + Segmented Fill + Optional Phase Ticks */}
+      {/* Frame: Ghost Bar + Normal Crimson Fill + Optional Phase Ticks */}
       <div
-        className={`kz-boss-bar-frame ${invulnerable ? 'kz-boss-bar-frame--shielded' : ''} ${breakingClass}`.trim()}
+        ref={frameRef}
+        className={`kz-boss-bar-frame ${breakingClass}`.trim()}
         role="progressbar"
         aria-valuenow={safeHp}
         aria-valuemin={0}
@@ -142,10 +180,10 @@ export const BossBar: React.FC<BossBarProps> = ({
           <div className="kz-boss-bar-ghost" style={{ width: `${ghostPercent}%` }} />
         )}
 
-        {/* Primary Health Fill */}
+        {/* Primary Health Fill: normal crimson fill, 100% width while shielded, hpPercent otherwise */}
         <div
-          className={`kz-boss-bar-fill ${invulnerable ? 'kz-boss-bar-fill--shielded' : ''}`}
-          style={{ width: `${hpPercent}%` }}
+          className="kz-boss-bar-fill"
+          style={{ width: `${invulnerable ? 100 : hpPercent}%` }}
         />
 
         {/* Optional Phase Tick Dividers */}

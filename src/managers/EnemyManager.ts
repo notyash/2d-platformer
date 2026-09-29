@@ -965,8 +965,7 @@ export class EnemyManager {
             this.killedEnemyKeys.add(uniqueKey);
         }
 
-        this.uiManager.showFloatingText(monster.x, monster.y - 10, '+1 COIN', '#FFD700');
-        this.uiManager.spawnParticles(monster.x, monster.y, 0xFFD700);
+        this.uiManager.playCoinPickupEffect(monster.x, monster.y, 1);
         this.pipeMonsters.remove(monster, true, true);
         this.enemiesKilled++;
         this.collectiblesManager?.addCoins(1);
@@ -1168,10 +1167,7 @@ export class EnemyManager {
         this.soundManager?.playStomp();
         this.soundManager?.playCoin();
         
-        const text = `+${coinReward} COIN${coinReward > 1 ? 'S' : ''}`;
-        const mobScale = (mob.getData('scale') as number) || 1.0;
-        this.uiManager.showFloatingText(mob.x, mob.y - 10 * mobScale, text, '#FFD700');
-        this.uiManager.spawnParticles(mob.x, mob.y - 12 * mobScale, 0xFFD700);
+        this.uiManager.playCoinPickupEffect(mob.x, mob.y, coinReward);
 
         this.scene.time.delayedCall(1500, () => {
             if (mob.active) mob.destroy();

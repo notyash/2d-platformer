@@ -70,6 +70,7 @@ This document establishes the mandatory design rules and coding standards for al
 | **success** | `--color-success` | `#22c55e` | Confirmation / verified status |
 | **warning** | `--color-warning` | `#f59e0b` | Caution / checkpoint warning |
 | **danger** | `--color-danger` | `#f03e51` | Fatal damage / low health |
+| **hazardRed** | `--hazard-red` | `#ff0000` | Gameplay hazard & boss damage flash tint |
 
 ---
 

@@ -501,17 +501,56 @@
   color: var(--orb-cyan);
   filter: drop-shadow(0 0 6px var(--orb-cyan-glow));
   animation: kzShieldPulse 2s infinite ease-in-out;
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
 }
 
 @keyframes kzShieldPulse {
   0%, 100% {
-    opacity: 0.8;
+    opacity: 0.85;
     transform: scale(1);
   }
   50% {
     opacity: 1;
     transform: scale(1.1);
   }
+}
+
+/* Shield Icon Cyan Glow Flash on Hit */
+@keyframes kzShieldIconFlash {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 6px var(--orb-cyan-glow));
+  }
+  30% {
+    transform: scale(1.35);
+    filter: drop-shadow(0 0 14px var(--orb-cyan)) drop-shadow(0 0 8px #ffffff);
+    color: #ffffff;
+  }
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 6px var(--orb-cyan-glow));
+    color: var(--orb-cyan);
+  }
+}
+
+.kz-boss-bar-shield-badge--hit {
+  animation: kzShieldIconFlash 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Shield badge fade out when barrier breaks */
+@keyframes kzShieldBadgeFadeOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+.kz-boss-bar-shield-badge--breaking {
+  animation: kzShieldBadgeFadeOut 300ms ease-out forwards;
 }
 
 .kz-boss-bar-frame {
@@ -526,10 +565,30 @@
   transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
-/* Shielded Boss Bar Frame (Invulnerable) */
-.kz-boss-bar-frame--shielded {
-  border-color: var(--orb-cyan);
-  box-shadow: var(--shadow-panel), 0 0 14px var(--orb-cyan-glow);
+/* Shield Hit Pulse (250ms scale & brightness pulse on frame) */
+@keyframes kzShieldHitPulse {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+    border-color: var(--border-crimson);
+    box-shadow: var(--shadow-panel), 0 0 16px var(--crimson-glow);
+  }
+  30% {
+    transform: scale(1.025);
+    filter: brightness(1.4);
+    border-color: var(--orb-cyan);
+    box-shadow: var(--shadow-panel), 0 0 20px var(--orb-cyan-glow), inset 0 0 12px var(--orb-cyan-glow);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+    border-color: var(--border-crimson);
+    box-shadow: var(--shadow-panel), 0 0 16px var(--crimson-glow);
+  }
+}
+
+.kz-boss-bar-frame--shield-hit {
+  animation: kzShieldHitPulse 250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Shield Break Transition */
@@ -568,7 +627,7 @@
   z-index: 1;
 }
 
-/* Main active health bar */
+/* Main active health bar (always uses pure opaque crimson fill) */
 .kz-boss-bar-fill {
   position: absolute;
   top: 0;
@@ -577,12 +636,7 @@
   background: linear-gradient(90deg, var(--crimson) 0%, var(--crimson-light) 100%);
   transition: width 80ms ease-out, background var(--transition-normal);
   z-index: 2;
-}
-
-/* Desaturated steel/navy fill when shielded */
-.kz-boss-bar-fill--shielded {
-  background: linear-gradient(90deg, #1e293b 0%, #475569 50%, #334155 100%);
-  box-shadow: inset 0 0 8px var(--orb-cyan-glow);
+  opacity: 1;
 }
 
 /* Phase tick dividers */

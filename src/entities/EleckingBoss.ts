@@ -126,6 +126,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             if (this.phase === 2 && !this.isInvulnerable && !this.isDead && this.bossState !== 'vanished') {
                 this.takeDamage();
             } else if (this.isInvulnerable || this.phase === 1) {
+                GameEventBus.getInstance().emit('boss:shield-hit', undefined);
                 if (!this.hasShownShieldedToast) {
                     this.hasShownShieldedToast = true;
                     GameEventBus.getInstance().emit('toast:show', {
@@ -1141,8 +1142,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private playThunderTelegraph() {
         if (!this.hasStarted || this.isDead) return;
         this.bossState = 'memory-telegraph';
-        this.isInvulnerable = true; // Boss is invulnerable when initiating thunder attacks in Phase 2
-        GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 2, invulnerable: true });
+        this.isInvulnerable = true; // Boss is invulnerable when initiating thunder attacks
+        GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: this.phase, invulnerable: true });
         this.anims.stop();
         (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
         

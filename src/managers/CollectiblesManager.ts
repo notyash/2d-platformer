@@ -80,8 +80,7 @@ export class CollectiblesManager {
         this.totemSprites.forEach(s => { if (s && s.active) s.destroy(); });
 
         this.coinSprites = this.createGroup('Coin', 'coin', 'coin-spin', (c) => {
-            this.uiManager.showFloatingText(c.x, c.y - 10, '+1 COIN', '#FFD700');
-            this.uiManager.spawnParticles(c.x, c.y, 0xFFD700);
+            this.uiManager.playCoinPickupEffect(c.x, c.y, 1);
             this.coinsCollected++;
             this.soundManager?.playCoin();
         });

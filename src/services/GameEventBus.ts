@@ -85,6 +85,11 @@ export interface ToastData {
   durationMs?: number;
 }
 
+export interface CoinTargetData {
+  x: number;
+  y: number;
+}
+
 export interface EventMap {
   'stats:changed': GameStats;
   'time:tick': string; // Formatted time string, throttled to ~10Hz
@@ -98,6 +103,9 @@ export interface EventMap {
   'checkpoint:status': boolean;
   'sound:status': boolean;
   'checkpoint:saved': { checkpointName: string; timestamp: number };
+  'hud:coin-target': CoinTargetData;
+  'coin:bump': void;
+  'boss:shield-hit': void;
 }
 
 type EventCallback<T> = (data: T) => void;
@@ -118,6 +126,7 @@ export class GameEventBus {
     totem: { acquired: false, count: 0, state: 'disabled' },
   };
   private lastState: GameState = 'PLAYING';
+  private lastCoinTarget: CoinTargetData = { x: 80, y: 30 };
 
   public static getInstance(): GameEventBus {
     if (!GameEventBus.instance) {
@@ -148,6 +157,8 @@ export class GameEventBus {
         callback(this.lastState as EventMap[K]);
       } else if (event === 'time:tick') {
         callback(this.lastFormattedTime as EventMap[K]);
+      } else if (event === 'hud:coin-target') {
+        callback(this.lastCoinTarget as EventMap[K]);
       }
     } catch (err) {
       console.error(`[GameEventBus] Error in initial cached callback for "${String(event)}":`, err);
@@ -313,6 +324,18 @@ export class GameEventBus {
   }
 
   /**
+   * Emit HUD coin target position in game coordinates
+   */
+  public emitCoinTarget(target: CoinTargetData): void {
+    this.lastCoinTarget = { ...target };
+    this.emit('hud:coin-target', this.lastCoinTarget);
+  }
+
+  public getCoinTarget(): CoinTargetData {
+    return { ...this.lastCoinTarget };
+  }
+
+  /**
    * Reset internal cache for clean run restart
    */
   public resetCache(): void {
@@ -327,5 +350,6 @@ export class GameEventBus {
       totem: { acquired: false, count: 0, state: 'disabled' },
     };
     this.lastState = 'PLAYING';
+    this.lastCoinTarget = { x: 80, y: 30 };
   }
 }
