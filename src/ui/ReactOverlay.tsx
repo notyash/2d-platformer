@@ -27,7 +27,6 @@ interface ReactOverlayContentProps {
 }
 
 const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) => {
-  const isDev = import.meta.env.DEV;
   const { showToast } = useToast();
   const [windowWidth, setWindowWidth] = useState<number>(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1280
@@ -150,7 +149,7 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
 
   // Check if URL specifies /ui-kit showcase
   const [showUIKit, setShowUIKit] = useState<boolean>(() => {
-    if (typeof window !== 'undefined' && isDev) {
+    if (typeof window !== 'undefined') {
       const path = window.location.pathname;
       const search = window.location.search;
       const hash = window.location.hash;
@@ -372,11 +371,11 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
       {/* Victory Modal */}
       <VictoryModal gameState={gameState} stats={stats} timeString={timeString} />
 
-      {/* Dev-Only Event Bus Overlay (toggled with backtick `) */}
-      {isDev && <DebugReadout onOpenUIKit={() => setShowUIKit(true)} />}
+      {/* Event Bus Debug Overlay (toggled with backtick `) */}
+      <DebugReadout onOpenUIKit={() => setShowUIKit(true)} />
 
-      {/* Dev-Only /ui-kit Showcase Gallery */}
-      {isDev && showUIKit && <UIKitShowcase onClose={() => setShowUIKit(false)} />}
+      {/* UI Kit Showcase Gallery (/ui-kit or toggled from debug readout) */}
+      {showUIKit && <UIKitShowcase onClose={() => setShowUIKit(false)} />}
     </div>
   );
 };

@@ -14,6 +14,8 @@ import {
   ToastProvider,
 } from './kit';
 import { GameEventBus } from '../services/GameEventBus';
+import { PauseModal } from './PauseModal';
+import { VictoryModal } from './VictoryModal';
 import './kit/kit.css';
 
 const ALL_ICONS: IconName[] = [
@@ -34,6 +36,7 @@ const ALL_ICONS: IconName[] = [
   'check',
   'checkpoint',
   'flag',
+  'play',
   'arrow-up',
   'arrow-down',
   'trophy',
@@ -69,6 +72,9 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   // State for Checkpoint Slot testing
   const [demoCheckpointActive, setDemoCheckpointActive] = useState<boolean>(true);
   const [demoCheckpointPulse, setDemoCheckpointPulse] = useState<number>(0);
+
+  // State for Modals Preview inside showcase
+  const [previewModal, setPreviewModal] = useState<'none' | 'pause' | 'victory'>('none');
 
   const triggerCooldown = () => {
     setSlotState('cooldown');
@@ -647,35 +653,97 @@ const ShowcaseContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
               </div>
             </Panel>
 
-            {/* Section 7: Kit PromptChip */}
+            {/* Section 8: Kit PromptChip */}
             <Panel variant="crimson-border" className="ui-kit-section">
               <h2 className="ui-kit-section-title">
-                <Icon name="restart" size={16} /> 7. Action & Restart Prompt Chips
+                <Icon name="restart" size={16} /> 8. Action & Door Prompt Chips
               </h2>
               <p className="ui-kit-text">
                 Compact kit prompt chips with KeyCap and high-contrast labels for in-game prompts.
               </p>
               <div className="ui-kit-controls-row" style={{ alignItems: 'center', gap: '16px' }}>
                 <PromptChip
+                  keyName="E"
+                  label="to enter"
+                  variant="crimson"
+                />
+                <PromptChip
                   keyName="R"
                   label="again to restart"
                   variant="warning"
                 />
                 <PromptChip
-                  keyName="E"
-                  label="Activate"
-                  variant="default"
-                />
-                <PromptChip
                   keyName="ESC"
                   label="Pause Menu"
-                  variant="crimson"
+                  variant="default"
                 />
+              </div>
+            </Panel>
+
+            {/* Section 9: Full Screen Modals Preview */}
+            <Panel variant="default" className="ui-kit-section">
+              <h2 className="ui-kit-section-title">
+                <Icon name="trophy" size={16} /> 9. Full Screen Modals Preview
+              </h2>
+              <p className="ui-kit-text">
+                Test and preview full-screen KamiZuki modals with keyboard navigation and tokens.
+              </p>
+              <div className="ui-kit-controls-row" style={{ alignItems: 'center', gap: '12px' }}>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-outline"
+                  onClick={() => setPreviewModal('pause')}
+                >
+                  Preview Pause Modal
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-crimson"
+                  onClick={() => setPreviewModal('victory')}
+                >
+                  Preview Victory Modal
+                </button>
               </div>
             </Panel>
           </div>
         </div>
       </div>
+
+      {/* Interactive Modal Previews */}
+      {previewModal === 'pause' && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999 }}>
+          <PauseModal
+            gameState="PAUSED"
+            stats={{ coins: demoCoins, kills: 11, deaths: 2 }}
+          />
+          <button
+            type="button"
+            className="hud-btn hud-btn-crimson"
+            style={{ position: 'fixed', top: '16px', right: '16px', zIndex: 10000 }}
+            onClick={() => setPreviewModal('none')}
+          >
+            Close Modal Preview
+          </button>
+        </div>
+      )}
+
+      {previewModal === 'victory' && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999 }}>
+          <VictoryModal
+            gameState="VICTORY"
+            stats={{ coins: demoCoins, kills: 14, deaths: 0 }}
+            timeString="01:24.80"
+          />
+          <button
+            type="button"
+            className="hud-btn hud-btn-crimson"
+            style={{ position: 'fixed', top: '16px', right: '16px', zIndex: 10000 }}
+            onClick={() => setPreviewModal('none')}
+          >
+            Close Modal Preview
+          </button>
+        </div>
+      )}
     </div>
   );
 };

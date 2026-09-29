@@ -102,16 +102,17 @@ export class SoundManager {
         this.stopMusic();
 
         // 8-bit celebratory victory fanfare (C5 -> E5 -> G5 -> C6 -> G5 -> Grand C Major Chord)
+        // Uses window.setTimeout so the full fanfare plays out completely even when game scene is paused/completed
         this.playTone(523.25, 523.25, 'triangle', 0.12, 0.28, true);
-        this.scene.time.delayedCall(130, () => this.playTone(659.25, 659.25, 'triangle', 0.12, 0.28, true));
-        this.scene.time.delayedCall(260, () => this.playTone(783.99, 783.99, 'triangle', 0.12, 0.3, true));
-        this.scene.time.delayedCall(390, () => this.playTone(1046.50, 1046.50, 'sine', 0.22, 0.35, true));
-        this.scene.time.delayedCall(560, () => this.playTone(783.99, 783.99, 'triangle', 0.14, 0.3, true));
-        this.scene.time.delayedCall(700, () => {
+        window.setTimeout(() => this.playTone(659.25, 659.25, 'triangle', 0.12, 0.28, true), 130);
+        window.setTimeout(() => this.playTone(783.99, 783.99, 'triangle', 0.12, 0.3, true), 260);
+        window.setTimeout(() => this.playTone(1046.50, 1046.50, 'sine', 0.22, 0.35, true), 390);
+        window.setTimeout(() => this.playTone(783.99, 783.99, 'triangle', 0.14, 0.3, true), 560);
+        window.setTimeout(() => {
             this.playTone(1046.50, 1046.50, 'triangle', 0.85, 0.35, true);
             this.playTone(1318.51, 1318.51, 'sine', 0.85, 0.3, true);
             this.playTone(1567.98, 1567.98, 'sine', 0.85, 0.25, true);
-        });
+        }, 700);
     }
 
     public playStomp() {

@@ -1688,7 +1688,6 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                     this.victoryOrb.destroy();
                     this.victoryOrb = undefined;
 
-                    this.soundManager?.playVictory();
                     this.uiManager.showFloatingText(orbX, orbY - 25, 'ORB OF VICTORY COLLECTED!', TOKENS.colors.gold, 1600);
                     this.uiManager.spawnParticles(orbX, orbY, goldParticleColor);
 

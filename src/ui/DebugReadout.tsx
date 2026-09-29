@@ -13,9 +13,6 @@ export interface DebugReadoutProps {
 }
 
 export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
-  // Only enabled in dev builds
-  const isDev = import.meta.env.DEV;
-
   // Hidden by default, toggled with backtick key (`)
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [stats, setStats] = useState<GameStats>({ coins: 0, kills: 0, deaths: 0 });
@@ -40,16 +37,36 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
   const statsUpdateCount = useRef<number>(0);
 
   useEffect(() => {
-    if (!isDev) return;
-
-    // Toggle with backtick key (`)
+    // 60% keyboards often map Fn+Esc to:
+    // - key === '`' or '~'
+    // - code === 'Backquote' or 'Escape' (with shift/fn)
+    // - keyCode === 192 (Backquote/Tilde)
+    // Also support F2, and Ctrl+Shift+D as universal alternatives
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Backquote' || e.key === '`') {
+      const isBacktick =
+        e.key === '`' ||
+        e.key === '~' ||
+        e.code === 'Backquote' ||
+        e.keyCode === 192 ||
+        e.which === 192;
+
+      const isDevShortcut =
+        isBacktick ||
+        e.code === 'F2' ||
+        e.key === 'F2' ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.code === 'KeyD' || e.key === 'D' || e.key === 'd'));
+
+      if (isDevShortcut) {
         setIsVisible((prev) => !prev);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+
+    if (typeof window !== 'undefined') {
+      (window as any).toggleDebug = () => setIsVisible((prev) => !prev);
+      (window as any).openUIKit = () => onOpenUIKit?.();
+    }
 
     const bus = GameEventBus.getInstance();
 
@@ -80,7 +97,7 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
     });
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
       unsubStats();
       unsubTime();
       unsubBoss();
@@ -88,17 +105,36 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
       unsubOrbs();
       unsubState();
     };
-  }, [isDev]);
+  }, [onOpenUIKit]);
 
-  if (!isDev || !isVisible) {
-    return null;
+  if (!isVisible) {
+    return (
+      <button
+        type="button"
+        className="debug-toggle-pill react-interactive"
+        title="Toggle Dev Debug & UI Kit (Hotkey: ` or F2 or Ctrl+Shift+D)"
+        onClick={() => setIsVisible(true)}
+      >
+        DEV [ ` / F2 ]
+      </button>
+    );
   }
 
   return (
     <div className="debug-readout-card react-interactive">
-      <div className="debug-title">
-        <span className="debug-badge">DEV DEBUG [ ` ]</span>
-        <span>EVENT BUS BRIDGE</span>
+      <div className="debug-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span className="debug-badge">DEV DEBUG [ ` / F2 ]</span>
+          <span>EVENT BUS</span>
+        </div>
+        <button
+          type="button"
+          className="debug-close-btn"
+          onClick={() => setIsVisible(false)}
+          title="Close Debug"
+        >
+          ✕
+        </button>
       </div>
       <div className="debug-row">
         <span>Time:</span>

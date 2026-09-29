@@ -1665,10 +1665,7 @@ export class EnvironmentManager {
         }
 
         if (isPlayerInDoor && this.doorExitX !== 0 && !this.player.isTeleporting && !this.player.isDying) {
-            const enterPressed = Phaser.Input.Keyboard.JustDown(this.player.keyE) ||
-                                 Phaser.Input.Keyboard.JustDown(this.player.enterKey) ||
-                                 Phaser.Input.Keyboard.JustDown(this.player.cursors.up) ||
-                                 (this.player.keyW && Phaser.Input.Keyboard.JustDown(this.player.keyW));
+            const enterPressed = Phaser.Input.Keyboard.JustDown(this.player.keyE);
 
             if (enterPressed) {
                 this.player.isNearDoor = false;
