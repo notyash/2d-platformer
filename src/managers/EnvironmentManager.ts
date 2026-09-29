@@ -666,26 +666,72 @@ export class EnvironmentManager {
                 this.doorSprites.push(dSprite);
             }
 
-            // Static "[ E ]" badge permanently fixed directly above the teleporter door
+            // KamiZuki styled KeyCap interact badge
             const promptX = zX;
             const topY = obj.gid !== undefined ? (obj.y - (obj.height || 32)) : (obj.y || 0);
             const promptY = topY - 14;
 
-            const bg = this.scene.add.graphics();
-            bg.fillStyle(0x0f172a, 0.9);
-            bg.fillRoundedRect(-22, -12, 44, 24, 6);
-            bg.lineStyle(1.5, 0x38bdf8, 0.95);
-            bg.strokeRoundedRect(-22, -12, 44, 24, 6);
+            const promptWidth = 86;
+            const promptHeight = 24;
 
-            const txt = this.scene.add.text(0, 0, '[ E ]', {
-                fontSize: '13px',
-                fontFamily: 'Arial, sans-serif',
-                color: '#f8fafc',
+            const bg = this.scene.add.graphics();
+            // Navy panel fill
+            bg.fillStyle(0x11131c, 0.95);
+            bg.fillRoundedRect(-promptWidth / 2, -promptHeight / 2, promptWidth, promptHeight, 5);
+            // Crimson border
+            bg.lineStyle(1.5, 0xc81c2e, 0.9);
+            bg.strokeRoundedRect(-promptWidth / 2, -promptHeight / 2, promptWidth, promptHeight, 5);
+
+            // KeyCap inner box on left
+            bg.fillStyle(0x1a1d2b, 0.9);
+            bg.fillRoundedRect(-promptWidth / 2 + 4, -promptHeight / 2 + 3, 18, 18, 3);
+            bg.lineStyle(1, 0xc81c2e, 0.6);
+            bg.strokeRoundedRect(-promptWidth / 2 + 4, -promptHeight / 2 + 3, 18, 18, 3);
+
+            // KeyCap text "E"
+            const keyTxt = this.scene.add.text(-promptWidth / 2 + 13, 0, 'E', {
+                fontSize: '11px',
+                fontFamily: "'Space Grotesk', 'Inter', monospace, sans-serif",
+                color: '#f2e7d3',
                 fontStyle: 'bold'
             }).setOrigin(0.5);
 
-            const prompt = this.scene.add.container(promptX, promptY, [bg, txt]);
+            // Verb label "Activate"
+            const verbTxt = this.scene.add.text(-promptWidth / 2 + 28, 0, 'Activate', {
+                fontSize: '11px',
+                fontFamily: "'Inter', sans-serif",
+                color: '#f2e7d3',
+                fontStyle: 'bold'
+            }).setOrigin(0, 0.5);
+
+            // Ensure web fonts are ready
+            if (typeof document !== 'undefined' && document.fonts) {
+                document.fonts.ready.then(() => {
+                    if (keyTxt && keyTxt.active) {
+                        keyTxt.setFontFamily("'Space Grotesk', 'Inter', monospace, sans-serif");
+                    }
+                    if (verbTxt && verbTxt.active) {
+                        verbTxt.setFontFamily("'Inter', sans-serif");
+                    }
+                }).catch(() => {});
+            }
+
+            const prompt = this.scene.add.container(promptX, promptY, [bg, keyTxt, verbTxt]);
             prompt.setDepth(30);
+            prompt.setAlpha(0); // Hidden until player proximity
+            (prompt as any).targetAlpha = 0;
+
+            // Subtle crimson pulse animation
+            this.scene.tweens.add({
+                targets: prompt,
+                scaleX: 1.05,
+                scaleY: 1.05,
+                duration: 850,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+
             this.doorPrompts.push(prompt);
         });
     }
@@ -1650,6 +1696,23 @@ export class EnvironmentManager {
             }
         }
         this.player.isNearDoor = isPlayerInDoor;
+
+        // Proximity fade for interact prompts
+        this.doorPrompts.forEach((prompt) => {
+            const targetAlpha = isPlayerInDoor ? 1 : 0;
+            if ((prompt as any).targetAlpha !== targetAlpha) {
+                (prompt as any).targetAlpha = targetAlpha;
+                if ((prompt as any).fadeTween) {
+                    (prompt as any).fadeTween.stop();
+                }
+                (prompt as any).fadeTween = this.scene.tweens.add({
+                    targets: prompt,
+                    alpha: targetAlpha,
+                    duration: targetAlpha === 1 ? 160 : 220,
+                    ease: 'Quad.easeOut',
+                });
+            }
+        });
 
         if (isPlayerInDoor && this.doorExitX !== 0 && !this.player.isTeleporting && !this.player.isDying) {
             const enterPressed = Phaser.Input.Keyboard.JustDown(this.player.keyE) ||

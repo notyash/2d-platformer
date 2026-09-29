@@ -23,12 +23,44 @@ export interface OrbsData {
   total: number;
 }
 
+export type EquipmentSlotState = 'ready' | 'active' | 'cooldown' | 'disabled';
+
+export interface EquipmentItem {
+  acquired: boolean;
+  count?: number;
+  state: EquipmentSlotState;
+  cooldownStartTime?: number;
+  cooldownDurationMs?: number;
+}
+
 export interface EquipmentState {
-  hasGun: boolean;
-  gunCount: number;
-  reloadRemainingMs: number;
-  hasTotem: boolean;
-  totemCount: number;
+  gun: EquipmentItem;
+  totem: EquipmentItem;
+}
+
+export function normalizeEquipmentState(equip: EquipmentState): EquipmentState {
+  const now = Date.now();
+  const normalizeItem = (item: EquipmentItem): EquipmentItem => {
+    if (
+      item.state === 'cooldown' &&
+      item.cooldownStartTime !== undefined &&
+      item.cooldownDurationMs !== undefined &&
+      item.cooldownStartTime + item.cooldownDurationMs <= now
+    ) {
+      return {
+        ...item,
+        state: 'ready',
+        cooldownStartTime: undefined,
+        cooldownDurationMs: undefined,
+      };
+    }
+    return { ...item };
+  };
+
+  return {
+    gun: normalizeItem(equip.gun),
+    totem: normalizeItem(equip.totem),
+  };
 }
 
 export type GameState = 'PLAYING' | 'PAUSED' | 'DEAD' | 'VICTORY';
@@ -78,6 +110,10 @@ export class GameEventBus {
   private lastBossHp: BossHpData = { currentHp: 50, maxHp: 50, bossName: 'ELECKING', isVisible: false };
   private lastBossPhase: BossPhaseData = { phase: 1, invulnerable: true };
   private lastOrbs: OrbsData = { collected: 0, total: 0 };
+  private lastEquipment: EquipmentState = {
+    gun: { acquired: false, count: 0, state: 'disabled' },
+    totem: { acquired: false, count: 0, state: 'disabled' },
+  };
   private lastState: GameState = 'PLAYING';
 
   public static getInstance(): GameEventBus {
@@ -103,6 +139,8 @@ export class GameEventBus {
         callback(this.lastBossPhase as EventMap[K]);
       } else if (event === 'orbs:updated') {
         callback(this.lastOrbs as EventMap[K]);
+      } else if (event === 'equipment:changed') {
+        callback(this.getEquipment() as EventMap[K]);
       } else if (event === 'game:state') {
         callback(this.lastState as EventMap[K]);
       } else if (event === 'time:tick') {
@@ -157,12 +195,42 @@ export class GameEventBus {
     return { ...this.lastOrbs };
   }
 
+  public getEquipment(): EquipmentState {
+    return normalizeEquipmentState(this.lastEquipment);
+  }
+
   public getGameState(): GameState {
     return this.lastState;
   }
 
   public getFormattedTime(): string {
     return this.lastFormattedTime;
+  }
+
+  /**
+   * Emit equipment state only when slot presence, state, count, or cooldown changes
+   */
+  public emitEquipmentIfChanged(equipment: EquipmentState): void {
+    const prev = this.lastEquipment;
+    const changed =
+      prev.gun.acquired !== equipment.gun.acquired ||
+      prev.gun.state !== equipment.gun.state ||
+      prev.gun.count !== equipment.gun.count ||
+      prev.gun.cooldownStartTime !== equipment.gun.cooldownStartTime ||
+      prev.gun.cooldownDurationMs !== equipment.gun.cooldownDurationMs ||
+      prev.totem.acquired !== equipment.totem.acquired ||
+      prev.totem.state !== equipment.totem.state ||
+      prev.totem.count !== equipment.totem.count ||
+      prev.totem.cooldownStartTime !== equipment.totem.cooldownStartTime ||
+      prev.totem.cooldownDurationMs !== equipment.totem.cooldownDurationMs;
+
+    if (changed) {
+      this.lastEquipment = {
+        gun: { ...equipment.gun },
+        totem: { ...equipment.totem },
+      };
+      this.emit('equipment:changed', this.getEquipment());
+    }
   }
 
   /**
@@ -251,6 +319,10 @@ export class GameEventBus {
     this.lastBossHp = { currentHp: 50, maxHp: 50, bossName: 'ELECKING', isVisible: false };
     this.lastBossPhase = { phase: 1, invulnerable: true };
     this.lastOrbs = { collected: 0, total: 0 };
+    this.lastEquipment = {
+      gun: { acquired: false, count: 0, state: 'disabled' },
+      totem: { acquired: false, count: 0, state: 'disabled' },
+    };
     this.lastState = 'PLAYING';
   }
 }

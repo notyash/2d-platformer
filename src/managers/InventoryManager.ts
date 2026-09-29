@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { Player } from '../entities/Player';
 import { UIManager } from './UIManager';
 import { SoundManager } from './SoundManager';
+import { GameEventBus, type EquipmentSlotState } from '../services/GameEventBus';
 
 export class InventoryManager {
     private scene: Phaser.Scene;
@@ -19,14 +20,6 @@ export class InventoryManager {
     private savedCheckpointHasGun: boolean = false;
     private savedCheckpointHasTotem: boolean = false;
 
-    // Dynamic Equipment Badges Container
-    private hudContainer!: Phaser.GameObjects.Container;
-    private gunBadgeContainer!: Phaser.GameObjects.Container;
-    private totemBadgeContainer!: Phaser.GameObjects.Container;
-    
-    private gunText!: Phaser.GameObjects.Text;
-    private totemText!: Phaser.GameObjects.Text;
-
     constructor(
         scene: Phaser.Scene, 
         player: Player, 
@@ -38,8 +31,8 @@ export class InventoryManager {
         this.uiManager = uiManager;
         this.soundManager = soundManager;
 
-        this.createEquipmentUI();
         this.saveCheckpointSnapshot();
+        this.syncEquipment();
     }
 
     public saveCheckpointSnapshot() {
@@ -54,44 +47,43 @@ export class InventoryManager {
         this.totemCount = this.savedCheckpointTotemCount;
         this.player.hasGun = this.savedCheckpointHasGun;
         this.player.hasTotem = this.savedCheckpointHasTotem;
-        this.updateUI();
+        this.syncEquipment();
     }
 
-    private createEquipmentUI() {
-        this.hudContainer = this.scene.add.container(0, 0).setScrollFactor(0).setDepth(20);
+    public syncEquipment(gunCooldown?: { startTime: number; durationMs: number }) {
+        const hasGun = Boolean(this.player.hasGun || this.gunCount > 0);
+        const hasTotem = Boolean(this.player.hasTotem && this.totemCount > 0);
 
-        const badgeWidth = 158;
-        const badgeHeight = 34;
+        const gunState: EquipmentSlotState = !hasGun
+            ? 'disabled'
+            : gunCooldown
+            ? 'cooldown'
+            : 'ready';
 
-        // Gun Badge Container
-        this.gunBadgeContainer = this.scene.add.container(0, 0);
-        const gunBg = this.scene.add.rectangle(0, 0, badgeWidth, badgeHeight, 0x0f172a, 0.85)
-            .setStrokeStyle(1.5, 0x00FFFF, 0.9)
-            .setOrigin(0.5);
-        const gunIcon = this.scene.add.image(-badgeWidth / 2 + 18, 0, 'gun-powerup')
-            .setDisplaySize(20, 20);
-        this.gunText = this.scene.add.text(-badgeWidth / 2 + 34, 0, '[L-Click / Ctrl] Shoot', {
-            fontSize: '11px', fontFamily: 'Arial', color: '#00FFFF', fontStyle: 'bold'
-        }).setOrigin(0, 0.5);
+        const totemState: EquipmentSlotState = !hasTotem
+            ? 'disabled'
+            : this.player.hasTotem
+            ? 'active'
+            : 'ready';
 
-        this.gunBadgeContainer.add([gunBg, gunIcon, this.gunText]);
-        this.hudContainer.add(this.gunBadgeContainer);
+        GameEventBus.getInstance().emitEquipmentIfChanged({
+            gun: {
+                acquired: hasGun,
+                count: this.gunCount,
+                state: gunState,
+                cooldownStartTime: gunCooldown?.startTime,
+                cooldownDurationMs: gunCooldown?.durationMs,
+            },
+            totem: {
+                acquired: hasTotem,
+                count: this.totemCount,
+                state: totemState,
+            },
+        });
+    }
 
-        // Totem Badge Container
-        this.totemBadgeContainer = this.scene.add.container(0, 0);
-        const totemBg = this.scene.add.rectangle(0, 0, badgeWidth, badgeHeight, 0x0f172a, 0.85)
-            .setStrokeStyle(1.5, 0xFFD700, 0.9)
-            .setOrigin(0.5);
-        const totemIcon = this.scene.add.image(-badgeWidth / 2 + 18, 0, 'totem')
-            .setDisplaySize(20, 20);
-        this.totemText = this.scene.add.text(-badgeWidth / 2 + 34, 0, 'Totem: ACTIVE', {
-            fontSize: '11px', fontFamily: 'Arial', color: '#FFD700', fontStyle: 'bold'
-        }).setOrigin(0, 0.5);
-
-        this.totemBadgeContainer.add([totemBg, totemIcon, this.totemText]);
-        this.hudContainer.add(this.totemBadgeContainer);
-
-        this.updateUI();
+    public onGunFired(startTime: number, durationMs: number) {
+        this.syncEquipment({ startTime, durationMs });
     }
 
     public addGun() {
@@ -99,7 +91,15 @@ export class InventoryManager {
         this.player.hasGun = true;
         this.updatePlayerTint();
         this.soundManager?.playPowerup();
-        this.updateUI();
+        this.syncEquipment();
+
+        // Control hint toast on pickup (ephemeral, not cached/replayed)
+        GameEventBus.getInstance().emit('toast:show', {
+            title: 'Weapon Acquired',
+            message: 'Gun Blaster: [L-Click / Ctrl] Shoot',
+            variant: 'info',
+            durationMs: 3500,
+        });
     }
 
     public addTotem() {
@@ -110,7 +110,15 @@ export class InventoryManager {
         this.uiManager.spawnParticles(this.player.x, this.player.y, 0xFFD700);
         this.scene.cameras.main.shake(150, 0.006);
         this.soundManager?.playPowerup();
-        this.updateUI();
+        this.syncEquipment();
+
+        // Control hint toast on pickup (ephemeral, not cached/replayed)
+        GameEventBus.getInstance().emit('toast:show', {
+            title: 'Totem Acquired',
+            message: 'Totem Shield: [E] Active Shield',
+            variant: 'success',
+            durationMs: 3500,
+        });
     }
 
     public consumeTotem() {
@@ -122,14 +130,14 @@ export class InventoryManager {
             (this.scene as any).collectiblesManager.onTotemConsumed();
         }
         this.updatePlayerTint();
-        this.updateUI();
+        this.syncEquipment();
     }
 
     public disarmGun() {
         this.gunCount = 0;
         this.player.hasGun = false;
         this.updatePlayerTint();
-        this.updateUI();
+        this.syncEquipment();
     }
 
     public activateShield() {
@@ -144,7 +152,7 @@ export class InventoryManager {
             this.soundManager?.playPowerup();
         }
 
-        this.updateUI();
+        this.syncEquipment();
     }
 
     private updatePlayerTint() {
@@ -153,47 +161,11 @@ export class InventoryManager {
     }
 
     public update() {
-        if (this.gunBadgeContainer && this.gunBadgeContainer.visible && this.player.hasGun) {
-            const now = this.scene.time.now;
-            const remaining = (this.player.lastShootTime + this.player.shootCooldownMs) - now;
-            if (remaining > 0) {
-                const secs = (remaining / 1000).toFixed(1);
-                this.gunText.setText(`[Reloading ${secs}s]`);
-                this.gunText.setColor('#94a3b8');
-            } else {
-                this.gunText.setText('[L-Click / Ctrl] Shoot');
-                this.gunText.setColor('#00FFFF');
-            }
-        }
+        // Pure CSS & GameEventBus drive equipment state and cooldown rings
     }
 
     public updateUI() {
-        const hasGun = Boolean(this.player.hasGun || this.gunCount > 0);
-        const hasTotem = Boolean(this.player.hasTotem && this.totemCount > 0);
-
-        const centerX = this.scene.scale.width / 2;
-        const posY = this.scene.scale.height - 38;
-        const badgeWidth = 148;
-        const spacing = 12;
-
-        if (hasGun && hasTotem) {
-            this.gunBadgeContainer.setVisible(true).setPosition(centerX - (badgeWidth / 2) - (spacing / 2), posY);
-            this.totemBadgeContainer.setVisible(true).setPosition(centerX + (badgeWidth / 2) + (spacing / 2), posY);
-        } else if (hasGun) {
-            this.gunBadgeContainer.setVisible(true).setPosition(centerX, posY);
-            this.totemBadgeContainer.setVisible(false);
-        } else if (hasTotem) {
-            this.gunBadgeContainer.setVisible(false);
-            this.totemBadgeContainer.setVisible(true).setPosition(centerX, posY);
-        } else {
-            this.gunBadgeContainer.setVisible(false);
-            this.totemBadgeContainer.setVisible(false);
-        }
-
-        this.gunText.setText('[L-Click / Ctrl] Shoot');
-        this.totemText.setText('Totem: ACTIVE');
-
-        this.updatePlayerTint();
+        this.syncEquipment();
     }
 
     public resetAll() {
@@ -206,6 +178,6 @@ export class InventoryManager {
         this.player.hasGun = false;
         this.player.hasTotem = false;
         this.player.clearTint();
-        this.updateUI();
+        this.syncEquipment();
     }
 }

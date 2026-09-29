@@ -7,6 +7,7 @@ import {
   type BossHpData,
   type BossPhaseData,
   type OrbsData,
+  type EquipmentState,
 } from '../services/GameEventBus';
 import { KamiZukiHUD } from './KamiZukiHUD';
 import { PauseModal } from './PauseModal';
@@ -14,6 +15,7 @@ import { DebugReadout } from './DebugReadout';
 import { UIKitShowcase } from './UIKitShowcase';
 import { BossBar } from './kit/BossBar';
 import { ProgressPips } from './kit/ProgressPips';
+import { SlotCard } from './kit/SlotCard';
 import { ToastProvider, useToast } from './kit/ToastContext';
 
 const ReactOverlayContent: React.FC = () => {
@@ -34,6 +36,10 @@ const ReactOverlayContent: React.FC = () => {
   const [orbs, setOrbs] = useState<OrbsData>({
     collected: 0,
     total: 0,
+  });
+  const [equipment, setEquipment] = useState<EquipmentState>({
+    gun: { acquired: false, count: 0, state: 'disabled' },
+    totem: { acquired: false, count: 0, state: 'disabled' },
   });
 
   // Check if URL specifies /ui-kit showcase
@@ -70,6 +76,10 @@ const ReactOverlayContent: React.FC = () => {
       setOrbs(data);
     });
 
+    const unsubEquipment = bus.on('equipment:changed', (data) => {
+      setEquipment(data);
+    });
+
     const unsubToast = bus.on('toast:show', (toastData) => {
       showToast({
         title: toastData.title,
@@ -85,12 +95,16 @@ const ReactOverlayContent: React.FC = () => {
       unsubBossHp();
       unsubBossPhase();
       unsubOrbs();
+      unsubEquipment();
       unsubToast();
     };
   }, [showToast]);
 
   return (
-    <div className="react-ui-overlay">
+    <div
+      className="react-ui-overlay"
+      data-paused={gameState === 'PAUSED' ? 'true' : 'false'}
+    >
       {/* Top KamiZuki HUD & Boss Arena Status */}
       <div className="hud-top-wrapper">
         <KamiZukiHUD />
@@ -120,6 +134,46 @@ const ReactOverlayContent: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Bottom-Left Equipment Dock */}
+      {(equipment.gun.acquired || equipment.totem.acquired) && (
+        <div className="hud-equipment-dock" role="region" aria-label="Equipment Dock">
+          {equipment.gun.acquired && (
+            <SlotCard
+              state={equipment.gun.state}
+              keyHint="L-Click / Ctrl"
+              cooldownStartTime={equipment.gun.cooldownStartTime}
+              cooldownDurationMs={equipment.gun.cooldownDurationMs}
+              aria-label="Blaster Slot"
+            >
+              <img
+                src="/assets/sprites/collectibles/gun sprite.png"
+                alt="Blaster"
+                width={28}
+                height={28}
+              />
+            </SlotCard>
+          )}
+
+          {equipment.totem.acquired && (
+            <SlotCard
+              state={equipment.totem.state}
+              keyHint="E"
+              badgeCount={equipment.totem.count && equipment.totem.count > 1 ? equipment.totem.count : undefined}
+              cooldownStartTime={equipment.totem.cooldownStartTime}
+              cooldownDurationMs={equipment.totem.cooldownDurationMs}
+              aria-label="Totem Shield Slot"
+            >
+              <img
+                src="/assets/sprites/collectibles/frog doll totem.png"
+                alt="Totem Shield"
+                width={28}
+                height={28}
+              />
+            </SlotCard>
+          )}
+        </div>
+      )}
 
       {/* Pause Modal */}
       <PauseModal gameState={gameState} stats={stats} />

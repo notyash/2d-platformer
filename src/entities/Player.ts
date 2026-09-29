@@ -214,6 +214,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             return;
         }
         this.lastShootTime = now;
+        (this.scene as any).inventoryManager?.onGunFired(Date.now(), this.shootCooldownMs);
 
         const isRight = this.facing === 'right';
         this.shootRecoilUntil = now + 160;

@@ -740,3 +740,23 @@
   margin-top: 8px;
 }
 
+/* --------------------------------------------------------------------------
+   Pause-Aware Animation State
+   Freezes all kit animations when data-paused="true" is set on the overlay root
+   -------------------------------------------------------------------------- */
+[data-paused="true"] *,
+[data-paused="true"] *::before,
+[data-paused="true"] *::after {
+  animation-play-state: paused !important;
+}
+
+/* Modals and dialog overlays must continue running their open transitions */
+[data-paused="true"] .pause-modal-backdrop,
+[data-paused="true"] .pause-modal-card,
+[data-paused="true"] .pause-modal-card *,
+[data-paused="true"] .leaderboard-modal-overlay,
+[data-paused="true"] .leaderboard-modal-overlay * {
+  animation-play-state: running !important;
+}
+
+

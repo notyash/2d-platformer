@@ -322,6 +322,27 @@ html, body {
   margin-top: var(--space-xs);
 }
 
+/* ==========================================================================
+   Bottom-Left Equipment Dock
+   ========================================================================== */
+.hud-equipment-dock {
+  position: absolute;
+  bottom: var(--space-lg);
+  left: var(--space-lg);
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: var(--space-sm);
+  z-index: var(--z-hud);
+  pointer-events: auto;
+}
+
+.hud-equipment-dock .kz-slot-card img {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  pointer-events: none;
+}
+
 /* Responsive adjustments across 1280x720, 1920x1080 and narrow viewports */
 @media (max-width: 768px) {
   .kamizuki-hud {
@@ -344,6 +365,11 @@ html, body {
   .hud-boss-section {
     max-width: calc(100% - 32px);
     margin-top: var(--space-xs);
+  }
+  .hud-equipment-dock {
+    bottom: var(--space-md);
+    left: var(--space-md);
+    gap: var(--space-xs);
   }
 }
 
