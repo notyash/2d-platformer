@@ -8,15 +8,36 @@ export class SoundManager {
     public isMuted: boolean = false;
     private settingsManager: SettingsManager;
     private musicInterval: any;
+    
+    // Background Music Track State
+    private currentMusicKey?: 'game-bg-music' | 'boss-bg-music';
+    private currentMusicSound?: Phaser.Sound.BaseSound;
+    private currentFadeTween?: Phaser.Tweens.Tween;
+    private unsubscribeSettings?: () => void;
 
     constructor(scene: Phaser.Scene) {
         this.scene = scene;
         this.settingsManager = SettingsManager.getInstance();
         this.initAudioContext();
+        this.initSettingsListener();
+        this.scene.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
+        this.scene.events.on(Phaser.Scenes.Events.DESTROY, this.cleanup, this);
+    }
+
+    private initSettingsListener() {
+        this.unsubscribeSettings = this.settingsManager.subscribe(() => {
+            if (this.currentMusicSound && this.currentMusicSound.isPlaying && !this.isMuted) {
+                if (!this.currentFadeTween || !this.currentFadeTween.isPlaying()) {
+                    const targetVol = this.getTargetMusicVolume();
+                    (this.currentMusicSound as any).setVolume(targetVol);
+                }
+            }
+        });
     }
 
     private initAudioContext() {
         const resumeAudio = () => {
+            if (this.isMuted) return;
             if (!this.ctx) {
                 try {
                     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -33,6 +54,9 @@ export class SoundManager {
             if (this.scene.sound && this.scene.sound.locked) {
                 this.scene.sound.unlock();
             }
+            if (this.currentMusicKey && (!this.currentMusicSound || !this.currentMusicSound.isPlaying)) {
+                this.playTrack(this.currentMusicKey, 2000);
+            }
         };
 
         window.addEventListener('pointerdown', resumeAudio, { passive: true });
@@ -41,6 +65,7 @@ export class SoundManager {
     }
 
     private ensureContext() {
+        if (this.isMuted) return;
         if (!this.ctx) {
             try {
                 const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -56,10 +81,34 @@ export class SoundManager {
         }
     }
 
+    public getTargetMusicVolume(): number {
+        if (this.isMuted) return 0;
+        // Requirement 3: Set the volume of both background music to 30% of game sound effects
+        const effectiveSfx = this.settingsManager.getEffectiveSfxVolume();
+        return Math.max(0, Math.min(1, 0.30 * effectiveSfx));
+    }
+
     public setMuted(muted: boolean) {
         this.isMuted = muted;
         if (this.scene.sound) {
             this.scene.sound.mute = muted;
+        }
+        if (muted) {
+            if (this.currentMusicSound) {
+                (this.currentMusicSound as any).setVolume(0);
+            }
+            if (this.ctx && this.ctx.state === 'running') {
+                this.ctx.suspend();
+            }
+        } else {
+            if (this.ctx && this.ctx.state === 'suspended') {
+                this.ctx.resume();
+            }
+            if (this.currentMusicSound && this.currentMusicSound.isPlaying) {
+                (this.currentMusicSound as any).setVolume(this.getTargetMusicVolume());
+            } else if (this.currentMusicKey) {
+                this.playTrack(this.currentMusicKey, 1500);
+            }
         }
     }
 
@@ -173,26 +222,98 @@ export class SoundManager {
         }
     }
 
+    /**
+     * Requirement 2: Play game bg music on loop with fade-in on start & restart, unless in boss arena
+     */
+    public playGameMusic() {
+        if (this.currentMusicKey === 'game-bg-music' && this.currentMusicSound && this.currentMusicSound.isPlaying) {
+            return;
+        }
+        this.playTrack('game-bg-music', 2000);
+    }
+
+    /**
+     * Requirement 2 (Boss): Play boss bg music on loop until boss is defeated
+     */
     public playBossMusic() {
-        if (this.isMuted) return;
-        this.ensureContext();
-        if (this.musicInterval) return;
-        
-        let step = 0;
-        // Ominous minor scale arpeggio
-        const notes = [220.00, 261.63, 329.63, 293.66, 349.23, 293.66, 261.63, 220.00];
-        
-        this.musicInterval = setInterval(() => {
-            if (this.isMuted || (this.scene as any).isGamePaused) return;
-            const freq = notes[step % notes.length];
-            // Bass thump
-            if (step % 2 === 0) {
-                this.playTone(freq / 2, freq / 4, 'square', 0.15, 0.2);
+        if (this.currentMusicKey === 'boss-bg-music' && this.currentMusicSound && this.currentMusicSound.isPlaying) {
+            return;
+        }
+        this.playTrack('boss-bg-music', 1500);
+    }
+
+    private playTrack(key: 'game-bg-music' | 'boss-bg-music', fadeDurationMs: number = 2000) {
+        if (this.musicInterval) {
+            clearInterval(this.musicInterval);
+            this.musicInterval = null;
+        }
+
+        // Stop prior track if switching
+        if (this.currentMusicSound && this.currentMusicKey !== key) {
+            if (this.currentFadeTween) {
+                this.currentFadeTween.stop();
+                this.currentFadeTween = undefined;
             }
-            // Arpeggio
-            this.playTone(freq, freq, 'sawtooth', 0.1, 0.15);
-            step++;
-        }, 150); // 150ms per note (100 BPM 16th notes)
+            this.currentMusicSound.stop();
+            this.currentMusicSound.destroy();
+            this.currentMusicSound = undefined;
+        }
+
+        this.currentMusicKey = key;
+
+        if (!this.scene.sound || !this.scene.cache.audio.exists(key)) {
+            return;
+        }
+
+        if (!this.currentMusicSound || !this.currentMusicSound.isPlaying) {
+            if (this.currentMusicSound) {
+                this.currentMusicSound.stop();
+                this.currentMusicSound.destroy();
+                this.currentMusicSound = undefined;
+            }
+
+            const targetVol = this.getTargetMusicVolume();
+            const music = this.scene.sound.add(key, {
+                loop: true,
+                volume: 0
+            });
+            this.currentMusicSound = music;
+
+            // Fade-in on each loop restart (as the track is already faded out at the end)
+            const handleLoopFade = () => {
+                if (this.currentMusicSound === music && music.isPlaying && !this.isMuted) {
+                    const target = this.getTargetMusicVolume();
+                    (music as any).setVolume(0);
+                    if (this.currentFadeTween) {
+                        this.currentFadeTween.stop();
+                    }
+                    this.currentFadeTween = this.scene.tweens.add({
+                        targets: music,
+                        volume: target,
+                        duration: fadeDurationMs,
+                        ease: 'Linear'
+                    });
+                }
+            };
+
+            music.on('looped', handleLoopFade);
+            music.on('loop', handleLoopFade);
+
+            music.play();
+
+            if (this.currentFadeTween) {
+                this.currentFadeTween.stop();
+            }
+
+            if (!this.isMuted && targetVol > 0) {
+                this.currentFadeTween = this.scene.tweens.add({
+                    targets: music,
+                    volume: targetVol,
+                    duration: fadeDurationMs,
+                    ease: 'Linear'
+                });
+            }
+        }
     }
 
     public stopMusic() {
@@ -200,9 +321,28 @@ export class SoundManager {
             clearInterval(this.musicInterval);
             this.musicInterval = null;
         }
+        if (this.currentFadeTween) {
+            this.currentFadeTween.stop();
+            this.currentFadeTween = undefined;
+        }
+        if (this.currentMusicSound) {
+            this.currentMusicSound.stop();
+            this.currentMusicSound.destroy();
+            this.currentMusicSound = undefined;
+        }
+        this.currentMusicKey = undefined;
+    }
+
+    private cleanup() {
+        this.stopMusic();
+        if (this.unsubscribeSettings) {
+            this.unsubscribeSettings();
+            this.unsubscribeSettings = undefined;
+        }
     }
 
     private playTone(startFreq: number, endFreq: number, type: OscillatorType, duration: number, volume: number, isMenu: boolean = false) {
+        if (this.isMuted) return;
         try {
             if (!this.ctx) return;
             if (!isMenu && (this.scene as any).isGamePaused) return;

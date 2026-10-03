@@ -12,6 +12,7 @@ import { LeaderboardManager } from '../managers/LeaderboardManager';
 import { InputRecorder } from '../managers/InputRecorder';
 import { SurrealService } from '../services/SurrealService';
 import { EleckingBoss } from '../entities/EleckingBoss';
+import { preloadBossSprites, createBossAnimations } from '../entities/bossAnimationTokens';
 import { GameEventBus } from '../services/GameEventBus';
 
 export class MainStageScene extends Phaser.Scene {
@@ -46,6 +47,8 @@ export class MainStageScene extends Phaser.Scene {
     private escKey!: Phaser.Input.Keyboard.Key;
     private rKey!: Phaser.Input.Keyboard.Key;
     private cKey!: Phaser.Input.Keyboard.Key;
+    private mKey!: Phaser.Input.Keyboard.Key;
+    private lastSoundToggleTime: number = 0;
 
     private onFullscreenChange = () => {
         if (typeof document !== 'undefined' && !document.fullscreenElement) {
@@ -186,9 +189,14 @@ export class MainStageScene extends Phaser.Scene {
         this.load.spritesheet('gravity-orb', 'assets/sprites/boss/gravity orb.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('attack-tiles', 'assets/sprites/boss/attack tiles.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('attack tiles', 'assets/sprites/boss/attack tiles.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('attack-tiles-new', 'assets/sprites/boss/new boss/attack tiles new.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('attack tiles new', 'assets/sprites/boss/new boss/attack tiles new.png', { frameWidth: 32, frameHeight: 32 });
         this.load.image('dungeon background1', 'assets/sprites/background/dungeon background1.png');
         this.load.image('dungeon-background1', 'assets/sprites/background/dungeon background1.png');
         this.load.image('dungeon background 1', 'assets/sprites/background/dungeon background1.png');
+
+        // Preload new boss sprites and skeleton minion animations
+        preloadBossSprites(this);
 
         // Auto-discover and preload unique image files in public/assets/ (once per file, zero duplicate network requests)
         const autoAssetModules = import.meta.glob<{ default?: string } | string>(
@@ -207,6 +215,10 @@ export class MainStageScene extends Phaser.Scene {
                 }
             }
         });
+
+        // Background Music
+        this.load.audio('game-bg-music', 'assets/sound effects/game bg music.mp3');
+        this.load.audio('boss-bg-music', 'assets/sound effects/boss bg music.mp3');
     }
 
     create() {
@@ -380,9 +392,9 @@ export class MainStageScene extends Phaser.Scene {
             SecurityManager.getInstance().recordDeath(this.totalDeaths);
             SecurityManager.getInstance().recordEvent('DEATH', { x: this.player.x, y: this.player.y, deaths: this.totalDeaths });
             
-            const isInsideBossArena = Boolean(this.eleckingBoss?.isPlayerInArena());
+            const isInsideBossArena = Boolean(this.eleckingBoss?.isPlayerInArena() || this.eleckingBoss?.isEntranceRevealed);
             if (isInsideBossArena || (this.eleckingBoss && this.eleckingBoss.hasReachedPhase2)) {
-                this.eleckingBoss?.resetAll(false);
+                this.eleckingBoss?.resetAll(!this.eleckingBoss.hasReachedPhase2);
             }
             this.player.bullets.clear(true, true);
         });
@@ -446,6 +458,11 @@ export class MainStageScene extends Phaser.Scene {
                     });
                 }
             });
+
+            this.mKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+            this.mKey.on('down', () => {
+                GameEventBus.getInstance().emit('action:trigger', { type: 'TOGGLE_SOUND' });
+            });
         }
 
         // Accidental Reload Guard (beforeunload event)
@@ -475,9 +492,37 @@ export class MainStageScene extends Phaser.Scene {
                     this.restartFullRun();
                     break;
                 case 'TOGGLE_SOUND':
-                    this.soundManager.setMuted(!this.soundManager.isMuted);
-                    bus.emit('sound:status', !this.soundManager.isMuted);
-                    if (!this.soundManager.isMuted) {
+                    const now = performance.now();
+                    if (now - this.lastSoundToggleTime < 180) {
+                        return; // Prevent duplicate rapid triggers
+                    }
+                    this.lastSoundToggleTime = now;
+
+                    const nextMuted = !this.soundManager.isMuted;
+                    this.soundManager.setMuted(nextMuted);
+                    bus.emit('sound:status', !nextMuted);
+
+                    // Dismiss prior sound notifications to ensure clean swap and prevent stacking
+                    bus.emit('toast:dismiss', 'sound-status-toast');
+                    bus.emit('toast:dismiss', 'sound-muted-toast');
+                    bus.emit('toast:dismiss', 'sound-unmuted-toast');
+                    bus.emit('toast:dismiss', 'sound-toggle-toast');
+
+                    if (!nextMuted) {
+                        if (this.eleckingBoss?.isPlayerInArena() && !this.eleckingBoss.isDead) {
+                            this.soundManager.playBossMusic();
+                        } else {
+                            this.soundManager.playGameMusic();
+                        }
+                    }
+
+                    bus.emit('toast:show', {
+                        id: 'sound-status-toast',
+                        title: nextMuted ? 'GAME SOUND MUTED' : 'GAME SOUND RESUMED',
+                        variant: nextMuted ? 'warning' : 'info',
+                        durationMs: 2200,
+                    });
+                    if (!nextMuted) {
                         this.soundManager.playMenuSelect();
                     }
                     break;
@@ -649,6 +694,7 @@ export class MainStageScene extends Phaser.Scene {
         this.input.on('pointerdown', () => this.game.canvas.focus());
 
         this.activeRunTimeMs = 0;
+        this.soundManager.playGameMusic();
     }
 
     private beforeUnloadHandler = (e: BeforeUnloadEvent) => {
@@ -815,6 +861,7 @@ export class MainStageScene extends Phaser.Scene {
             durationMs: 1500,
         });
         this.soundManager?.playPowerup();
+        this.soundManager?.playGameMusic();
     }
 
     public getElapsedMilliseconds(): number {
@@ -863,7 +910,8 @@ export class MainStageScene extends Phaser.Scene {
         const cloudVariationTileset = addTileset('cloud variation', 'cloud variation');
         const tempPlatformsTileset = addTileset('temp platforms', 'temp platforms');
         const gravityOrbTileset = addTileset('gravity orb', 'gravity orb');
-        const attackTilesTileset = addTileset('attack tiles', 'attack tiles');
+        const attackTilesTileset = addTileset('attack tiles', 'attack tiles') || addTileset('attack tiles', 'attack-tiles');
+        const attackTilesNewTileset = addTileset('attack tiles new', 'attack tiles new') || addTileset('attack tiles new', 'attack-tiles-new');
         const cherryBlossomTreeTileset = addTileset('cherry blossom tree', 'cherry blossom tree');
         const newLavaTileset = addTileset('new lava', 'new lava');
         const dungeonBg1Tileset = addTileset('dungeon background1', 'dungeon background1');
@@ -926,6 +974,7 @@ export class MainStageScene extends Phaser.Scene {
             tempPlatformsTileset,
             gravityOrbTileset,
             attackTilesTileset,
+            attackTilesNewTileset,
             dungeonBg1Tileset,
             spikeTileset,
             doorTileset
@@ -1327,6 +1376,7 @@ export class MainStageScene extends Phaser.Scene {
     }
 
     private createAnimations() {
+        createBossAnimations(this);
         this.anims.create({ key: 'idle-r-anim', frames: this.anims.generateFrameNumbers('idle-wind-r', { start: 0, end: 1 }), frameRate: 4, repeat: -1 });
         this.anims.create({ key: 'idle-l-anim', frames: this.anims.generateFrameNumbers('idle-wind-l', { start: 0, end: 1 }), frameRate: 4, repeat: -1 });
         this.anims.create({ key: 'walk-r-anim', frames: this.anims.generateFrameNumbers('walk-r', { start: 0, end: 3 }), frameRate: 8, repeat: -1 });
