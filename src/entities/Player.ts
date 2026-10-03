@@ -2,6 +2,7 @@
 import Phaser from 'phaser';
 import type { Facing } from '../types';
 import { SoundManager } from '../managers/SoundManager';
+import { BOSS_ANIM_KEYS } from './bossAnimationTokens';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
     public cursors: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -420,6 +421,22 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     public finishRespawn() {
         this.isDying = false;
+        if (this.activeDeathSprite && this.activeDeathSprite.active) {
+            this.activeDeathSprite.destroy();
+            this.activeDeathSprite = undefined;
+        }
+
+        const boss = (this.scene as any).eleckingBoss;
+        if (boss && boss.isEntranceRevealed) {
+            const respawnPoint = typeof boss.getActiveRespawnPoint === 'function'
+                ? boss.getActiveRespawnPoint()
+                : boss.bossRespawnPoint;
+            if (respawnPoint) {
+                this.activeSpawnX = respawnPoint.x;
+                this.activeSpawnY = respawnPoint.y;
+            }
+        }
+
         const body = this.body as Phaser.Physics.Arcade.Body;
         if (body) {
             body.setEnable(true);
@@ -570,6 +587,50 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.scene.events.emit('player-death');
 
         const isRight = this.facing === 'right';
+
+        // Requirement 1: use death by beam1.png to death by beam8.png for death effect when player dies to the beam attack
+        if (reason === 'beam' || reason === 'death-by-beam' || reason === 'boss-beam') {
+            const animKey = BOSS_ANIM_KEYS.DEATH_BY_BEAM;
+            const startFrameKey = 'boss-death-beam-1';
+
+            if (this.scene.textures.exists(startFrameKey)) {
+                const deathSprite = this.scene.add.sprite(deathX, deathY, startFrameKey);
+                deathSprite.setDepth(15);
+                deathSprite.setOrigin(0.5, 0.5);
+                deathSprite.setFlipX(!isRight);
+                this.activeDeathSprite = deathSprite;
+
+                if (this.scene.anims.exists(animKey)) {
+                    deathSprite.play(animKey);
+                }
+
+                let completed = false;
+                const onBeamDeathDone = () => {
+                    if (completed) return;
+                    completed = true;
+                    if (deathSprite.active) deathSprite.destroy();
+                    if (this.activeDeathSprite === deathSprite) this.activeDeathSprite = undefined;
+                    this.finishRespawn();
+                };
+
+                deathSprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, onBeamDeathDone);
+                this.scene.time.delayedCall(1100, onBeamDeathDone);
+            } else {
+                this.finishRespawn();
+            }
+            return;
+        }
+
+        // Instant respawn for regular boss fight deaths (falling into pit / direct boss collision)
+        const inBossFight = Boolean(
+            (this.scene as any).eleckingBoss &&
+            ((this.scene as any).eleckingBoss.isEntranceRevealed || (this.scene as any).eleckingBoss.isPlayerInArena())
+        );
+
+        if (inBossFight) {
+            this.finishRespawn();
+            return;
+        }
 
         if (reason === 'lava' || reason === 'fire') {
             const spriteKey = isRight ? 'lava-death-r' : 'lava-death-l';
