@@ -69,6 +69,9 @@ export class SurrealService {
         });
         this.isConnected = true;
         console.log(`[SurrealDB] Connected successfully to ${this.endpoint} [NS: ${this.namespace}, DB: ${this.database}]`);
+        
+        // Auto-authenticate session via Record Access (player_auth)
+        await this.ensureAuthenticated();
         return true;
       } catch (err) {
         this.isConnected = false;
@@ -87,29 +90,66 @@ export class SurrealService {
   }
 
   /**
-   * Authenticate player via Web3 wallet Record Access
+   * Auto-authenticate player session via Record Access (Guest or Connected Wallet)
    */
-  public async signinWithWallet(walletAddress: string): Promise<boolean> {
-    try {
-      if (!this.isConnected) {
-        await this.tryConnect();
+  public async ensureAuthenticated(explicitWallet?: string): Promise<boolean> {
+    let wallet = explicitWallet || this.connectedWallet;
+
+    if (!wallet || wallet === '0x0000000000000000000000000000000000000000') {
+      let guestWallet = typeof localStorage !== 'undefined' ? localStorage.getItem('onion_boy_guest_wallet') : null;
+      if (!guestWallet || !guestWallet.startsWith('0x') || guestWallet.length !== 42) {
+        const hex = Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+        guestWallet = `0x${hex}`;
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('onion_boy_guest_wallet', guestWallet);
+        }
       }
+      wallet = guestWallet;
+      this.connectedWallet = guestWallet;
+    }
+
+    try {
+      // 1. Try Signing In as existing player record
       await this.db.signin({
         namespace: this.namespace,
         database: this.database,
         access: 'player_auth',
-        variables: { wallet: walletAddress }
+        variables: { wallet }
       });
-      this.isConnected = true;
       this.isAuthenticated = true;
-      this.setConnectedWallet(walletAddress);
-      console.log(`[SurrealDB] Authenticated player: ${walletAddress}`);
+      console.log(`[SurrealDB] Authenticated player record: ${wallet}`);
       return true;
-    } catch (err) {
-      this.isAuthenticated = false;
-      console.warn('[SurrealDB] Wallet signin failed, continuing with fallback:', (err as Error).message);
-      return false;
+    } catch (_signinErr) {
+      try {
+        // 2. If record does not exist yet, Sign Up as new player record
+        await this.db.signup({
+          namespace: this.namespace,
+          database: this.database,
+          access: 'player_auth',
+          variables: { wallet }
+        });
+        this.isAuthenticated = true;
+        console.log(`[SurrealDB] Registered & authenticated player record: ${wallet}`);
+        return true;
+      } catch (signupErr) {
+        console.warn('[SurrealDB] Record authentication warning:', (signupErr as Error).message);
+        return false;
+      }
     }
+  }
+
+  /**
+   * Authenticate player via Web3 wallet Record Access
+   */
+  public async signinWithWallet(walletAddress: string): Promise<boolean> {
+    if (!this.isConnected) {
+      await this.tryConnect();
+    }
+    const success = await this.ensureAuthenticated(walletAddress);
+    if (success) {
+      this.setConnectedWallet(walletAddress);
+    }
+    return success;
   }
 
   public isUserAuthenticated(): boolean {
