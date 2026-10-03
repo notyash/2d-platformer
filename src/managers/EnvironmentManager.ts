@@ -980,6 +980,7 @@ export class EnvironmentManager {
                         'new lava': 'new lava',
                         'gravity orb': 'gravity-orb',
                         'attack tiles': 'attack-tiles',
+                        'attack tiles new': 'attack-tiles',
                         'temp platforms': 'temp-platforms',
                         'dungeon background1': 'dungeon background1',
                         'dungeon-background1': 'dungeon-background1',

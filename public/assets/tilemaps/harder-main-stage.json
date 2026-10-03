@@ -2113,8 +2113,8 @@
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":72.09090909091,
-                 "y":225.68181818182
+                 "x":4682.09090909091,
+                 "y":531.015151515153
                 }, 
                 {
                  "height":31.93,
@@ -2471,19 +2471,19 @@
                  "y":1096.25
                 }, 
                 {
-                 "height":449.147724870992,
+                 "height":321.647724870992,
                  "id":329,
                  "name":"BossArenaZone",
                  "opacity":1,
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":1056.81716794302,
+                 "width":993.425863595194,
                  "x":3742.78823390151,
                  "y":990.689522603755
                 }, 
                 {
-                 "gid":2465,
+                 "gid":4699,
                  "height":32,
                  "id":331,
                  "name":"",
@@ -2502,7 +2502,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2469,
+                 "gid":4703,
                  "height":32,
                  "id":332,
                  "name":"",
@@ -2521,7 +2521,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2467,
+                 "gid":4701,
                  "height":32,
                  "id":333,
                  "name":"",
@@ -2540,7 +2540,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2471,
+                 "gid":4705,
                  "height":32,
                  "id":334,
                  "name":"",
@@ -2559,7 +2559,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2465,
+                 "gid":4699,
                  "height":32,
                  "id":335,
                  "name":"",
@@ -2578,7 +2578,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2471,
+                 "gid":4705,
                  "height":32,
                  "id":336,
                  "name":"",
@@ -2597,7 +2597,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2469,
+                 "gid":4703,
                  "height":32,
                  "id":338,
                  "name":"",
@@ -2616,7 +2616,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2467,
+                 "gid":4701,
                  "height":32,
                  "id":340,
                  "name":"",
@@ -2635,7 +2635,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2469,
+                 "gid":4703,
                  "height":32,
                  "id":341,
                  "name":"",
@@ -2654,7 +2654,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2469,
+                 "gid":4703,
                  "height":32,
                  "id":342,
                  "name":"",
@@ -2673,7 +2673,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2471,
+                 "gid":4705,
                  "height":32,
                  "id":343,
                  "name":"",
@@ -2878,7 +2878,7 @@
                 {
                  "height":0,
                  "id":368,
-                 "name":"BossFightRespawn",
+                 "name":"BossFightRespawn1",
                  "opacity":1,
                  "point":true,
                  "rotation":0,
@@ -3643,7 +3643,7 @@
                  "y":736
                 }, 
                 {
-                 "gid":2473,
+                 "gid":4707,
                  "height":32,
                  "id":452,
                  "name":"",
@@ -3662,7 +3662,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2471,
+                 "gid":4705,
                  "height":32,
                  "id":453,
                  "name":"",
@@ -3681,7 +3681,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2471,
+                 "gid":4705,
                  "height":32,
                  "id":454,
                  "name":"",
@@ -3700,7 +3700,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2471,
+                 "gid":4705,
                  "height":32,
                  "id":456,
                  "name":"",
@@ -3719,7 +3719,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2469,
+                 "gid":4703,
                  "height":32,
                  "id":457,
                  "name":"",
@@ -3738,7 +3738,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2469,
+                 "gid":4703,
                  "height":32,
                  "id":458,
                  "name":"",
@@ -3757,7 +3757,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2469,
+                 "gid":4703,
                  "height":32,
                  "id":460,
                  "name":"",
@@ -3776,7 +3776,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2465,
+                 "gid":4699,
                  "height":32,
                  "id":461,
                  "name":"",
@@ -3795,7 +3795,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2465,
+                 "gid":4699,
                  "height":32,
                  "id":462,
                  "name":"",
@@ -3814,7 +3814,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2465,
+                 "gid":4699,
                  "height":32,
                  "id":463,
                  "name":"",
@@ -3833,7 +3833,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2465,
+                 "gid":4699,
                  "height":32,
                  "id":464,
                  "name":"",
@@ -3852,7 +3852,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2473,
+                 "gid":4707,
                  "height":32,
                  "id":465,
                  "name":"",
@@ -3871,7 +3871,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2473,
+                 "gid":4707,
                  "height":32,
                  "id":466,
                  "name":"",
@@ -3890,7 +3890,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2473,
+                 "gid":4707,
                  "height":32,
                  "id":467,
                  "name":"",
@@ -3909,7 +3909,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2467,
+                 "gid":4701,
                  "height":32,
                  "id":470,
                  "name":"",
@@ -3928,7 +3928,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2467,
+                 "gid":4701,
                  "height":32,
                  "id":471,
                  "name":"",
@@ -3947,7 +3947,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2467,
+                 "gid":4701,
                  "height":32,
                  "id":472,
                  "name":"",
@@ -3966,7 +3966,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2473,
+                 "gid":4707,
                  "height":32,
                  "id":473,
                  "name":"",
@@ -3985,7 +3985,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2473,
+                 "gid":4707,
                  "height":32,
                  "id":474,
                  "name":"",
@@ -4004,7 +4004,7 @@
                  "y":1344
                 }, 
                 {
-                 "gid":2473,
+                 "gid":4707,
                  "height":32,
                  "id":475,
                  "name":"",
@@ -4180,7 +4180,7 @@
                  "type":"",
                  "visible":true,
                  "width":64,
-                 "x":3744,
+                 "x":3746,
                  "y":1248
                 }, 
                 {
@@ -4364,6 +4364,31 @@
                  "width":0,
                  "x":4689.0303030303,
                  "y":1294.51515151515
+                }, 
+                {
+                 "height":0,
+                 "id":499,
+                 "name":"BossFightRespawn2",
+                 "opacity":1,
+                 "point":true,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":3823.81818181818,
+                 "y":1021.70454545455
+                }, 
+                {
+                 "height":31.8749999999999,
+                 "id":500,
+                 "name":"BeamStartingZone",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":991.929347826088,
+                 "x":3744,
+                 "y":992
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -4448,7 +4473,7 @@
          "y":0
         }],
  "nextlayerid":14,
- "nextobjectid":499,
+ "nextobjectid":501,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.12.2",
@@ -5049,6 +5074,58 @@
          "name":"dungeon background1",
          "spacing":0,
          "tilecount":429,
+         "tileheight":32,
+         "tilewidth":32
+        }, 
+        {
+         "columns":5,
+         "firstgid":4699,
+         "image":"..\/sprites\/boss\/new boss\/attack tiles new.png",
+         "imageheight":64,
+         "imagewidth":160,
+         "margin":0,
+         "name":"attack tiles new",
+         "spacing":0,
+         "tilecount":10,
+         "tileheight":32,
+         "tilewidth":32
+        }, 
+        {
+         "columns":3,
+         "firstgid":4709,
+         "image":"..\/sprites\/boss\/new boss\/raging final boss3.png",
+         "imageheight":112,
+         "imagewidth":112,
+         "margin":0,
+         "name":"raging final boss3",
+         "spacing":0,
+         "tilecount":9,
+         "tileheight":32,
+         "tilewidth":32
+        }, 
+        {
+         "columns":1,
+         "firstgid":4718,
+         "image":"..\/sprites\/boss\/new boss\/main attack new3.png",
+         "imageheight":96,
+         "imagewidth":32,
+         "margin":0,
+         "name":"main attack new3",
+         "spacing":0,
+         "tilecount":3,
+         "tileheight":32,
+         "tilewidth":32
+        }, 
+        {
+         "columns":1,
+         "firstgid":4721,
+         "image":"..\/sprites\/boss\/new boss\/main attack new4.png",
+         "imageheight":96,
+         "imagewidth":32,
+         "margin":0,
+         "name":"main attack new4",
+         "spacing":0,
+         "tilecount":3,
          "tileheight":32,
          "tilewidth":32
         }],
