@@ -170,7 +170,6 @@ vite.config.ts.timestamp-*
 # FDE & Interview Study Materials
 SURREALDB_FDE_INTERVIEW_PREP.md
 
-.env*
 chrome/
 screenshots/
 # Local scripts, scratch files, specs and rules
