@@ -11,7 +11,7 @@ export class SoundManager {
     private musicInterval: any;
     
     // Background Music Track State
-    private currentMusicKey?: 'game-bg-music' | 'boss-bg-music';
+    private currentMusicKey?: 'game-bg-music' | 'boss-bg-music' | 'boss-phase-2-bg-music';
     private currentMusicSound?: Phaser.Sound.BaseSound;
     private currentFadeTween?: Phaser.Tweens.Tween;
     private unsubscribeSettings?: () => void;
@@ -222,14 +222,50 @@ export class SoundManager {
 
     public playCheckpoint() {
         if (this.isMuted) return;
-        this.ensureContext();
-        this.playTone(440, 880, 'sine', 0.2, 0.25);
+        if (this.scene.sound && this.scene.cache.audio.exists(SOUND_TOKENS.sfx.checkpoint.key)) {
+            this.playAudioFile(SOUND_TOKENS.sfx.checkpoint.key, 0.7);
+        } else {
+            this.ensureContext();
+            this.playTone(440, 880, 'sine', 0.2, 0.25);
+        }
     }
 
     public playTeleport() {
         if (this.isMuted) return;
-        this.ensureContext();
-        this.playTone(200, 850, 'triangle', 0.25, 0.22);
+        if (this.scene.sound && this.scene.cache.audio.exists(SOUND_TOKENS.sfx.bossTeleport.key)) {
+            this.playAudioFile(SOUND_TOKENS.sfx.bossTeleport.key, 0.7);
+        } else {
+            this.ensureContext();
+            this.playTone(200, 850, 'triangle', 0.25, 0.22);
+        }
+    }
+
+    public playBossTeleport() {
+        if (this.isMuted) return;
+        if (this.scene.sound && this.scene.cache.audio.exists(SOUND_TOKENS.sfx.bossTeleport.key)) {
+            this.playAudioFile(SOUND_TOKENS.sfx.bossTeleport.key, 0.75);
+        } else {
+            this.playTeleport();
+        }
+    }
+
+    public playJumpPad() {
+        if (this.isMuted) return;
+        if (this.scene.sound && this.scene.cache.audio.exists(SOUND_TOKENS.sfx.jumpPad.key)) {
+            this.playAudioFile(SOUND_TOKENS.sfx.jumpPad.key, 0.75);
+        } else {
+            this.playJump();
+        }
+    }
+
+    public playRespawn() {
+        if (this.isMuted) return;
+        if (this.scene.sound && this.scene.cache.audio.exists(SOUND_TOKENS.sfx.respawn.key)) {
+            this.playAudioFile(SOUND_TOKENS.sfx.respawn.key, 0.75);
+        } else {
+            this.ensureContext();
+            this.playTone(330, 660, 'sine', 0.2, 0.25);
+        }
     }
 
     public pauseAll() {
@@ -277,9 +313,13 @@ export class SoundManager {
     }
 
     /**
-     * Requirement 2 (Boss): Play boss bg music on loop until boss is defeated
+     * Requirement 2 (Boss): Play boss bg music on loop until boss is defeated (or Phase 2 starts)
      */
-    public playBossMusic() {
+    public playBossMusic(phase: number = 1) {
+        if (phase === 2) {
+            this.playBossPhase2Music();
+            return;
+        }
         if (this.currentMusicKey === 'boss-bg-music' && this.currentMusicSound) {
             if (this.currentMusicSound.isPlaying) {
                 return;
@@ -294,7 +334,25 @@ export class SoundManager {
         this.playTrack('boss-bg-music', 1500);
     }
 
-    private playTrack(key: 'game-bg-music' | 'boss-bg-music', fadeDurationMs: number = 2000) {
+    /**
+     * Boss Phase 2: Play boss phase 2 bg music on loop
+     */
+    public playBossPhase2Music() {
+        if (this.currentMusicKey === 'boss-phase-2-bg-music' && this.currentMusicSound) {
+            if (this.currentMusicSound.isPlaying) {
+                return;
+            }
+            if ((this.currentMusicSound as any).isPaused) {
+                if (!(this.scene as any).isGamePaused) {
+                    this.currentMusicSound.resume();
+                }
+                return;
+            }
+        }
+        this.playTrack('boss-phase-2-bg-music', 1500);
+    }
+
+    private playTrack(key: 'game-bg-music' | 'boss-bg-music' | 'boss-phase-2-bg-music', fadeDurationMs: number = 2000) {
         if (this.musicInterval) {
             clearInterval(this.musicInterval);
             this.musicInterval = null;
@@ -322,6 +380,20 @@ export class SoundManager {
             this.currentMusicSound.stop();
             this.currentMusicSound.destroy();
             this.currentMusicSound = undefined;
+        }
+
+        // Strictly stop any lingering background music instances in Phaser audio cache
+        if (this.scene.sound) {
+            const allMusicKeys = [
+                SOUND_TOKENS.music.gameBg.key,
+                SOUND_TOKENS.music.bossBg.key,
+                SOUND_TOKENS.music.bossPhase2Bg.key,
+            ];
+            for (const mKey of allMusicKeys) {
+                if (mKey !== key) {
+                    this.scene.sound.stopByKey(mKey);
+                }
+            }
         }
 
         this.currentMusicKey = key;
@@ -401,6 +473,11 @@ export class SoundManager {
             this.currentMusicSound.stop();
             this.currentMusicSound.destroy();
             this.currentMusicSound = undefined;
+        }
+        if (this.scene.sound) {
+            this.scene.sound.stopByKey(SOUND_TOKENS.music.gameBg.key);
+            this.scene.sound.stopByKey(SOUND_TOKENS.music.bossBg.key);
+            this.scene.sound.stopByKey(SOUND_TOKENS.music.bossPhase2Bg.key);
         }
         this.currentMusicKey = undefined;
     }

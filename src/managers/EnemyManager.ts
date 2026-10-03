@@ -928,6 +928,7 @@ export class EnemyManager {
 
                 if (isFalling && isAbove) {
                     this.player.stompBounce(-380);
+                    this.envManager?.cancelSmashFall();
                     this.killPipeMonster(monster);
                 } else {
                     this.player.die();
@@ -1109,6 +1110,7 @@ export class EnemyManager {
 
         if (isFalling && isAbove) {
             this.player.stompBounce(-380); 
+            this.envManager?.cancelSmashFall();
             this.killMob(mob, 'stomp');
         } else {
             this.player.die();
@@ -1127,6 +1129,7 @@ export class EnemyManager {
 
         if (isFalling && isAbove) {
             this.player.stompBounce(-380); 
+            this.envManager?.cancelSmashFall();
             this.killMob(mob, 'stomp');
         } else {
             this.player.die();

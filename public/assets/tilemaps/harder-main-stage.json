@@ -2113,8 +2113,8 @@
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":4682.09090909091,
-                 "y":531.015151515153
+                 "x":2304,
+                 "y":576
                 }, 
                 {
                  "height":31.93,
@@ -2721,7 +2721,7 @@
                         {
                          "name":"speed",
                          "type":"int",
-                         "value":60
+                         "value":90
                         }],
                  "rotation":0,
                  "type":"",
@@ -4047,7 +4047,7 @@
                         {
                          "name":"speed",
                          "type":"int",
-                         "value":60
+                         "value":90
                         }],
                  "rotation":0,
                  "type":"",
@@ -4454,7 +4454,7 @@
                  "value":1
                 }],
          "type":"tilelayer",
-         "visible":true,
+         "visible":false,
          "width":150,
          "x":0,
          "y":0

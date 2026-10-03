@@ -31,6 +31,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     public hasTotem: boolean = false;
     public isInvincible: boolean = false;
     public isDying: boolean = false;
+    public isReviving: boolean = false;
     private activeDeathSprite?: Phaser.GameObjects.Sprite;
 
     // Spawns
@@ -131,7 +132,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     update() {
-        if (this.isDying || this.isTeleporting) {
+        if (this.isDying || this.isTeleporting || this.isReviving) {
             this.setVelocity(0, 0);
             return;
         }
@@ -209,7 +210,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     private shootBullet() {
-        if (this.isDying || this.isTeleporting || !this.hasGun) return;
+        if (this.isDying || this.isTeleporting || this.isReviving || !this.hasGun) return;
         const now = this.scene.time.now;
         if (now - this.lastShootTime < this.shootCooldownMs) {
             return;
@@ -404,6 +405,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     public cancelDeathEffect() {
+        this.isReviving = false;
         if (this.activeDeathSprite && this.activeDeathSprite.active) {
             this.scene.tweens.killTweensOf(this.activeDeathSprite);
             this.activeDeathSprite.destroy();
@@ -426,17 +428,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             this.activeDeathSprite = undefined;
         }
 
-        const boss = (this.scene as any).eleckingBoss;
-        if (boss && boss.isEntranceRevealed) {
-            const respawnPoint = typeof boss.getActiveRespawnPoint === 'function'
-                ? boss.getActiveRespawnPoint()
-                : boss.bossRespawnPoint;
-            if (respawnPoint) {
-                this.activeSpawnX = respawnPoint.x;
-                this.activeSpawnY = respawnPoint.y;
-            }
-        }
-
         const body = this.body as Phaser.Physics.Arcade.Body;
         if (body) {
             body.setEnable(true);
@@ -445,6 +436,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.setVelocity(0, 0);
         this.setVisible(true);
         this.setAlpha(1);
+        this.isReviving = false;
 
         // Emit player-respawn first to restore all managers (inventory, collectibles, mobs, environment)
         this.scene.events.emit('player-respawn');
@@ -476,6 +468,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.isPassingThroughWell = false;
         this.clearTint();
         this.enableGameInputs();
+        this.soundManager?.playRespawn();
     }
 
     die(reason: 'default' | 'lava' | 'electric' | 'lightning' | string = 'default') {
@@ -491,6 +484,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
                 (this.scene as any).collectiblesManager.onTotemConsumed();
             }
             this.isInvincible = true;
+            this.isReviving = true;
             this.disableGameInputs();
             const reviveX = this.lastSafeX;
             const reviveY = this.lastSafeY;
@@ -517,6 +511,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
                 const finishRevival = () => {
                     if (completed) return;
                     completed = true;
+                    this.isReviving = false;
                     if (reviveSprite.active) reviveSprite.destroy();
                     if (this.activeDeathSprite === reviveSprite) this.activeDeathSprite = undefined;
                     this.setVisible(true);
@@ -545,6 +540,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
                 reviveSprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, finishRevival);
                 this.scene.time.delayedCall(850, finishRevival);
             } else {
+                this.isReviving = false;
                 this.enableGameInputs();
                 // Clean invincibility alpha flicker fallback
                 this.scene.tweens.add({

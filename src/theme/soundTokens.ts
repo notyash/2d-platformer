@@ -10,6 +10,10 @@ export const SOUND_TOKENS = {
       key: 'boss-bg-music',
       path: 'assets/sound effects/boss bg music.mp3',
     },
+    bossPhase2Bg: {
+      key: 'boss-phase-2-bg-music',
+      path: 'assets/sound effects/boss phase 2 bg music.mp3',
+    },
   },
   sfx: {
     victory: {
@@ -32,7 +36,24 @@ export const SOUND_TOKENS = {
       key: 'boss-falling-ground-sound',
       path: 'assets/sound effects/boss falling on ground sound.mp3',
     },
+    bossTeleport: {
+      key: 'boss-teleport-sound',
+      path: 'assets/sound effects/boss teleport.mp3',
+    },
+    checkpoint: {
+      key: 'checkpoint-sound',
+      path: 'assets/sound effects/checkpoint.mp3',
+    },
+    jumpPad: {
+      key: 'jump-pad-sound',
+      path: 'assets/sound effects/jump-pad.mp3',
+    },
+    respawn: {
+      key: 'respawn-sound',
+      path: 'assets/sound effects/respawn.mp3',
+    },
   },
 } as const;
 
 export type SoundTokens = typeof SOUND_TOKENS;
+

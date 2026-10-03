@@ -343,10 +343,12 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 this.stompLockTimer = undefined;
             }
             this.uiManager.hideBossHealthBar();
-            const activeRespawn = this.getActiveRespawnPoint();
-            if (activeRespawn) {
-                this.player.activeSpawnX = activeRespawn.x;
-                this.player.activeSpawnY = activeRespawn.y;
+            if (this.isPlayerInArena() || this.hasDiscoveredBoss || this.hasStarted) {
+                const activeRespawn = this.getActiveRespawnPoint();
+                if (activeRespawn) {
+                    this.player.activeSpawnX = activeRespawn.x;
+                    this.player.activeSpawnY = activeRespawn.y;
+                }
             }
             this.onPlayerDeath();
         });
@@ -1448,6 +1450,11 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         });
     }
 
+    private isPlayerDeadOrDying(): boolean {
+        if (!this.player) return false;
+        return Boolean(this.player.isDying || this.player.isReviving || (this.player as any).activeDeathSprite);
+    }
+
     public onPlayerDeath() {
         if (this.isDead) return;
         const bBody = this.body as Phaser.Physics.Arcade.Body;
@@ -1625,25 +1632,13 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                         this.flyingOrbTimer = 3500;
                         (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
 
-                        if (this.player && this.player.isDying) {
+                        if (this.isPlayerDeadOrDying()) {
                             this.bossState = 'player-dead-waiting';
                             playBossAnimation(this, BOSS_ANIM_KEYS.IDLE_FLYING);
                         } else {
-                            // Boss stays idle for a few seconds to observe if player dies to beam
-                            this.bossState = 'post-beam-idle';
-                            playBossAnimation(this, BOSS_ANIM_KEYS.IDLE_FLYING);
-
-                            this.addBossTimer(2200, () => {
-                                if (this.phase === 1 && !this.isDead && this.bossState === 'post-beam-idle') {
-                                    if (this.player && this.player.isDying) {
-                                        this.bossState = 'player-dead-waiting';
-                                        (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
-                                        playBossAnimation(this, BOSS_ANIM_KEYS.IDLE_FLYING);
-                                    } else {
-                                        this.bossState = 'idle';
-                                    }
-                                }
-                            });
+                            // Player survived: resume movement immediately with no post-beam idle delay
+                            this.bossState = 'idle';
+                            this.flyTarget = undefined;
                         }
                     }
                 });
@@ -1666,25 +1661,12 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                         this.orbTimer = 3000;
                         (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
 
-                        if (this.player && this.player.isDying) {
+                        if (this.isPlayerDeadOrDying()) {
                             this.bossState = 'player-dead-waiting';
                             playBossAnimation(this, BOSS_ANIM_KEYS.STANDING_IDLE);
                         } else {
-                            // Boss stays idle for a few seconds to observe if player dies to beam
-                            this.bossState = 'post-beam-idle';
-                            playBossAnimation(this, BOSS_ANIM_KEYS.STANDING_IDLE);
-
-                            this.addBossTimer(2200, () => {
-                                if (this.phase === 2 && !this.isDead && this.bossState === 'post-beam-idle') {
-                                    if (this.player && this.player.isDying) {
-                                        this.bossState = 'player-dead-waiting';
-                                        (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
-                                        playBossAnimation(this, BOSS_ANIM_KEYS.STANDING_IDLE);
-                                    } else {
-                                        this.startGroundedPatrol();
-                                    }
-                                }
-                            });
+                            // Player survived: resume patrol immediately
+                            this.startGroundedPatrol();
                         }
                     }
                 });
@@ -1705,6 +1687,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
         this.uiManager.spawnParticles(this.player.x, this.player.y, parseInt(TOKENS.colors.orbCyan.replace('#', '0x'), 16));
         this.soundManager?.playPhaseTransition();
+        this.soundManager?.playBossPhase2Music();
 
         if (this.bossState === 'memory-telegraph' || this.bossState === 'vanished' || this.bossState === 'striking') {
             this.pendingPhase2Transition = true;
@@ -1791,6 +1774,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
         this.setVisible(true);
         this.setY(startAirY);
+        this.soundManager?.playBossPhase2Music();
 
         const body = this.body as Phaser.Physics.Arcade.Body;
         if (body) {
@@ -1909,7 +1893,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
         this.setFlipX(false);
         playBossAnimation(this, BOSS_ANIM_KEYS.GROUND_DISAPPEAR);
-        this.soundManager?.playJump();
+        this.soundManager?.playBossTeleport();
         this.uiManager.spawnParticles(this.x, this.y, 0x6366F1);
 
         let disappearHandled = false;
@@ -1933,7 +1917,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 (this.body as Phaser.Physics.Arcade.Body).setEnable(true);
 
                 this.uiManager.spawnParticles(targetX, targetGroundY, 0x6366F1);
-                this.soundManager?.playJump();
+                this.soundManager?.playBossTeleport();
 
                 playBossAnimation(this, BOSS_ANIM_KEYS.GROUND_SPAWN);
 
@@ -2484,8 +2468,17 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 this.victoryOrb = undefined;
 
                 this.soundManager?.playVictory();
-                this.uiManager.showFloatingText(orbX, orbY - 25, 'ORB OF VICTORY COLLECTED!', TOKENS.colors.gold, 1600);
                 this.uiManager.spawnParticles(orbX, orbY, goldParticleColor);
+
+                // UI Kit React Victory Notification
+                GameEventBus.getInstance().emit('toast:show', {
+                    id: 'orb-of-victory-toast',
+                    title: 'ORB OF VICTORY COLLECTED',
+                    message: 'Stage Complete! You have claimed the ultimate relic.',
+                    variant: 'victory',
+                    icon: 'trophy',
+                    durationMs: 4500,
+                });
 
                 if (typeof (this.scene as any).onStageComplete === 'function') {
                     (this.scene as any).onStageComplete();
@@ -2513,10 +2506,12 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 this.envManager.triggerRevealLayer('DungeonFill', true);
                 this.envManager.triggerRevealLayer('1', true);
             }
-            const activeRespawn = this.getActiveRespawnPoint();
-            if (activeRespawn) {
-                this.player.activeSpawnX = activeRespawn.x;
-                this.player.activeSpawnY = activeRespawn.y;
+            if (this.isPlayerInArena()) {
+                const activeRespawn = this.getActiveRespawnPoint();
+                if (activeRespawn) {
+                    this.player.activeSpawnX = activeRespawn.x;
+                    this.player.activeSpawnY = activeRespawn.y;
+                }
             }
         }
 
@@ -2529,7 +2524,16 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
         if (inArena && !this.playerWasInArena && !this.isDead) {
             this.playerWasInArena = true;
-            this.soundManager?.playBossMusic();
+            const activeRespawn = this.getActiveRespawnPoint();
+            if (activeRespawn) {
+                this.player.activeSpawnX = activeRespawn.x;
+                this.player.activeSpawnY = activeRespawn.y;
+            }
+            if (this.phase === 2 || this.hasReachedPhase2) {
+                this.soundManager?.playBossPhase2Music();
+            } else {
+                this.soundManager?.playBossMusic();
+            }
             if (this.hasDiscoveredBoss || this.hasStarted) {
                 this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp);
             }
@@ -2552,7 +2556,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             return;
         }
 
-        if (this.bossState === 'post-beam-idle' || this.bossState === 'player-dead-waiting' || this.player.isDying) {
+        if (this.bossState === 'post-beam-idle' || this.bossState === 'player-dead-waiting' || this.isPlayerDeadOrDying()) {
             const bBody = this.body as Phaser.Physics.Arcade.Body;
             if (bBody) bBody.setVelocity(0, 0);
             if (this.visible && this.bossState !== 'vanished' && this.bossState !== 'reappearing') {
@@ -2637,12 +2641,6 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                     return;
                 }
             }
-        }
-
-        const activeRespawn = this.getActiveRespawnPoint();
-        if (activeRespawn) {
-            this.player.activeSpawnX = activeRespawn.x;
-            this.player.activeSpawnY = activeRespawn.y;
         }
 
         // Projectile overlap

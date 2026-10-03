@@ -70,7 +70,13 @@ export class EnvironmentManager {
     public jumpPads: Phaser.Physics.Arcade.Sprite[] = [];
     public firebars: Firebar[] = [];
     public bridgeBreakZones: Phaser.GameObjects.Zone[] = [];
+    public isBridgeBreakArmed: boolean = false;
     public isSmashFallActive: boolean = false;
+
+    public cancelSmashFall() {
+        this.isSmashFallActive = false;
+        this.isBridgeBreakArmed = false;
+    }
     public bridges: BridgeData[] = [];
     public doorZones: Phaser.GameObjects.Zone[] = [];
     public doorExitZones: Phaser.GameObjects.Zone[] = [];
@@ -898,12 +904,12 @@ export class EnvironmentManager {
 
         if (this.movingPlatforms.length > 0) {
             this.scene.physics.add.collider(this.player, this.movingPlatforms, (_p, plat) => {
-                // Instantly cancel smash fall if player contacts any moving platform
-                this.isSmashFallActive = false;
                 const pBody = (_p as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.Body;
                 const platBody = (plat as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.Body;
                 if (pBody.bottom <= platBody.top + 8 && pBody.right > platBody.left + 2 && pBody.left < platBody.right - 2) {
                     this.player.isOnPlatform = true;
+                    // Landing on top of a moving platform cancels smash fall
+                    this.cancelSmashFall();
                 }
             });
         }
@@ -1094,9 +1100,9 @@ export class EnvironmentManager {
                     // Custom tile: Keep original tile graphic intact, do not use the jumppad sprite spring effect
                     this.player.setVelocityY(padSprite.getData('bouncePower'));
                     this.player.isNormalJump = false; 
-                    this.isSmashFallActive = false;
+                    this.cancelSmashFall();
                     this.player.ignoreGroundJumpUntil = this.scene.time.now + 200;
-                    this.soundManager?.playJump();
+                    this.soundManager?.playJumpPad();
 
                     // Gentle squash tween for tactile feedback
                     this.scene.tweens.add({
@@ -1129,9 +1135,9 @@ export class EnvironmentManager {
                             padSprite.setFrame(3);
                             this.player.setVelocityY(padSprite.getData('bouncePower'));
                             this.player.isNormalJump = false;
-                            this.isSmashFallActive = false;
+                            this.cancelSmashFall();
                             this.player.ignoreGroundJumpUntil = this.scene.time.now + 200;
-                            this.soundManager?.playJump();
+                            this.soundManager?.playJumpPad();
 
                             // Step 4: Reset back to resting frame 0
                             this.scene.time.delayedCall(80, () => {
@@ -1269,6 +1275,7 @@ export class EnvironmentManager {
                     obj.width || 32, 
                     obj.height || 32
                 );
+                zone.setData('rect', new Phaser.Geom.Rectangle(obj.x, obj.y, obj.width || 32, obj.height || 32));
                 this.scene.physics.add.existing(zone, true);
                 this.bridgeBreakZones.push(zone);
             });
@@ -1283,6 +1290,7 @@ export class EnvironmentManager {
                            name.includes('smash') || type.includes('smash');
                 }).forEach((obj: any) => {
                     const zone = this.scene.add.zone(obj.x! + (obj.width! / 2), obj.y! + (obj.height! / 2), obj.width!, obj.height!);
+                    zone.setData('rect', new Phaser.Geom.Rectangle(obj.x!, obj.y!, obj.width!, obj.height!));
                     this.scene.physics.add.existing(zone, true);
                     this.bridgeBreakZones.push(zone);
                 });
@@ -1349,7 +1357,7 @@ export class EnvironmentManager {
                     const bridgeTop = sprite.y;
 
                     // 1. If in smash fall and moving downwards -> Break the bridge!
-                    if (this.isSmashFallActive && pBody.velocity.y >= 0) {
+                    if ((this.isSmashFallActive || this.isBridgeBreakArmed) && pBody.velocity.y >= 0) {
                         this.breakBridge(bridgeData);
                         return false; // Pass smoothly through without blocking
                     }
@@ -1394,7 +1402,7 @@ export class EnvironmentManager {
     public breakBridge(bridge: BridgeData) {
         if (bridge.broken) return;
         bridge.broken = true;
-        this.isSmashFallActive = false;
+        this.cancelSmashFall();
 
         const sprite = bridge.sprite;
         const body = sprite.body as Phaser.Physics.Arcade.Body;
@@ -1769,10 +1777,9 @@ export class EnvironmentManager {
         }
 
         // Bridge Break Zone & Bridge Impact Logic:
-        // Arming Zone: Only when player is inside any BridgeBreakZone
         let inBreakZone = false;
         for (const zone of this.bridgeBreakZones) {
-            const zb = zone.getBounds();
+            const zb = (zone.getData('rect') as Phaser.Geom.Rectangle) || zone.getBounds();
             if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, zb)) {
                 inBreakZone = true;
                 break;
@@ -1780,47 +1787,54 @@ export class EnvironmentManager {
         }
 
         if (inBreakZone) {
-            // Player is inside BridgeBreakZone: Activate smash fall
-            this.isSmashFallActive = true;
-        } else if (this.isSmashFallActive) {
-            // Check if the surface the player touches is an unbroken Bridge
-            let landedOnBridge: BridgeData | undefined = undefined;
+            // Player is inside the BridgeBreakZone: arm the smash fall
+            this.isBridgeBreakArmed = true;
+        }
+
+        const isGrounded = pBody.blocked.down || pBody.touching.down || this.player.isOnPlatform;
+
+        // Transition from Armed to Active:
+        // When armed and player leaves ground, falling downwards through the air (stepping off ledge or jumping into fall)
+        if (this.isBridgeBreakArmed && !this.isSmashFallActive) {
+            if (!isGrounded && pBody.velocity.y >= 0) {
+                this.isSmashFallActive = true;
+                this.isBridgeBreakArmed = false;
+            } else if (!inBreakZone && isGrounded) {
+                // If player walked completely away to the right (away from the drop ledge) while staying grounded, disarm
+                const walkedFarAway = this.bridgeBreakZones.every(zone => {
+                    const zb = (zone.getData('rect') as Phaser.Geom.Rectangle) || zone.getBounds();
+                    return pBounds.left > zb.right + 96;
+                });
+                if (walkedFarAway) {
+                    this.isBridgeBreakArmed = false;
+                }
+            }
+        }
+
+        if (this.isSmashFallActive) {
+            // Check if the player reaches an unbroken Bridge
+            let targetBridge: BridgeData | undefined = undefined;
             for (const bridge of this.bridges) {
                 if (!bridge.broken && bridge.sprite && bridge.sprite.active) {
                     const b = bridge.sprite.getBounds();
-                    const bridgeSurface = new Phaser.Geom.Rectangle(b.x - 10, b.y - 16, b.width + 20, b.height + 32);
+                    const bridgeSurface = new Phaser.Geom.Rectangle(b.x - 8, b.y - 16, b.width + 16, 36);
                     if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, bridgeSurface)) {
-                        landedOnBridge = bridge;
+                        targetBridge = bridge;
                         break;
                     }
                 }
             }
 
-            if (landedOnBridge && pBody.velocity.y >= 0) {
+            if (targetBridge && pBody.velocity.y >= 0) {
                 // Direct fall from BridgeBreakZone onto bridge without landing on anything else -> Break the bridge!
-                this.breakBridge(landedOnBridge);
-            } else if (!landedOnBridge) {
-                // Check if the player touched or landed on any moving platform during the fall
-                let touchingMovingPlat = false;
-                for (const plat of this.movingPlatforms) {
-                    if (plat && plat.active) {
-                        const platBounds = plat.getBounds();
-                        const platArea = new Phaser.Geom.Rectangle(platBounds.x - 4, platBounds.y - 8, platBounds.width + 8, platBounds.height + 16);
-                        if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, platArea)) {
-                            touchingMovingPlat = true;
-                            break;
-                        }
-                    }
-                }
-
-                // If the player landed on or touched ANYTHING else (moving platform, solid ground, tile, obstacle), cancel smash fall!
-                if (touchingMovingPlat || this.player.isOnPlatform || pBody.blocked.down || pBody.touching.down) {
-                    this.isSmashFallActive = false;
-                }
+                this.breakBridge(targetBridge);
+            } else if (isGrounded && !targetBridge) {
+                // If the player landed on top of anything else (ground, moving platform, one-way platform), cancel!
+                this.cancelSmashFall();
             }
 
             if (this.player.isDying || this.player.isTeleporting) {
-                this.isSmashFallActive = false;
+                this.cancelSmashFall();
             }
         } 
     }
@@ -1853,7 +1867,7 @@ export class EnvironmentManager {
         for (const bridge of this.bridges) {
             bridge.snapshotBroken = false;
         }
-        this.isSmashFallActive = false;
+        this.cancelSmashFall();
     }
 
     public rollbackToCheckpoint() {
@@ -1871,7 +1885,7 @@ export class EnvironmentManager {
         }
 
         // Bridge break logic resets on checkpoint restart
-        this.isSmashFallActive = false;
+        this.cancelSmashFall();
 
         for (const bridge of this.bridges) {
             bridge.broken = false;
@@ -1893,7 +1907,7 @@ export class EnvironmentManager {
 
     resetAll() {
         // Bridge break logic resets on restart run
-        this.isSmashFallActive = false;
+        this.cancelSmashFall();
 
         for (const trigger of this.revealTriggers) {
             trigger.activated = false;
