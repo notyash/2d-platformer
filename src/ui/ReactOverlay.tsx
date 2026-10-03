@@ -19,15 +19,17 @@ import { ProgressPips } from './kit/ProgressPips';
 import { SlotCard } from './kit/SlotCard';
 import { Panel } from './kit/Panel';
 import { PromptChip } from './kit/PromptChip';
+import { Icon } from './kit/Icon';
+import { OrbCollectPopup } from './kit/OrbCollectPopup';
 import { ToastProvider, useToast } from './kit/ToastContext';
-import type { RestartPromptData, CheckpointState, DoorPromptData } from '../services/GameEventBus';
+import type { RestartPromptData, CheckpointState, DoorPromptData, BossAlertData, OrbCollectPopupData } from '../services/GameEventBus';
 
 interface ReactOverlayContentProps {
   gameState: GameState;
 }
 
 const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) => {
-  const { showToast } = useToast();
+  const { showToast, dismissToast } = useToast();
   const [windowWidth, setWindowWidth] = useState<number>(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1280
   );
@@ -64,6 +66,9 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
   const [timeString, setTimeString] = useState<string>('00:00.00');
   const [activeCheckpoint, setActiveCheckpoint] = useState<CheckpointState | null>(null);
   const [checkpointPulse, setCheckpointPulse] = useState<number>(0);
+  const [bossAlert, setBossAlert] = useState<BossAlertData | null>(null);
+  const [orbPopups, setOrbPopups] = useState<OrbCollectPopupData[]>([]);
+  const bossAlertTimerRef = React.useRef<number | null>(null);
 
   // Orb Pips lifecycle: visible only in Phase 1; on transition to Phase 2, fade out over 600ms then remove from DOM
   const [isPipsFadingOut, setIsPipsFadingOut] = useState<boolean>(false);
@@ -218,6 +223,31 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
       });
     });
 
+    const unsubDismissToast = bus.on('toast:dismiss', (id) => {
+      dismissToast(id);
+    });
+
+    const unsubBossAlert = bus.on('boss:alert', (data) => {
+      setBossAlert(data);
+      if (bossAlertTimerRef.current) {
+        window.clearTimeout(bossAlertTimerRef.current);
+        bossAlertTimerRef.current = null;
+      }
+      if (data && data.durationMs) {
+        bossAlertTimerRef.current = window.setTimeout(() => {
+          setBossAlert(null);
+          bossAlertTimerRef.current = null;
+        }, data.durationMs);
+      }
+    });
+
+    const unsubOrbPopup = bus.on('orb:collected-popup', (popupData) => {
+      setOrbPopups((prev) => [...prev, popupData]);
+      window.setTimeout(() => {
+        setOrbPopups((prev) => prev.filter((p) => p.id !== popupData.id));
+      }, 1800);
+    });
+
     return () => {
       unsubStats();
       unsubBossHp();
@@ -230,8 +260,15 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
       unsubTime();
       unsubCheckpoint();
       unsubToast();
+      unsubDismissToast();
+      unsubBossAlert();
+      unsubOrbPopup();
+      if (bossAlertTimerRef.current) {
+        window.clearTimeout(bossAlertTimerRef.current);
+        bossAlertTimerRef.current = null;
+      }
     };
-  }, [showToast]);
+  }, [showToast, dismissToast]);
 
   if (windowWidth < 480) {
     return (
@@ -284,6 +321,20 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
                   size="md"
                   aria-label={`Gravity Orbs: ${orbs.collected} of ${orbs.total}`}
                 />
+              </div>
+            )}
+
+            {bossAlert && (
+              <div className="hud-boss-alert-container" role="status" aria-live="assertive">
+                <Panel variant="crimson-border" className="hud-boss-alert-panel">
+                  <Icon name="skull" size={20} className="hud-boss-alert-icon" />
+                  <div className="hud-boss-alert-content">
+                    <span className="hud-boss-alert-title">{bossAlert.title}</span>
+                    {bossAlert.subtitle && (
+                      <span className="hud-boss-alert-subtitle">{bossAlert.subtitle}</span>
+                    )}
+                  </div>
+                </Panel>
               </div>
             )}
           </div>
@@ -364,6 +415,18 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
           />
         </div>
       )}
+
+      {/* In-World UI Kit Orb Collection n/7 Popups */}
+      {orbPopups.map((popup) => (
+        <OrbCollectPopup
+          key={popup.id}
+          id={popup.id}
+          current={popup.current}
+          total={popup.total}
+          x={popup.x}
+          y={popup.y}
+        />
+      ))}
 
       {/* Pause Modal */}
       <PauseModal gameState={gameState} stats={stats} />

@@ -950,3 +950,165 @@
 [data-paused="true"] .leaderboard-modal-overlay * {
   animation-play-state: running !important;
 }
+
+/* --------------------------------------------------------------------------
+   Boss Alert Banner (UI Kit Panel)
+   -------------------------------------------------------------------------- */
+.hud-boss-alert-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 0.5rem;
+  animation: kz-alert-drop-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.hud-boss-alert-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 1.25rem;
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.28) 0%, rgba(15, 23, 42, 0.96) 100%);
+  border: 1.5px solid #EF4444;
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.55), inset 0 0 12px rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.08em;
+}
+
+.hud-boss-alert-icon {
+  color: #F87171;
+  animation: kz-pulse-icon 0.8s ease-in-out infinite alternate;
+}
+
+.hud-boss-alert-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+}
+
+.hud-boss-alert-title {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #FEE2E2;
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.85);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.hud-boss-alert-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #FCA5A5;
+  letter-spacing: 0.05em;
+  margin-top: 0.15rem;
+}
+
+@keyframes kz-alert-drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes kz-pulse-icon {
+  from {
+    transform: scale(1);
+    filter: drop-shadow(0 0 2px #EF4444);
+  }
+  to {
+    transform: scale(1.25);
+    filter: drop-shadow(0 0 8px #EF4444);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Orb Collect Popup (n/7 UI Kit)
+   -------------------------------------------------------------------------- */
+.kz-orb-collect-popup-wrapper {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 999;
+  animation: kzOrbPopupFly 1600ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.kz-orb-collect-popup {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.68rem;
+  background: rgba(17, 19, 28, 0.94);
+  border: 1.5px solid var(--orb-cyan, #00f0ff);
+  border-radius: var(--radius-full, 9999px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 14px rgba(0, 240, 255, 0.35);
+  backdrop-filter: blur(8px);
+  user-select: none;
+}
+
+.kz-orb-collect-popup__body {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kz-orb-collect-popup__icon {
+  color: var(--orb-cyan, #00f0ff);
+  filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.6));
+}
+
+.kz-orb-collect-popup__count {
+  font-family: var(--font-mono, 'Space Grotesk', monospace);
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+}
+
+.kz-orb-collect-popup__current {
+  color: var(--orb-cyan, #00f0ff);
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+}
+
+.kz-orb-collect-popup__slash {
+  color: var(--parchment-dim, #c5b8a0);
+  opacity: 0.7;
+  font-size: 0.75rem;
+  margin: 0 1px;
+}
+
+.kz-orb-collect-popup__total {
+  color: var(--parchment, #f2e7d3);
+}
+
+@keyframes kzOrbPopupFly {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -30%) scale(0.65);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -55%) scale(1.12);
+  }
+  25% {
+    transform: translate(-50%, -65%) scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: translate(-50%, -95%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -120%) scale(0.9);
+  }
+}
+

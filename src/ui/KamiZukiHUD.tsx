@@ -212,7 +212,7 @@ export const KamiZukiHUD: React.FC = () => {
           tabIndex={-1}
           aria-label="Toggle Sound"
           className="hud-btn hud-btn-outline"
-          title="Toggle Sound"
+          title="Toggle Sound (M)"
           onPointerDown={(e) => e.currentTarget.blur()}
           onClick={(e) => {
             e.currentTarget.blur();

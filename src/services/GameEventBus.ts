@@ -112,6 +112,21 @@ export interface DoorPromptData {
   y: number;
 }
 
+export interface BossAlertData {
+  title: string;
+  subtitle?: string;
+  variant?: 'danger' | 'warning' | 'info' | 'success';
+  durationMs?: number;
+}
+
+export interface OrbCollectPopupData {
+  id: string;
+  current: number;
+  total: number;
+  x: number; // Screen percentage %
+  y: number; // Screen percentage %
+}
+
 export interface EventMap {
   'stats:changed': GameStats;
   'time:tick': string; // Formatted time string, throttled to ~10Hz
@@ -119,6 +134,7 @@ export interface EventMap {
   'boss:phase': BossPhaseData;
   'orbs:updated': OrbsData;
   'toast:show': ToastData;
+  'toast:dismiss': string;
   'equipment:changed': EquipmentState;
   'game:state': GameState;
   'action:trigger': GameAction;
@@ -132,6 +148,8 @@ export interface EventMap {
   'prompt:restart': RestartPromptData;
   'prompt:door': DoorPromptData | null;
   'checkpoint:changed': CheckpointState | null;
+  'boss:alert': BossAlertData | null;
+  'orb:collected-popup': OrbCollectPopupData;
 }
 
 type EventCallback<T> = (data: T) => void;
@@ -435,5 +453,9 @@ export class GameEventBus {
     }
     this.lastDoorPrompt = data ? { ...data } : null;
     this.emit('prompt:door', this.lastDoorPrompt);
+  }
+
+  public emitBossAlert(data: BossAlertData | null): void {
+    this.emit('boss:alert', data);
   }
 }
