@@ -6,7 +6,8 @@
 DEFINE TABLE OVERWRITE leaderboard SCHEMAFULL
     PERMISSIONS
         FOR select FULL
-        FOR create, update, delete NONE;
+        FOR create WHERE verified == true AND duration_ms >= 5000 AND score >= 0
+        FOR update, delete NONE;
 
 -- Typed Record Pointers
 DEFINE FIELD OVERWRITE run_session    ON leaderboard TYPE record<run_session>;
@@ -17,7 +18,7 @@ DEFINE FIELD OVERWRITE run_id         ON leaderboard TYPE string;
 DEFINE FIELD OVERWRITE wallet         ON leaderboard TYPE string;
 DEFINE FIELD OVERWRITE username       ON leaderboard TYPE string;
 DEFINE FIELD OVERWRITE duration_ms    ON leaderboard TYPE number
-    ASSERT $value >= 30000;
+    ASSERT $value >= 5000;
 
 DEFINE FIELD OVERWRITE formatted_time ON leaderboard TYPE string;
 DEFINE FIELD OVERWRITE score          ON leaderboard TYPE number

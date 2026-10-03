@@ -39,8 +39,8 @@ DEFINE FUNCTION OVERWRITE fn::submit_run(
     };
 
     -- 2. Anti-Cheat: Minimum Theoretical Time Check (Speedhack protection)
-    -- Stage 1 cannot physically be completed under 30 seconds
-    LET $flags = IF $duration_ms < 30000 {
+    -- Stage 1 cannot physically be completed under 5 seconds
+    LET $flags = IF $duration_ms < 5000 {
         ['IMPOSSIBLE_SPEEDRUN_TIME']
     } ELSE {
         []

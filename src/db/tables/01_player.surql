@@ -5,8 +5,9 @@
 
 DEFINE TABLE OVERWRITE player SCHEMAFULL
     PERMISSIONS
-        FOR select FULL
-        FOR create, update, delete NONE;
+        FOR select, create FULL
+        FOR update WHERE ($auth == NONE OR $auth.id == id)
+        FOR delete NONE;
 
 DEFINE FIELD OVERWRITE wallet ON player TYPE string
     ASSERT string::is_alphanum(string::slice($value, 2)) AND string::starts_with($value, '0x');

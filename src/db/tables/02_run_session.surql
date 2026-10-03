@@ -5,8 +5,9 @@
 
 DEFINE TABLE OVERWRITE run_session SCHEMAFULL
     PERMISSIONS
-        FOR select FULL
-        FOR create, update, delete NONE;
+        FOR select, create FULL
+        FOR update WHERE ($before.is_finalized == false AND ($auth == NONE OR wallet == $auth.wallet))
+        FOR delete NONE;
 
 DEFINE FIELD OVERWRITE run_id ON run_session TYPE string
     ASSERT string::len($value) >= 6;

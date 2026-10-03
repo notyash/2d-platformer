@@ -6,7 +6,8 @@
 DEFINE TABLE OVERWRITE whitelist SCHEMAFULL
     PERMISSIONS
         FOR select FULL
-        FOR create, update, delete NONE;
+        FOR create WHERE ($auth == NONE OR wallet == $auth.wallet) AND string::len(wallet) == 42
+        FOR update, delete NONE;
 
 -- Typed Record Pointers
 DEFINE FIELD OVERWRITE player          ON whitelist TYPE record<player>;
@@ -20,7 +21,7 @@ DEFINE FIELD OVERWRITE run_id          ON whitelist TYPE string
     ASSERT string::len($value) >= 6;
 
 DEFINE FIELD OVERWRITE completion_time ON whitelist TYPE number
-    ASSERT $value >= 30000;
+    ASSERT $value >= 5000;
 
 DEFINE FIELD OVERWRITE proof_hash      ON whitelist TYPE string
     ASSERT string::len($value) >= 8;
