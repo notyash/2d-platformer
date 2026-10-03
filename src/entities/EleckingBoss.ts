@@ -152,6 +152,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         body.setSize(64, 96);
         body.setOffset(24, 12);
         body.setImmovable(true);
+        this.setVisible(false);
 
         // Bullets hit boss
         scene.physics.add.overlap(this, this.player.bullets, (_bossObj, bulletObj) => {
@@ -343,7 +344,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 this.stompLockTimer = undefined;
             }
             this.uiManager.hideBossHealthBar();
-            if (this.isPlayerInArena() || this.hasDiscoveredBoss || this.hasStarted) {
+            if (this.isEntranceRevealed && (this.isPlayerInArena() || this.hasDiscoveredBoss || this.hasStarted)) {
                 const activeRespawn = this.getActiveRespawnPoint();
                 if (activeRespawn) {
                     this.player.activeSpawnX = activeRespawn.x;
@@ -374,6 +375,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             );
             if (isBossRespawn) {
                 this.isEntranceRevealed = true;
+                this.hasDiscoveredBoss = true;
+                this.setVisible(true);
                 if (this.arenaCover) this.arenaCover.setVisible(false);
             }
             // Only grant gun if Phase 1 was genuinely completed!
@@ -515,7 +518,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 entranceObj.x, 
                 entranceObj.y, 
                 entranceObj.width || 64, 
-                Math.max(entranceObj.height || 0, 96)
+                entranceObj.height || 32
             );
         }
 
@@ -935,15 +938,12 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     }
 
     public isPlayerInArena(): boolean {
-        if (!this.player || !this.player.active) return false;
-        if (this.arenaZone) {
-            const minX = this.arenaZone.left - 64;
-            const maxX = this.arenaZone.right + 96;
-            const minY = Math.min(this.arenaZone.top - 320, (this.bossEntranceZone?.top ?? 990) - 64);
-            const maxY = this.arenaZone.bottom + 64;
-            return this.player.x >= minX && this.player.x <= maxX && this.player.y >= minY && this.player.y <= maxY;
-        }
-        return false;
+        if (!this.player || !this.player.active || !this.arenaZone) return false;
+        const minX = this.arenaZone.left - 64;
+        const maxX = this.arenaZone.right + 96;
+        const minY = this.arenaZone.top - 64;
+        const maxY = this.arenaZone.bottom + 64;
+        return this.player.x >= minX && this.player.x <= maxX && this.player.y >= minY && this.player.y <= maxY;
     }
 
     public isPlayerTouchingEntrance(): boolean {
@@ -958,13 +958,14 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         const cam = this.scene.cameras.main;
         if (!cam) return false;
         const view = cam.worldView;
-        const bossMargin = 64;
+        const halfW = 24;
+        const halfH = 32;
         if (view && view.width > 0 && view.height > 0) {
             return (
-                this.x >= view.x - bossMargin &&
-                this.x <= (view.x + view.width) + bossMargin &&
-                this.y >= view.y - bossMargin &&
-                this.y <= (view.y + view.height) + bossMargin
+                this.x + halfW >= view.x &&
+                this.x - halfW <= view.x + view.width &&
+                this.y + halfH >= view.y &&
+                this.y - halfH <= view.y + view.height
             );
         }
         const viewX = cam.scrollX;
@@ -972,11 +973,15 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         const viewW = cam.width / (cam.zoom || 1);
         const viewH = cam.height / (cam.zoom || 1);
         return (
-            this.x >= viewX - bossMargin &&
-            this.x <= viewX + viewW + bossMargin &&
-            this.y >= viewY - bossMargin &&
-            this.y <= viewY + viewH + bossMargin
+            this.x + halfW >= viewX &&
+            this.x - halfW <= viewX + viewW &&
+            this.y + halfH >= viewY &&
+            this.y - halfH <= viewY + viewH
         );
+    }
+
+    public isFightActive(): boolean {
+        return Boolean((this.hasDiscoveredBoss || this.hasStarted || this.isEntranceRevealed || this.isPlayerInArena()) && !this.isDead);
     }
 
     private activateEncounter() {
@@ -1026,8 +1031,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.stompLockTimer = undefined;
         }
         if (fullReset) {
+            this.isEntranceRevealed = false;
             this.playerWasInArena = false;
             this.hasDiscoveredBoss = false;
+            this.hasStarted = false;
             this.hasShownBossEncounterToast = false;
             this.hasShownShieldedToast = false;
             if (this.soundManager) this.soundManager.stopMusic();
@@ -1099,7 +1106,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 platform.reset(fullReset);
             });
 
-            this.setVisible(true);
+            this.setVisible(this.isEntranceRevealed && this.hasDiscoveredBoss);
             this.setPosition(this.initialSpawn.x, this.initialSpawn.y);
             const body = this.body as Phaser.Physics.Arcade.Body;
             if (body) {
@@ -1164,7 +1171,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.flyingOrbTimer = 3200;
 
         playBossAnimation(this, BOSS_ANIM_KEYS.IDLE_FLYING);
-        this.setVisible(true);
+        this.setVisible(this.isEntranceRevealed && this.hasDiscoveredBoss);
         GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 1, invulnerable: true });
 
         const body = this.body as Phaser.Physics.Arcade.Body;
@@ -2510,8 +2517,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
         if (this.isDead) return;
 
-        // Entrance detection
-        if (!this.isEntranceRevealed && (this.isPlayerTouchingEntrance() || this.isPlayerInArena())) {
+        // Entrance detection: Must pass through BossFightEntrance first
+        if (!this.isEntranceRevealed && this.isPlayerTouchingEntrance()) {
             this.isEntranceRevealed = true;
             if (this.arenaCover) {
                 this.arenaCover.setVisible(false);
@@ -2534,32 +2541,34 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.arenaCover.setVisible(!this.isEntranceRevealed);
         }
 
+        // If player has not passed through BossFightEntrance, boss stays completely hidden and inactive
+        if (!this.isEntranceRevealed) {
+            this.setVisible(false);
+            const bBody = this.body as Phaser.Physics.Arcade.Body;
+            if (bBody) bBody.setVelocity(0, 0);
+            return;
+        }
+
         const inArena = this.isPlayerInArena();
-        const distToPlayer = Phaser.Math.Distance.Between(this.x, this.y, this.player.x, this.player.y);
         const isVisibleInCamera = this.isBossVisibleInCamera();
 
-        // 1. Initial Boss Discovery Check:
-        // Trigger immediately when the player sees the boss in camera or explores near the boss
+        // 1. Initial Boss Discovery Check (ONLY after passing through BossFightEntrance):
+        // Trigger strictly when the boss is actually visible within the camera view
         if (!this.hasDiscoveredBoss) {
             const bBody = this.body as Phaser.Physics.Arcade.Body;
             if (bBody) bBody.setVelocity(0, 0);
-            if (this.visible && this.bossState !== 'vanished' && this.bossState !== 'reappearing') {
-                if (this.phase === 1) {
-                    playBossAnimation(this, BOSS_ANIM_KEYS.IDLE_FLYING);
-                } else {
-                    playBossAnimation(this, BOSS_ANIM_KEYS.STANDING_IDLE);
-                }
-            }
 
-            if (isVisibleInCamera || distToPlayer < 550 || (inArena && this.player.x < (this.arenaZone?.right ?? 4700) - 120)) {
+            if (isVisibleInCamera) {
+                this.setVisible(true);
                 this.hasDiscoveredBoss = true;
                 this.activateEncounter();
             } else {
+                this.setVisible(false);
                 return;
             }
         }
 
-        // 2. Boss Music & Arena Status
+        // 2. Boss Music & Arena Status (only active once boss is discovered)
         if (inArena && !this.playerWasInArena && !this.isDead) {
             this.playerWasInArena = true;
             const activeRespawn = this.getActiveRespawnPoint();
@@ -2567,12 +2576,14 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 this.player.activeSpawnX = activeRespawn.x;
                 this.player.activeSpawnY = activeRespawn.y;
             }
-            if (this.phase === 2 || this.hasReachedPhase2) {
-                this.soundManager?.playBossPhase2Music();
-            } else {
-                this.soundManager?.playBossMusic();
+            if (this.hasDiscoveredBoss) {
+                if (this.phase === 2 || this.hasReachedPhase2) {
+                    this.soundManager?.playBossPhase2Music();
+                } else {
+                    this.soundManager?.playBossMusic();
+                }
+                this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp);
             }
-            this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp);
         } else if (!inArena && this.playerWasInArena) {
             this.playerWasInArena = false;
             this.soundManager?.playGameMusic();

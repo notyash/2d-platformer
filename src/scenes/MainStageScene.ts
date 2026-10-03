@@ -466,6 +466,9 @@ export class MainStageScene extends Phaser.Scene {
             this.cKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
             this.cKey.on('down', () => {
                 if (this.isGamePaused || this.isGameComplete) return;
+                if (this.eleckingBoss && this.eleckingBoss.isFightActive()) {
+                    return;
+                }
                 if (this.envManager.hasActiveCheckpoint()) {
                     this.respawnAtActiveCheckpoint();
                 } else {
@@ -503,6 +506,9 @@ export class MainStageScene extends Phaser.Scene {
                     else this.pauseGame();
                     break;
                 case 'RESPAWN_CHECKPOINT':
+                    if (this.eleckingBoss && this.eleckingBoss.isFightActive()) {
+                        return;
+                    }
                     if (this.envManager.hasActiveCheckpoint()) {
                         this.respawnAtActiveCheckpoint();
                     }
