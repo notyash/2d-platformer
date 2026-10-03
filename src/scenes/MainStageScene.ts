@@ -1691,7 +1691,9 @@ export class MainStageScene extends Phaser.Scene {
             this.totalDeaths,
             netDurationMs
         );
-        LeaderboardManager.getInstance().submitRun(payload, 'Speedy Onion');
+        const savedPlayerName = (typeof localStorage !== 'undefined' && localStorage.getItem('onion_boy_player_name')) || 'Speedy Onion';
+        const savedWallet = (typeof localStorage !== 'undefined' && localStorage.getItem('onion_boy_wallet')) || SurrealService.getInstance().getConnectedWallet();
+        LeaderboardManager.getInstance().submitRun(payload, savedPlayerName, savedWallet);
         this.soundManager?.playVictory();
 
         const formattedTime = this.getFormattedElapsedTime();

@@ -22,15 +22,31 @@ export class SurrealService {
   private db: Surreal;
   private isConnected: boolean = false;
   private isAuthenticated: boolean = false;
-  private isConnecting: boolean = false;
+  private connectPromise: Promise<boolean> | null = null;
 
-  private endpoint: string = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SURREAL_URL) || 'http://127.0.0.1:8000';
+  private endpoint: string = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SURREAL_URL) || 
+    (typeof globalThis !== 'undefined' && (globalThis as any).process?.env?.VITE_SURREAL_URL) || 
+    'http://127.0.0.1:8000';
   private namespace: string = 'nft_platformer';
   private database: string = 'development';
+  private connectedWallet: string = (typeof localStorage !== 'undefined' && localStorage.getItem('onion_boy_wallet')) || '0x0000000000000000000000000000000000000000';
 
   constructor() {
     this.db = new Surreal();
-    this.tryConnect();
+    this.tryConnect().catch(() => {});
+  }
+
+  public getConnectedWallet(): string {
+    return this.connectedWallet;
+  }
+
+  public setConnectedWallet(wallet: string): void {
+    if (wallet && wallet.startsWith('0x') && wallet.length === 42) {
+      this.connectedWallet = wallet;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('onion_boy_wallet', wallet);
+      }
+    }
   }
 
   public static getInstance(): SurrealService {
@@ -42,26 +58,28 @@ export class SurrealService {
 
   public async tryConnect(): Promise<boolean> {
     if (this.isConnected) return true;
-    if (this.isConnecting) return false;
+    if (this.connectPromise) return this.connectPromise;
 
-    this.isConnecting = true;
-    try {
-      // Connect to SurrealDB instance (WS or HTTP)
-      await this.db.connect(this.endpoint, {
-        namespace: this.namespace,
-        database: this.database
-      });
+    this.connectPromise = (async () => {
+      try {
+        await this.db.connect(this.endpoint);
+        await this.db.use({
+          namespace: this.namespace,
+          database: this.database
+        });
+        this.isConnected = true;
+        console.log(`[SurrealDB] Connected successfully to ${this.endpoint} [NS: ${this.namespace}, DB: ${this.database}]`);
+        return true;
+      } catch (err) {
+        this.isConnected = false;
+        console.warn('[SurrealDB] Server connection pending or offline. Operating in fallback mode:', (err as Error).message);
+        return false;
+      } finally {
+        this.connectPromise = null;
+      }
+    })();
 
-      this.isConnected = true;
-      console.log(`[SurrealDB] Connected successfully to ${this.endpoint} [NS: ${this.namespace}, DB: ${this.database}]`);
-      return true;
-    } catch (err) {
-      this.isConnected = false;
-      console.warn('[SurrealDB] Server connection pending or offline. Operating in fallback mode:', (err as Error).message);
-      return false;
-    } finally {
-      this.isConnecting = false;
-    }
+    return this.connectPromise;
   }
 
   public isOnline(): boolean {
@@ -84,6 +102,7 @@ export class SurrealService {
       });
       this.isConnected = true;
       this.isAuthenticated = true;
+      this.setConnectedWallet(walletAddress);
       console.log(`[SurrealDB] Authenticated player: ${walletAddress}`);
       return true;
     } catch (err) {
@@ -100,7 +119,9 @@ export class SurrealService {
   /**
    * Start a new run session directly on SurrealDB backend
    */
-  public async startRun(wallet: string = '0x0000000000000000000000000000000000000000', stage: string = 'stage1'): Promise<SurrealRunSession> {
+  public async startRun(wallet?: string, stage: string = 'stage1'): Promise<SurrealRunSession> {
+    const finalWallet = (wallet && wallet !== '0x0000000000000000000000000000000000000000') ? wallet : this.connectedWallet;
+
     if (!this.isConnected) {
       await this.tryConnect();
     }
@@ -109,7 +130,7 @@ export class SurrealService {
       try {
         const res = await this.db.query<[Record<string, any>]>(
           'RETURN fn::start_run($wallet, $stage);',
-          { wallet, stage }
+          { wallet: finalWallet, stage }
         );
         const data = res && res[0];
         if (data) {
@@ -148,7 +169,7 @@ export class SurrealService {
     playerName: string = 'Anonymous Player',
     walletAddress?: string
   ): Promise<SurrealSubmitResult> {
-    const wallet = walletAddress || '0x0000000000000000000000000000000000000000';
+    const wallet = (walletAddress && walletAddress !== '0x0000000000000000000000000000000000000000') ? walletAddress : this.connectedWallet;
     const score = (payload.totalCoins * 50) + (payload.totalKills * 100) - (payload.totalDeaths * 200) + Math.max(0, 5000 - Math.floor(payload.totalDurationMs / 100));
     const totalSecs = Math.floor(payload.totalDurationMs / 1000);
     const mins = Math.floor(totalSecs / 60);

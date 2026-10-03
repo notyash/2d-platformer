@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "verify-tokens": "node scripts/verify-tokens.mjs",
+    "db:init": "node scripts/db-init.mjs",
+    "db:up": "docker compose up -d surrealdb schema-init",
+    "db:down": "docker compose down",
     "build": "node scripts/verify-tokens.mjs && tsc && vite build",
     "preview": "vite preview"
   },
