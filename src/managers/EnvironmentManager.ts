@@ -1791,16 +1791,12 @@ export class EnvironmentManager {
             this.isBridgeBreakArmed = true;
         }
 
-        const isGrounded = pBody.blocked.down || pBody.touching.down || this.player.isOnPlatform;
-
-        // Transition from Armed to Active:
-        // When armed and player leaves ground, falling downwards through the air (stepping off ledge or jumping into fall)
+        // When armed, activate smash fall as player moves into the descent shaft
         if (this.isBridgeBreakArmed && !this.isSmashFallActive) {
-            if (!isGrounded && pBody.velocity.y >= 0) {
+            if (pBody.velocity.y >= 0 && (!pBody.blocked.down || pBody.y > 300)) {
                 this.isSmashFallActive = true;
-                this.isBridgeBreakArmed = false;
-            } else if (!inBreakZone && isGrounded) {
-                // If player walked completely away to the right (away from the drop ledge) while staying grounded, disarm
+            } else if (!inBreakZone && pBody.blocked.down && pBody.y < 350) {
+                // If player walked completely away to the right (away from the drop ledge) while staying on the top floor, disarm
                 const walkedFarAway = this.bridgeBreakZones.every(zone => {
                     const zb = (zone.getData('rect') as Phaser.Geom.Rectangle) || zone.getBounds();
                     return pBounds.left > zb.right + 96;
@@ -1811,13 +1807,13 @@ export class EnvironmentManager {
             }
         }
 
-        if (this.isSmashFallActive) {
+        if (this.isSmashFallActive || this.isBridgeBreakArmed) {
             // Check if the player reaches an unbroken Bridge
             let targetBridge: BridgeData | undefined = undefined;
             for (const bridge of this.bridges) {
                 if (!bridge.broken && bridge.sprite && bridge.sprite.active) {
                     const b = bridge.sprite.getBounds();
-                    const bridgeSurface = new Phaser.Geom.Rectangle(b.x - 8, b.y - 16, b.width + 16, 36);
+                    const bridgeSurface = new Phaser.Geom.Rectangle(b.x - 12, b.y - 20, b.width + 24, 44);
                     if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, bridgeSurface)) {
                         targetBridge = bridge;
                         break;
@@ -1828,12 +1824,10 @@ export class EnvironmentManager {
             if (targetBridge && pBody.velocity.y >= 0) {
                 // Direct fall from BridgeBreakZone onto bridge without landing on anything else -> Break the bridge!
                 this.breakBridge(targetBridge);
-            } else if (isGrounded && !targetBridge) {
-                // If the player landed on top of anything else (ground, moving platform, one-way platform), cancel!
-                this.cancelSmashFall();
             }
 
-            if (this.player.isDying || this.player.isTeleporting) {
+            // Only cancel smash fall if the player stands on top of a platform (isOnPlatform) or dies/teleports
+            if (this.player.isOnPlatform || this.player.isDying || this.player.isTeleporting) {
                 this.cancelSmashFall();
             }
         } 

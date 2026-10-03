@@ -937,7 +937,11 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     public isPlayerInArena(): boolean {
         if (!this.player || !this.player.active) return false;
         if (this.arenaZone) {
-            return Phaser.Geom.Rectangle.Contains(this.arenaZone, this.player.x, this.player.y);
+            const minX = this.arenaZone.left - 64;
+            const maxX = this.arenaZone.right + 96;
+            const minY = Math.min(this.arenaZone.top - 320, (this.bossEntranceZone?.top ?? 990) - 64);
+            const maxY = this.arenaZone.bottom + 64;
+            return this.player.x >= minX && this.player.x <= maxX && this.player.y >= minY && this.player.y <= maxY;
         }
         return false;
     }
@@ -954,13 +958,24 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         const cam = this.scene.cameras.main;
         if (!cam) return false;
         const view = cam.worldView;
-        if (!view) return false;
-        const bossMargin = 32;
+        const bossMargin = 64;
+        if (view && view.width > 0 && view.height > 0) {
+            return (
+                this.x >= view.x - bossMargin &&
+                this.x <= (view.x + view.width) + bossMargin &&
+                this.y >= view.y - bossMargin &&
+                this.y <= (view.y + view.height) + bossMargin
+            );
+        }
+        const viewX = cam.scrollX;
+        const viewY = cam.scrollY;
+        const viewW = cam.width / (cam.zoom || 1);
+        const viewH = cam.height / (cam.zoom || 1);
         return (
-            this.x >= view.x - bossMargin &&
-            this.x <= view.right + bossMargin &&
-            this.y >= view.y - bossMargin &&
-            this.y <= view.bottom + bossMargin
+            this.x >= viewX - bossMargin &&
+            this.x <= viewX + viewW + bossMargin &&
+            this.y >= viewY - bossMargin &&
+            this.y <= viewY + viewH + bossMargin
         );
     }
 
@@ -2519,9 +2534,32 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.arenaCover.setVisible(!this.isEntranceRevealed);
         }
 
-        // Requirement 1 & 2: Boss music active while player is inside BossArenaZone
         const inArena = this.isPlayerInArena();
+        const distToPlayer = Phaser.Math.Distance.Between(this.x, this.y, this.player.x, this.player.y);
+        const isVisibleInCamera = this.isBossVisibleInCamera();
 
+        // 1. Initial Boss Discovery Check:
+        // Trigger immediately when the player sees the boss in camera or explores near the boss
+        if (!this.hasDiscoveredBoss) {
+            const bBody = this.body as Phaser.Physics.Arcade.Body;
+            if (bBody) bBody.setVelocity(0, 0);
+            if (this.visible && this.bossState !== 'vanished' && this.bossState !== 'reappearing') {
+                if (this.phase === 1) {
+                    playBossAnimation(this, BOSS_ANIM_KEYS.IDLE_FLYING);
+                } else {
+                    playBossAnimation(this, BOSS_ANIM_KEYS.STANDING_IDLE);
+                }
+            }
+
+            if (isVisibleInCamera || distToPlayer < 550 || (inArena && this.player.x < (this.arenaZone?.right ?? 4700) - 120)) {
+                this.hasDiscoveredBoss = true;
+                this.activateEncounter();
+            } else {
+                return;
+            }
+        }
+
+        // 2. Boss Music & Arena Status
         if (inArena && !this.playerWasInArena && !this.isDead) {
             this.playerWasInArena = true;
             const activeRespawn = this.getActiveRespawnPoint();
@@ -2534,9 +2572,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             } else {
                 this.soundManager?.playBossMusic();
             }
-            if (this.hasDiscoveredBoss || this.hasStarted) {
-                this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp);
-            }
+            this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp);
         } else if (!inArena && this.playerWasInArena) {
             this.playerWasInArena = false;
             this.soundManager?.playGameMusic();
@@ -2567,25 +2603,6 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 }
             }
             return;
-        }
-
-        // Requirement 2: Boss only starts movement and attack patterns when visible in camera initially
-        if (!this.hasDiscoveredBoss) {
-            const bBody = this.body as Phaser.Physics.Arcade.Body;
-            if (bBody) bBody.setVelocity(0, 0);
-            if (this.visible && this.bossState !== 'vanished' && this.bossState !== 'reappearing') {
-                if (this.phase === 1) {
-                    playBossAnimation(this, BOSS_ANIM_KEYS.IDLE_FLYING);
-                } else {
-                    playBossAnimation(this, BOSS_ANIM_KEYS.STANDING_IDLE);
-                }
-            }
-            if (this.isBossVisibleInCamera()) {
-                this.hasDiscoveredBoss = true;
-                this.activateEncounter();
-            } else {
-                return;
-            }
         }
 
         // Update skeleton minions
