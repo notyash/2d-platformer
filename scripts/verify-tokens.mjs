@@ -6,8 +6,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const tokensTsPath = path.resolve(__dirname, '../src/theme/tokens.ts');
-const tokensCssPath = path.resolve(__dirname, '../src/theme/tokens.css');
+const tokensTsPath = path.resolve(__dirname, '../src/theme/uiTokens.ts');
+const tokensCssPath = path.resolve(__dirname, '../src/theme/uiTokens.css');
 
 const tokensTsContent = fs.readFileSync(tokensTsPath, 'utf8');
 const tokensCssContent = fs.readFileSync(tokensCssPath, 'utf8');
@@ -17,7 +17,7 @@ function camelToKebab(str) {
   return str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
 }
 
-// Extract CSS variables from tokens.css
+// Extract CSS variables from uiTokens.css
 const cssVarRegex = /--([a-zA-Z0-9-]+)\s*:\s*([^;]+);/g;
 const cssTokens = new Map();
 let match;
@@ -25,10 +25,10 @@ while ((match = cssVarRegex.exec(tokensCssContent)) !== null) {
   cssTokens.set(match[1].trim(), match[2].trim());
 }
 
-// Basic evaluation of TOKENS object from tokens.ts
-const matchTokens = tokensTsContent.match(/export const TOKENS = (\{[\s\S]*?\}) as const;/);
+// Basic evaluation of UI_TOKENS / TOKENS object from uiTokens.ts
+const matchTokens = tokensTsContent.match(/export const (?:UI_)?TOKENS = (\{[\s\S]*?\}) as const;/);
 if (!matchTokens) {
-  console.error('❌ Failed to parse TOKENS from tokens.ts');
+  console.error('❌ Failed to parse UI_TOKENS from uiTokens.ts');
   process.exit(1);
 }
 
@@ -75,13 +75,13 @@ function verifyGroup(groupName, groupObj, prefix = '') {
     }
 
     if (!cssTokens.has(cssVarName)) {
-      console.error(`❌ Token Drift: TOKENS.${groupName}.${key} is missing --${cssVarName} in tokens.css`);
+      console.error(`❌ Token Drift: TOKENS.${groupName}.${key} is missing --${cssVarName} in uiTokens.css`);
       errorCount++;
     } else {
       const tsVal = String(_val).trim().replace(/\s+/g, ' ').replace(/"/g, "'");
       const cssVal = String(cssTokens.get(cssVarName)).trim().replace(/\s+/g, ' ').replace(/"/g, "'");
       if (tsVal !== cssVal && tsVal.toLowerCase() !== cssVal.toLowerCase()) {
-        console.error(`❌ Value Mismatch: --${cssVarName} in tokens.css ("${cssVal}") does not match TOKENS.${groupName}.${key} in tokens.ts ("${tsVal}")`);
+        console.error(`❌ Value Mismatch: --${cssVarName} in uiTokens.css ("${cssVal}") does not match TOKENS.${groupName}.${key} in uiTokens.ts ("${tsVal}")`);
         errorCount++;
       }
     }
@@ -98,5 +98,5 @@ if (errorCount > 0) {
   console.error(`\n❌ Token verification failed with ${errorCount} error(s).`);
   process.exit(1);
 } else {
-  console.log(`✅ Token parity verified: All TOKENS in tokens.ts match tokens.css (${cssTokens.size} CSS variables).`);
+  console.log(`✅ Token parity verified: All UI_TOKENS in uiTokens.ts match uiTokens.css (${cssTokens.size} CSS variables).`);
 }
