@@ -10,3 +10,5 @@ export interface Firebar {
   sprite: Phaser.GameObjects.Sprite;
   barLength: number;
 }
+
+export * from '../entities/bossAnimationTokens';
