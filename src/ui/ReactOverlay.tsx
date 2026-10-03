@@ -12,6 +12,7 @@ import {
 import { KamiZukiHUD } from './KamiZukiHUD';
 import { PauseModal } from './PauseModal';
 import { VictoryModal } from './VictoryModal';
+import { LeaderboardModal } from './LeaderboardModal';
 import { DebugReadout } from './DebugReadout';
 import { UIKitShowcase } from './UIKitShowcase';
 import { BossBar } from './kit/BossBar';
@@ -433,6 +434,9 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
 
       {/* Victory Modal */}
       <VictoryModal gameState={gameState} stats={stats} timeString={timeString} />
+
+      {/* Global Leaderboard Modal */}
+      <LeaderboardModal />
 
       {/* Event Bus Debug Overlay (toggled with backtick `) */}
       <DebugReadout onOpenUIKit={() => setShowUIKit(true)} />

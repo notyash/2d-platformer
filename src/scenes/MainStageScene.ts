@@ -57,6 +57,20 @@ export class MainStageScene extends Phaser.Scene {
         }
     };
 
+    private onWindowBlur = () => {
+        if (!this.isGameComplete && !this.isGamePaused) {
+            this.pauseGame();
+        }
+    };
+
+    private onVisibilityChange = () => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+            if (!this.isGameComplete && !this.isGamePaused) {
+                this.pauseGame();
+            }
+        }
+    };
+
     constructor() {
         super('MainStageScene');
     }
@@ -515,7 +529,11 @@ export class MainStageScene extends Phaser.Scene {
 
                     if (!nextMuted) {
                         if (this.eleckingBoss?.isPlayerInArena() && !this.eleckingBoss.isDead) {
-                            this.soundManager.playBossMusic();
+                            if (this.eleckingBoss.phase === 2 || this.eleckingBoss.hasReachedPhase2) {
+                                this.soundManager.playBossPhase2Music();
+                            } else {
+                                this.soundManager.playBossMusic();
+                            }
                         } else {
                             this.soundManager.playGameMusic();
                         }
@@ -532,15 +550,28 @@ export class MainStageScene extends Phaser.Scene {
                     }
                     break;
                 case 'OPEN_LEADERBOARD':
-                    LeaderboardManager.getInstance().showLeaderboardModal(this, this.soundManager);
+                    this.soundManager.playMenuSelect();
                     break;
             }
         });
 
+        // Sound pauseOnBlur disabled so our pauseGame/resumeGame has full authoritative control
+        if (this.sound) {
+            this.sound.pauseOnBlur = false;
+        }
+
+        // Window Focus / Blur & Tab Switch / Alt-Tab Event Listeners
+        window.addEventListener('blur', this.onWindowBlur);
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', this.onVisibilityChange);
+        }
+
         const cleanup = () => {
             window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+            window.removeEventListener('blur', this.onWindowBlur);
             if (typeof document !== 'undefined') {
                 document.removeEventListener('fullscreenchange', this.onFullscreenChange);
+                document.removeEventListener('visibilitychange', this.onVisibilityChange);
             }
             unsubAction();
         };
@@ -805,7 +836,7 @@ export class MainStageScene extends Phaser.Scene {
             this.player.setTexture(this.player.facing === 'right' ? 'idle-r' : 'idle-l');
         }
         this.player.enforceKeyLift();
-        this.soundManager?.playPowerup();
+        this.soundManager?.playRespawn();
     }
 
     private restartFullRun() {

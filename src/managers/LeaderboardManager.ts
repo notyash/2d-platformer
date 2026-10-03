@@ -104,11 +104,13 @@ export class LeaderboardManager {
    */
   public async refreshLeaderboard(): Promise<LeaderboardEntry[]> {
     try {
-      const liveEntries = await SurrealService.getInstance().getLeaderboard(10);
-      if (liveEntries && Array.isArray(liveEntries) && liveEntries.length > 0) {
-        this.entries = this.sortAndRank(liveEntries);
-        this.saveEntries();
-        return this.entries;
+      if (SurrealService.getInstance().isOnline()) {
+        const liveEntries = await SurrealService.getInstance().getLeaderboard(10);
+        if (liveEntries && Array.isArray(liveEntries)) {
+          this.entries = this.sortAndRank(liveEntries);
+          this.saveEntries();
+          return this.entries;
+        }
       }
     } catch (err) {
       console.warn('[SurrealDB] Failed to refresh live leaderboard:', err);
@@ -446,6 +448,7 @@ export class LeaderboardManager {
     if (this.currentModalContainer) {
       this.currentModalContainer.destroy();
       this.currentModalContainer = undefined;
+      GameEventBus.getInstance().emit('action:trigger', { type: 'LEADERBOARD_CLOSED' });
     }
   }
 }

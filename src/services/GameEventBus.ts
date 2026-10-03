@@ -73,6 +73,7 @@ export type GameAction =
   | { type: 'RESTART_RUN' }
   | { type: 'TOGGLE_SOUND' }
   | { type: 'OPEN_LEADERBOARD' }
+  | { type: 'LEADERBOARD_CLOSED' }
   | { type: 'CLOSE_MODAL' };
 
 export interface ToastData {

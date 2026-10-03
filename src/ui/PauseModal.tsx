@@ -20,7 +20,8 @@ interface MenuEntry {
 export const PauseModal: React.FC<PauseModalProps> = ({ gameState, stats }) => {
   const [hasCheckpoint, setHasCheckpoint] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
-  const isOpen = gameState === 'PAUSED';
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState<boolean>(false);
+  const isOpen = gameState === 'PAUSED' && !isLeaderboardOpen;
 
   useEffect(() => {
     const bus = GameEventBus.getInstance();
@@ -30,10 +31,18 @@ export const PauseModal: React.FC<PauseModalProps> = ({ gameState, stats }) => {
     const unsubSound = bus.on('sound:status', (enabled) => {
       setSoundEnabled(enabled);
     });
+    const unsubAction = bus.on('action:trigger', (action) => {
+      if (action.type === 'OPEN_LEADERBOARD') {
+        setIsLeaderboardOpen(true);
+      } else if (action.type === 'LEADERBOARD_CLOSED' || action.type === 'RESUME_GAME' || action.type === 'RESTART_RUN') {
+        setIsLeaderboardOpen(false);
+      }
+    });
 
     return () => {
       unsubCp();
       unsubSound();
+      unsubAction();
     };
   }, []);
 

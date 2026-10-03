@@ -21,16 +21,25 @@ interface MenuEntry {
 
 export const VictoryModal: React.FC<VictoryModalProps> = ({ gameState, stats, timeString }) => {
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
-  const isOpen = gameState === 'VICTORY';
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState<boolean>(false);
+  const isOpen = gameState === 'VICTORY' && !isLeaderboardOpen;
 
   useEffect(() => {
     const bus = GameEventBus.getInstance();
     const unsubSound = bus.on('sound:status', (enabled) => {
       setSoundEnabled(enabled);
     });
+    const unsubAction = bus.on('action:trigger', (action) => {
+      if (action.type === 'OPEN_LEADERBOARD') {
+        setIsLeaderboardOpen(true);
+      } else if (action.type === 'LEADERBOARD_CLOSED' || action.type === 'RESTART_RUN') {
+        setIsLeaderboardOpen(false);
+      }
+    });
 
     return () => {
       unsubSound();
+      unsubAction();
     };
   }, []);
 
