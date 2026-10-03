@@ -1,6 +1,7 @@
 // src/managers/SoundManager.ts
 import Phaser from 'phaser';
 import { SettingsManager } from './SettingsManager';
+import { SOUND_TOKENS } from '../theme/soundTokens';
 
 export class SoundManager {
     private scene: Phaser.Scene;
@@ -145,23 +146,52 @@ export class SoundManager {
         this.scene.time.delayedCall(195, () => this.playTone(1046.50, 1046.50, 'sine', 0.18, 0.3));
     }
 
+    public playAudioFile(key: string, volumeScale: number = 1.0) {
+        if (this.isMuted) return;
+        if (this.scene.sound && this.scene.cache.audio.exists(key)) {
+            const effectiveVol = this.settingsManager.getEffectiveSfxVolume() * volumeScale;
+            if (effectiveVol > 0.001) {
+                this.scene.sound.play(key, { volume: effectiveVol });
+            }
+        }
+    }
+
     public playVictory() {
         if (this.isMuted) return;
-        this.ensureContext();
         this.stopMusic();
+        if (this.scene.sound && this.scene.cache.audio.exists(SOUND_TOKENS.sfx.victory.key)) {
+            this.playAudioFile(SOUND_TOKENS.sfx.victory.key, 0.7);
+        } else {
+            this.ensureContext();
+            // Fallback synthetic fanfare
+            this.playTone(523.25, 523.25, 'triangle', 0.12, 0.28, true);
+            window.setTimeout(() => this.playTone(659.25, 659.25, 'triangle', 0.12, 0.28, true), 130);
+            window.setTimeout(() => this.playTone(783.99, 783.99, 'triangle', 0.12, 0.3, true), 260);
+            window.setTimeout(() => this.playTone(1046.50, 1046.50, 'sine', 0.22, 0.35, true), 390);
+            window.setTimeout(() => this.playTone(783.99, 783.99, 'triangle', 0.14, 0.3, true), 560);
+            window.setTimeout(() => {
+                this.playTone(1046.50, 1046.50, 'triangle', 0.85, 0.35, true);
+                this.playTone(1318.51, 1318.51, 'sine', 0.85, 0.3, true);
+                this.playTone(1567.98, 1567.98, 'sine', 0.85, 0.25, true);
+            }, 700);
+        }
+    }
 
-        // 8-bit celebratory victory fanfare (C5 -> E5 -> G5 -> C6 -> G5 -> Grand C Major Chord)
-        // Uses window.setTimeout so the full fanfare plays out completely even when game scene is paused/completed
-        this.playTone(523.25, 523.25, 'triangle', 0.12, 0.28, true);
-        window.setTimeout(() => this.playTone(659.25, 659.25, 'triangle', 0.12, 0.28, true), 130);
-        window.setTimeout(() => this.playTone(783.99, 783.99, 'triangle', 0.12, 0.3, true), 260);
-        window.setTimeout(() => this.playTone(1046.50, 1046.50, 'sine', 0.22, 0.35, true), 390);
-        window.setTimeout(() => this.playTone(783.99, 783.99, 'triangle', 0.14, 0.3, true), 560);
-        window.setTimeout(() => {
-            this.playTone(1046.50, 1046.50, 'triangle', 0.85, 0.35, true);
-            this.playTone(1318.51, 1318.51, 'sine', 0.85, 0.3, true);
-            this.playTone(1567.98, 1567.98, 'sine', 0.85, 0.25, true);
-        }, 700);
+    public playBossRage() {
+        this.playAudioFile(SOUND_TOKENS.sfx.bossRage.key, 0.7);
+    }
+
+    public playPhaseTransition() {
+        this.playAudioFile(SOUND_TOKENS.sfx.phaseTransition.key, 0.75);
+    }
+
+    public playBossDeath() {
+        this.stopMusic();
+        this.playAudioFile(SOUND_TOKENS.sfx.bossDeath.key, 0.8);
+    }
+
+    public playBossFallingGround() {
+        this.playAudioFile(SOUND_TOKENS.sfx.bossFallingGround.key, 0.75);
     }
 
     public playStomp() {
@@ -209,6 +239,9 @@ export class SoundManager {
         if (this.scene.sound) {
             this.scene.sound.pauseAll();
         }
+        if (this.currentMusicSound && this.currentMusicSound.isPlaying) {
+            this.currentMusicSound.pause();
+        }
     }
 
     public resumeAll() {
@@ -219,6 +252,9 @@ export class SoundManager {
             if (this.scene.sound) {
                 this.scene.sound.resumeAll();
             }
+            if (this.currentMusicSound && (this.currentMusicSound as any).isPaused) {
+                this.currentMusicSound.resume();
+            }
         }
     }
 
@@ -226,8 +262,16 @@ export class SoundManager {
      * Requirement 2: Play game bg music on loop with fade-in on start & restart, unless in boss arena
      */
     public playGameMusic() {
-        if (this.currentMusicKey === 'game-bg-music' && this.currentMusicSound && this.currentMusicSound.isPlaying) {
-            return;
+        if (this.currentMusicKey === 'game-bg-music' && this.currentMusicSound) {
+            if (this.currentMusicSound.isPlaying) {
+                return;
+            }
+            if ((this.currentMusicSound as any).isPaused) {
+                if (!(this.scene as any).isGamePaused) {
+                    this.currentMusicSound.resume();
+                }
+                return;
+            }
         }
         this.playTrack('game-bg-music', 2000);
     }
@@ -236,8 +280,16 @@ export class SoundManager {
      * Requirement 2 (Boss): Play boss bg music on loop until boss is defeated
      */
     public playBossMusic() {
-        if (this.currentMusicKey === 'boss-bg-music' && this.currentMusicSound && this.currentMusicSound.isPlaying) {
-            return;
+        if (this.currentMusicKey === 'boss-bg-music' && this.currentMusicSound) {
+            if (this.currentMusicSound.isPlaying) {
+                return;
+            }
+            if ((this.currentMusicSound as any).isPaused) {
+                if (!(this.scene as any).isGamePaused) {
+                    this.currentMusicSound.resume();
+                }
+                return;
+            }
         }
         this.playTrack('boss-bg-music', 1500);
     }
@@ -246,6 +298,19 @@ export class SoundManager {
         if (this.musicInterval) {
             clearInterval(this.musicInterval);
             this.musicInterval = null;
+        }
+
+        // Check if the current track is already initialized and just paused
+        if (this.currentMusicKey === key && this.currentMusicSound) {
+            if (this.currentMusicSound.isPlaying) {
+                return;
+            }
+            if ((this.currentMusicSound as any).isPaused) {
+                if (!(this.scene as any).isGamePaused) {
+                    this.currentMusicSound.resume();
+                }
+                return;
+            }
         }
 
         // Stop prior track if switching
@@ -265,7 +330,7 @@ export class SoundManager {
             return;
         }
 
-        if (!this.currentMusicSound || !this.currentMusicSound.isPlaying) {
+        if (!this.currentMusicSound || (!this.currentMusicSound.isPlaying && !(this.currentMusicSound as any).isPaused)) {
             if (this.currentMusicSound) {
                 this.currentMusicSound.stop();
                 this.currentMusicSound.destroy();
@@ -299,19 +364,26 @@ export class SoundManager {
             music.on('looped', handleLoopFade);
             music.on('loop', handleLoopFade);
 
-            music.play();
+            if ((this.scene as any).isGamePaused) {
+                music.play();
+                music.pause();
+            } else {
+                music.play();
+            }
 
             if (this.currentFadeTween) {
                 this.currentFadeTween.stop();
             }
 
-            if (!this.isMuted && targetVol > 0) {
+            if (!this.isMuted && targetVol > 0 && !(this.scene as any).isGamePaused) {
                 this.currentFadeTween = this.scene.tweens.add({
                     targets: music,
                     volume: targetVol,
                     duration: fadeDurationMs,
                     ease: 'Linear'
                 });
+            } else if (!this.isMuted && targetVol > 0) {
+                (music as any).setVolume(targetVol);
             }
         }
     }

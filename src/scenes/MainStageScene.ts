@@ -14,6 +14,7 @@ import { SurrealService } from '../services/SurrealService';
 import { EleckingBoss } from '../entities/EleckingBoss';
 import { preloadBossSprites, createBossAnimations } from '../entities/bossAnimationTokens';
 import { GameEventBus } from '../services/GameEventBus';
+import { SOUND_TOKENS } from '../theme/soundTokens';
 
 export class MainStageScene extends Phaser.Scene {
     private player!: Player;
@@ -216,9 +217,13 @@ export class MainStageScene extends Phaser.Scene {
             }
         });
 
-        // Background Music
-        this.load.audio('game-bg-music', 'assets/sound effects/game bg music.mp3');
-        this.load.audio('boss-bg-music', 'assets/sound effects/boss bg music.mp3');
+        // Music and Sound Effects from SOUND_TOKENS
+        Object.values(SOUND_TOKENS.music).forEach(track => {
+            this.load.audio(track.key, track.path);
+        });
+        Object.values(SOUND_TOKENS.sfx).forEach(sound => {
+            this.load.audio(sound.key, sound.path);
+        });
     }
 
     create() {
@@ -394,7 +399,7 @@ export class MainStageScene extends Phaser.Scene {
             
             const isInsideBossArena = Boolean(this.eleckingBoss?.isPlayerInArena() || this.eleckingBoss?.isEntranceRevealed);
             if (isInsideBossArena || (this.eleckingBoss && this.eleckingBoss.hasReachedPhase2)) {
-                this.eleckingBoss?.resetAll(!this.eleckingBoss.hasReachedPhase2);
+                this.eleckingBoss?.resetAll(false);
             }
             this.player.bullets.clear(true, true);
         });
