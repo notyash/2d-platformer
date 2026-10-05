@@ -22,10 +22,7 @@ export class EnemyManager {
 
     public enemiesKilled: number = 0;
     private killedEnemyKeys: Set<string> = new Set();
-
-    // Checkpoint Snapshots
-    private savedCheckpointKilledKeys: Set<string> = new Set();
-    private savedCheckpointKills: number = 0;
+    private rewardedEnemyKeys: Set<string> = new Set();
 
     private rawMapObjects: any[] = [];
     private groundLayer!: Phaser.Tilemaps.TilemapLayer;
@@ -61,13 +58,10 @@ export class EnemyManager {
     }
 
     public saveCheckpointSnapshot() {
-        this.savedCheckpointKilledKeys = new Set(this.killedEnemyKeys);
-        this.savedCheckpointKills = this.enemiesKilled;
+        // Enemy kills and rewarded keys persist forward
     }
 
     public rollbackToCheckpoint() {
-        this.killedEnemyKeys = new Set(this.savedCheckpointKilledKeys);
-        this.enemiesKilled = this.savedCheckpointKills;
         this.clearBullets();
         if (this.rawMapObjects.length > 0 && this.groundLayer && this.oneWayLayer) {
             this.spawnGroundMobs();
@@ -470,11 +464,6 @@ export class EnemyManager {
 
             const uniqueKey = `${obj.name}_${Math.round(obj.x)}_${Math.round(obj.y)}`;
 
-            // Skip mobs that were killed BEFORE the active checkpoint
-            if (this.killedEnemyKeys.has(uniqueKey)) {
-                return;
-            }
-
             let mobType = 'sandal';
             const customType = this.getProp(obj, ['type', 'mobtype', 'mob_type', 'monster', 'mob']);
             if (customType && String(customType).trim() !== '') {
@@ -741,11 +730,6 @@ export class EnemyManager {
 
             const uniqueKey = `${obj.name}_${Math.round(obj.x)}_${Math.round(obj.y)}`;
 
-            // Skip flying mobs that were killed BEFORE the active checkpoint
-            if (this.killedEnemyKeys.has(uniqueKey)) {
-                return;
-            }
-
             let mobType = 'pumpkin-bat';
             if (obj.type && typeof obj.type === 'string' && obj.type.trim() !== '') {
                 mobType = obj.type.trim();
@@ -980,12 +964,19 @@ export class EnemyManager {
             this.killedEnemyKeys.add(uniqueKey);
         }
 
-        this.uiManager.playCoinPickupEffect(monster.x, monster.y, 1);
         this.pipeMonsters.remove(monster, true, true);
-        this.enemiesKilled++;
-        this.collectiblesManager?.addCoins(1);
         this.soundManager?.playStomp();
-        this.soundManager?.playCoin();
+
+        const alreadyRewarded = Boolean(uniqueKey && this.rewardedEnemyKeys.has(uniqueKey));
+        if (!alreadyRewarded) {
+            if (uniqueKey) {
+                this.rewardedEnemyKeys.add(uniqueKey);
+            }
+            this.enemiesKilled++;
+            this.collectiblesManager?.addCoins(1);
+            this.soundManager?.playCoin();
+            this.uiManager.playCoinPickupEffect(monster.x, monster.y, 1);
+        }
     }
 
     private spawnPipeMonsters() {
@@ -1003,12 +994,6 @@ export class EnemyManager {
             }
 
             const uniqueKey = `PipeMonster_${Math.round(obj.x)}_${Math.round(obj.y)}`;
-
-            // Skip pipe monsters killed BEFORE the active checkpoint
-            if (this.killedEnemyKeys.has(uniqueKey)) {
-                obj.destroy();
-                return;
-            }
 
             let popDuration = 200;
             let scalePercent = 100;
@@ -1099,9 +1084,8 @@ export class EnemyManager {
 
     public resetAll() {
         this.enemiesKilled = 0;
-        this.savedCheckpointKills = 0;
         this.killedEnemyKeys.clear();
-        this.savedCheckpointKilledKeys.clear();
+        this.rewardedEnemyKeys.clear();
         this.enemyBullets.clear(true, true);
         if (this.rawMapObjects.length > 0 && this.groundLayer && this.oneWayLayer) {
             this.spawnGroundMobs();
@@ -1185,12 +1169,18 @@ export class EnemyManager {
         mob.setAngularVelocity(Phaser.Math.Between(400, 800) * (Math.random() > 0.5 ? 1 : -1)); 
         mob.setDepth(10);
         
-        this.enemiesKilled++;
-        this.collectiblesManager?.addCoins(coinReward);
         this.soundManager?.playStomp();
-        this.soundManager?.playCoin();
-        
-        this.uiManager.playCoinPickupEffect(mob.x, mob.y, coinReward);
+
+        const alreadyRewarded = Boolean(uniqueKey && this.rewardedEnemyKeys.has(uniqueKey));
+        if (!alreadyRewarded) {
+            if (uniqueKey) {
+                this.rewardedEnemyKeys.add(uniqueKey);
+            }
+            this.enemiesKilled++;
+            this.collectiblesManager?.addCoins(coinReward);
+            this.soundManager?.playCoin();
+            this.uiManager.playCoinPickupEffect(mob.x, mob.y, coinReward);
+        }
 
         this.scene.time.delayedCall(1500, () => {
             if (mob.active) mob.destroy();

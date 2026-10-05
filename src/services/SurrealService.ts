@@ -210,7 +210,7 @@ export class SurrealService {
     walletAddress?: string
   ): Promise<SurrealSubmitResult> {
     const wallet = (walletAddress && walletAddress !== '0x0000000000000000000000000000000000000000') ? walletAddress : this.connectedWallet;
-    const score = (payload.totalCoins * 50) + (payload.totalKills * 100) - (payload.totalDeaths * 200) + Math.max(0, 5000 - Math.floor(payload.totalDurationMs / 100));
+    const score = (payload.totalCoins * 50) + (payload.totalKills * 100) + Math.max(0, 5000 - Math.floor(payload.totalDurationMs / 100));
     const totalSecs = Math.floor(payload.totalDurationMs / 1000);
     const mins = Math.floor(totalSecs / 60);
     const secs = totalSecs % 60;

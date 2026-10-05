@@ -323,9 +323,9 @@ DEFINE FUNCTION OVERWRITE fn::submit_run(
         };
     };
 
-    -- 4. Authoritative Server-Side Score Calculation (Coins, Kills, Deaths, Speed Bonus)
+    -- 4. Authoritative Server-Side Score Calculation (Coins, Kills, Speed Bonus)
     LET $time_bonus = math::max([0, 5000 - math::floor($duration_ms / 100)]);
-    LET $raw_score = ($coins * 50) + ($kills * 100) - ($deaths * 200) + $time_bonus;
+    LET $raw_score = ($coins * 50) + ($kills * 100) + $time_bonus;
     LET $final_score = math::max([0, $raw_score]);
 
     -- 5. O(1) Trigger Whitelist Allocation if Qualified (Requires connected Web3 wallet)
