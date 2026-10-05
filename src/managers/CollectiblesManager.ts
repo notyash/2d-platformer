@@ -21,8 +21,6 @@ export class CollectiblesManager {
     private collectedItemKeys: Set<string> = new Set();
 
     // Checkpoint Snapshots
-    private savedCheckpointCollectedKeys: Set<string> = new Set();
-    private savedCheckpointCoins: number = 0;
     private consumedTotemKeys: Set<string> = new Set();
 
     constructor(
@@ -58,16 +56,14 @@ export class CollectiblesManager {
     }
 
     public saveCheckpointSnapshot() {
-        this.savedCheckpointCollectedKeys = new Set(this.collectedItemKeys);
-        this.savedCheckpointCoins = this.coinsCollected;
+        // Collectibles persist forward across checkpoints and deaths
     }
 
     public rollbackToCheckpoint() {
-        this.collectedItemKeys = new Set(this.savedCheckpointCollectedKeys);
+        // Collected coins and consumed totems persist across deaths and do NOT respawn
         for (const key of this.consumedTotemKeys) {
             this.collectedItemKeys.add(key);
         }
-        this.coinsCollected = this.savedCheckpointCoins;
         if (this.map) {
             this.spawnAllCollectibles();
         }
@@ -99,9 +95,7 @@ export class CollectiblesManager {
 
     public resetAll() {
         this.coinsCollected = 0;
-        this.savedCheckpointCoins = 0;
         this.collectedItemKeys.clear();
-        this.savedCheckpointCollectedKeys.clear();
         this.consumedTotemKeys.clear();
         if (this.map) {
             this.spawnAllCollectibles();

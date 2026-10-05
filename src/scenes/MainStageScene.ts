@@ -424,9 +424,9 @@ export class MainStageScene extends Phaser.Scene {
         // Player respawn event: restore everything ahead of latest checkpoint earned, persisting state before checkpoint
         this.events.on('player-respawn', () => {
             this.collectiblesManager.rollbackToCheckpoint();
-            this.enemyManager.rollbackToCheckpoint();
-            this.inventoryManager.rollbackToCheckpoint();
             this.envManager.rollbackToCheckpoint();
+            this.inventoryManager.rollbackToCheckpoint();
+            this.enemyManager.rollbackToCheckpoint();
         });
 
         // ESC, R, and C Key listeners
@@ -853,9 +853,9 @@ export class MainStageScene extends Phaser.Scene {
         this.player.bullets.clear(true, true);
 
         this.collectiblesManager.rollbackToCheckpoint();
-        this.enemyManager.rollbackToCheckpoint();
-        this.inventoryManager.rollbackToCheckpoint();
         this.envManager.rollbackToCheckpoint();
+        this.inventoryManager.rollbackToCheckpoint();
+        this.enemyManager.rollbackToCheckpoint();
 
         const isBossPhase2 = Boolean(
             this.eleckingBoss && 
@@ -918,10 +918,10 @@ export class MainStageScene extends Phaser.Scene {
         this.player.enforceKeyLift();
 
         this.collectiblesManager.resetAll();
-        this.enemyManager.resetAll();
-        this.inventoryManager.resetAll();
         this.envManager.resetAll();
         this.envManager.resetCheckpoints();
+        this.inventoryManager.resetAll();
+        this.enemyManager.resetAll();
         this.eleckingBoss?.resetAll(true);
         SecurityManager.getInstance().startNewRun('stage1');
         InputRecorder.getInstance().reset();

@@ -132,7 +132,7 @@ export class LeaderboardManager {
       };
     }
 
-    const calculatedScore = (payload.totalCoins * 50) + (payload.totalKills * 100) - (payload.totalDeaths * 200) + Math.max(0, 5000 - Math.floor(payload.totalDurationMs / 100));
+    const calculatedScore = (payload.totalCoins * 50) + (payload.totalKills * 100) + Math.max(0, 5000 - Math.floor(payload.totalDurationMs / 100));
 
     const finalPlayerName = playerName || (typeof localStorage !== 'undefined' && localStorage.getItem('onion_boy_player_name')) || 'Speedy Onion';
     const finalWallet = (walletAddress && walletAddress !== '0x0000000000000000000000000000000000000000')
