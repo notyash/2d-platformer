@@ -23,7 +23,7 @@ import { PromptChip } from './kit/PromptChip';
 import { Icon } from './kit/Icon';
 import { OrbCollectPopup } from './kit/OrbCollectPopup';
 import { ToastProvider, useToast } from './kit/ToastContext';
-import type { RestartPromptData, CheckpointState, DoorPromptData, BossAlertData, OrbCollectPopupData } from '../services/GameEventBus';
+import type { RestartPromptData, CheckpointPromptData, CheckpointState, DoorPromptData, BossAlertData, OrbCollectPopupData } from '../services/GameEventBus';
 
 interface ReactOverlayContentProps {
   gameState: GameState;
@@ -63,6 +63,7 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
   });
   const [shieldHitPulse, setShieldHitPulse] = useState<number>(0);
   const [restartPrompt, setRestartPrompt] = useState<RestartPromptData>({ active: false, progress: 0 });
+  const [checkpointPrompt, setCheckpointPrompt] = useState<CheckpointPromptData>({ active: false, progress: 0 });
   const [doorPrompt, setDoorPrompt] = useState<DoorPromptData | null>(null);
   const [timeString, setTimeString] = useState<string>('00:00.00');
   const [activeCheckpoint, setActiveCheckpoint] = useState<CheckpointState | null>(null);
@@ -195,6 +196,10 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
       setRestartPrompt(data);
     });
 
+    const unsubCheckpointPrompt = bus.on('prompt:checkpoint', (data) => {
+      setCheckpointPrompt(data);
+    });
+
     const unsubDoor = bus.on('prompt:door', (data) => {
       setDoorPrompt(data);
     });
@@ -257,6 +262,7 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
       unsubEquipment();
       unsubShieldHit();
       unsubRestartPrompt();
+      unsubCheckpointPrompt();
       unsubDoor();
       unsubTime();
       unsubCheckpoint();
@@ -347,6 +353,17 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
             <PromptChip
               keyName="R"
               label="again to restart"
+              variant="warning"
+            />
+          </div>
+        )}
+
+        {/* Checkpoint Confirmation Prompt Chip */}
+        {checkpointPrompt.active && (
+          <div className="hud-prompt-container">
+            <PromptChip
+              keyName="C"
+              label="again for checkpoint"
               variant="warning"
             />
           </div>

@@ -93,6 +93,11 @@ export interface RestartPromptData {
   progress: number;
 }
 
+export interface CheckpointPromptData {
+  active: boolean;
+  progress: number;
+}
+
 export interface CheckpointState {
   id: string | number;
 }
@@ -147,6 +152,7 @@ export interface EventMap {
   'coin:bump': void;
   'boss:shield-hit': void;
   'prompt:restart': RestartPromptData;
+  'prompt:checkpoint': CheckpointPromptData;
   'prompt:door': DoorPromptData | null;
   'checkpoint:changed': CheckpointState | null;
   'boss:alert': BossAlertData | null;
@@ -174,6 +180,7 @@ export class GameEventBus {
   private lastCoinTarget: CoinTargetData = { x: 80, y: 30 };
   private lastOrbTarget: OrbTargetData = { pips: [], center: { x: 427, y: 55 } };
   private lastRestartPrompt: RestartPromptData = { active: false, progress: 0 };
+  private lastCheckpointPrompt: CheckpointPromptData = { active: false, progress: 0 };
   private lastCheckpoint: CheckpointState | null = null;
   private lastDoorPrompt: DoorPromptData | null = null;
 
@@ -215,6 +222,8 @@ export class GameEventBus {
         callback(this.lastOrbTarget as EventMap[K]);
       } else if (event === 'prompt:restart') {
         callback(this.lastRestartPrompt as EventMap[K]);
+      } else if (event === 'prompt:checkpoint') {
+        callback(this.lastCheckpointPrompt as EventMap[K]);
       } else if (event === 'checkpoint:changed') {
         callback(this.lastCheckpoint as EventMap[K]);
       }
@@ -429,9 +438,11 @@ export class GameEventBus {
     this.lastCoinTarget = { x: 80, y: 30 };
     this.lastOrbTarget = { pips: [], center: { x: 427, y: 55 } };
     this.lastRestartPrompt = { active: false, progress: 0 };
+    this.lastCheckpointPrompt = { active: false, progress: 0 };
     this.lastCheckpoint = null;
     this.lastDoorPrompt = null;
     this.emit('prompt:restart', { active: false, progress: 0 });
+    this.emit('prompt:checkpoint', { active: false, progress: 0 });
     this.emit('prompt:door', null);
     this.emit('checkpoint:changed', null);
   }

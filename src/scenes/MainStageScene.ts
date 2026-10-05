@@ -44,6 +44,9 @@ export class MainStageScene extends Phaser.Scene {
     private restartPromptActive: boolean = false;
     private restartPromptElapsedMs: number = 0;
     private readonly RESTART_WINDOW_MS: number = 650;
+    private checkpointPromptActive: boolean = false;
+    private checkpointPromptElapsedMs: number = 0;
+    private readonly CHECKPOINT_WINDOW_MS: number = 650;
     private lastFullscreenExitTime: number = 0;
     private escKey!: Phaser.Input.Keyboard.Key;
     private rKey!: Phaser.Input.Keyboard.Key;
@@ -457,6 +460,11 @@ export class MainStageScene extends Phaser.Scene {
                     GameEventBus.getInstance().emit('prompt:restart', { active: false, progress: 0 });
                     this.restartFullRun();
                 } else {
+                    if (this.checkpointPromptActive) {
+                        this.checkpointPromptActive = false;
+                        this.checkpointPromptElapsedMs = 0;
+                        GameEventBus.getInstance().emit('prompt:checkpoint', { active: false, progress: 0 });
+                    }
                     this.restartPromptActive = true;
                     this.restartPromptElapsedMs = 0;
                     GameEventBus.getInstance().emit('prompt:restart', { active: true, progress: 1.0 });
@@ -469,15 +477,30 @@ export class MainStageScene extends Phaser.Scene {
                 if (this.eleckingBoss && this.eleckingBoss.isFightActive()) {
                     return;
                 }
-                if (this.envManager.hasActiveCheckpoint()) {
-                    this.respawnAtActiveCheckpoint();
-                } else {
+                if (!this.envManager.hasActiveCheckpoint()) {
                     GameEventBus.getInstance().emit('toast:show', {
                         id: 'no-checkpoint-active',
                         title: 'NO CHECKPOINT ACTIVE',
                         icon: 'checkpoint',
                         variant: 'warning',
                     });
+                    return;
+                }
+
+                if (this.checkpointPromptActive && this.checkpointPromptElapsedMs < this.CHECKPOINT_WINDOW_MS) {
+                    this.checkpointPromptActive = false;
+                    this.checkpointPromptElapsedMs = 0;
+                    GameEventBus.getInstance().emit('prompt:checkpoint', { active: false, progress: 0 });
+                    this.respawnAtActiveCheckpoint();
+                } else {
+                    if (this.restartPromptActive) {
+                        this.restartPromptActive = false;
+                        this.restartPromptElapsedMs = 0;
+                        GameEventBus.getInstance().emit('prompt:restart', { active: false, progress: 0 });
+                    }
+                    this.checkpointPromptActive = true;
+                    this.checkpointPromptElapsedMs = 0;
+                    GameEventBus.getInstance().emit('prompt:checkpoint', { active: true, progress: 1.0 });
                 }
             });
 
@@ -747,6 +770,16 @@ export class MainStageScene extends Phaser.Scene {
     private pauseGame() {
         if (this.isGamePaused) return;
         this.isGamePaused = true;
+        if (this.restartPromptActive) {
+            this.restartPromptActive = false;
+            this.restartPromptElapsedMs = 0;
+            GameEventBus.getInstance().emit('prompt:restart', { active: false, progress: 0 });
+        }
+        if (this.checkpointPromptActive) {
+            this.checkpointPromptActive = false;
+            this.checkpointPromptElapsedMs = 0;
+            GameEventBus.getInstance().emit('prompt:checkpoint', { active: false, progress: 0 });
+        }
         this.physics.pause();
         this.anims.pauseAll();
         this.tweens.pauseAll();
@@ -803,6 +836,9 @@ export class MainStageScene extends Phaser.Scene {
         if (this.isGamePaused) {
             this.resumeGame();
         }
+        this.checkpointPromptActive = false;
+        this.checkpointPromptElapsedMs = 0;
+        GameEventBus.getInstance().emit('prompt:checkpoint', { active: false, progress: 0 });
         this.player.cancelDeathEffect();
         this.uiManager.hideDeathScreen();
         this.uiManager.hidePauseMenu();
@@ -893,6 +929,9 @@ export class MainStageScene extends Phaser.Scene {
 
         this.restartPromptActive = false;
         this.restartPromptElapsedMs = 0;
+        this.checkpointPromptActive = false;
+        this.checkpointPromptElapsedMs = 0;
+        GameEventBus.getInstance().emit('prompt:checkpoint', { active: false, progress: 0 });
 
         GameEventBus.getInstance().resetCache();
         GameEventBus.getInstance().emit('toast:show', {
@@ -1638,6 +1677,19 @@ export class MainStageScene extends Phaser.Scene {
                 GameEventBus.getInstance().emit('prompt:restart', { active: false, progress: 0 });
             } else {
                 GameEventBus.getInstance().emit('prompt:restart', { active: true, progress });
+            }
+        }
+
+        // Update draining checkpoint confirmation prompt
+        if (this.checkpointPromptActive) {
+            this.checkpointPromptElapsedMs += delta;
+            const progress = Math.max(0, 1 - this.checkpointPromptElapsedMs / this.CHECKPOINT_WINDOW_MS);
+            if (progress <= 0) {
+                this.checkpointPromptActive = false;
+                this.checkpointPromptElapsedMs = 0;
+                GameEventBus.getInstance().emit('prompt:checkpoint', { active: false, progress: 0 });
+            } else {
+                GameEventBus.getInstance().emit('prompt:checkpoint', { active: true, progress });
             }
         }
 
