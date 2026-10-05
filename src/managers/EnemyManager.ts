@@ -342,6 +342,10 @@ export class EnemyManager {
         return undefined;
     }
 
+    private isBridgeBroken(): boolean {
+        return Boolean(this.envManager && this.envManager.isAnyBridgeBroken());
+    }
+
     private normalizeMobType(rawType: string): string {
         const s = rawType.toLowerCase().trim().replace(/[\s_-]+/g, '-');
         if (s.includes('sandal')) return 'sandal';
@@ -459,6 +463,11 @@ export class EnemyManager {
         });
 
         mobObjects.forEach((obj: any) => {
+            const isVisibleAfterBridgeBreak = Boolean(this.getProp(obj, ['visibleafterbridgebreak', 'visible_after_bridge_break', 'bridgebreakspawn']));
+            if (isVisibleAfterBridgeBreak && !this.isBridgeBroken()) {
+                return;
+            }
+
             const uniqueKey = `${obj.name}_${Math.round(obj.x)}_${Math.round(obj.y)}`;
 
             // Skip mobs that were killed BEFORE the active checkpoint
@@ -725,6 +734,11 @@ export class EnemyManager {
         });
 
         flyingMobObjects.forEach((obj: any) => {
+            const isVisibleAfterBridgeBreak = Boolean(this.getProp(obj, ['visibleafterbridgebreak', 'visible_after_bridge_break', 'bridgebreakspawn']));
+            if (isVisibleAfterBridgeBreak && !this.isBridgeBroken()) {
+                return;
+            }
+
             const uniqueKey = `${obj.name}_${Math.round(obj.x)}_${Math.round(obj.y)}`;
 
             // Skip flying mobs that were killed BEFORE the active checkpoint
@@ -981,6 +995,13 @@ export class EnemyManager {
         const rawObjects = this.rawMapObjects.filter((o: any) => o.name === 'PipeMonster');
 
         monsterObjects.forEach((obj: any, index: number) => {
+            const rawObj = rawObjects[index];
+            const isVisibleAfterBridgeBreak = Boolean(this.getProp(rawObj, ['visibleafterbridgebreak', 'visible_after_bridge_break', 'bridgebreakspawn']));
+            if (isVisibleAfterBridgeBreak && !this.isBridgeBroken()) {
+                obj.destroy();
+                return;
+            }
+
             const uniqueKey = `PipeMonster_${Math.round(obj.x)}_${Math.round(obj.y)}`;
 
             // Skip pipe monsters killed BEFORE the active checkpoint
@@ -991,7 +1012,6 @@ export class EnemyManager {
 
             let popDuration = 200;
             let scalePercent = 100;
-            const rawObj = rawObjects[index];
             if (rawObj && rawObj.properties) {
                 const speedProp = rawObj.properties.find((p: any) => p.name && (
                     p.name.toLowerCase() === 'speed' || 
