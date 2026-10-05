@@ -78,6 +78,11 @@ export class EnvironmentManager {
         this.isBridgeBreakArmed = false;
     }
     public bridges: BridgeData[] = [];
+    public hasBridgeBroken: boolean = false;
+
+    public isAnyBridgeBroken(): boolean {
+        return this.hasBridgeBroken || this.bridges.some(b => b.broken);
+    }
     public doorZones: Phaser.GameObjects.Zone[] = [];
     public doorExitZones: Phaser.GameObjects.Zone[] = [];
     public disarmZones: Phaser.GameObjects.Zone[] = [];
@@ -1402,6 +1407,7 @@ export class EnvironmentManager {
     public breakBridge(bridge: BridgeData) {
         if (bridge.broken) return;
         bridge.broken = true;
+        this.hasBridgeBroken = true;
         this.cancelSmashFall();
 
         const sprite = bridge.sprite;
@@ -1878,30 +1884,47 @@ export class EnvironmentManager {
             }
         }
 
-        // Bridge break logic resets on checkpoint restart
+        // Bridge break logic: if bridge was broken, it stays broken upon checkpoint restart
         this.cancelSmashFall();
 
         for (const bridge of this.bridges) {
-            bridge.broken = false;
-            bridge.snapshotBroken = false;
-            const sprite = bridge.sprite;
-            const body = sprite.body as Phaser.Physics.Arcade.Body;
-            this.scene.tweens.killTweensOf(sprite);
-            sprite.setVisible(true);
-            sprite.setAlpha(1);
-            sprite.setFrame(0);
-            if (body) {
-                body.enable = true;
-                body.checkCollision.none = false;
+            if (bridge.broken || this.hasBridgeBroken) {
+                bridge.broken = true;
+                const sprite = bridge.sprite;
+                const body = sprite.body as Phaser.Physics.Arcade.Body;
+                this.scene.tweens.killTweensOf(sprite);
+                sprite.setVisible(true);
+                sprite.setAlpha(1);
+                sprite.setFrame(3);
+                if (body) {
+                    body.enable = false;
+                    body.checkCollision.none = true;
+                }
+                if (bridge.collider) bridge.collider.active = false;
+                if (bridge.bulletCollider) bridge.bulletCollider.active = false;
+            } else {
+                bridge.broken = false;
+                bridge.snapshotBroken = false;
+                const sprite = bridge.sprite;
+                const body = sprite.body as Phaser.Physics.Arcade.Body;
+                this.scene.tweens.killTweensOf(sprite);
+                sprite.setVisible(true);
+                sprite.setAlpha(1);
+                sprite.setFrame(0);
+                if (body) {
+                    body.enable = true;
+                    body.checkCollision.none = false;
+                }
+                if (bridge.collider) bridge.collider.active = true;
+                if (bridge.bulletCollider) bridge.bulletCollider.active = true;
             }
-            if (bridge.collider) bridge.collider.active = true;
-            if (bridge.bulletCollider) bridge.bulletCollider.active = true;
         }
     }
 
     resetAll() {
         // Bridge break logic resets on restart run
         this.cancelSmashFall();
+        this.hasBridgeBroken = false;
 
         for (const trigger of this.revealTriggers) {
             trigger.activated = false;
