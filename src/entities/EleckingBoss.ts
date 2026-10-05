@@ -224,6 +224,15 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
             // Phase 2 Ground Encounter
             if (this.phase === 2) {
+                // If boss is performing beam attack pattern or telegraph, player should NOT die on contact
+                const isBeamAttackActive = (
+                    this.bossState === 'ground-idle-pre-beam' ||
+                    this.bossState === 'memory-telegraph' ||
+                    this.bossState === 'striking' ||
+                    this.bossState === 'reappearing' ||
+                    this.bossState === 'post-beam-idle'
+                );
+
                 const pBody = this.player.body as Phaser.Physics.Arcade.Body;
                 const bBody = this.body as Phaser.Physics.Arcade.Body;
                 if (!pBody || !bBody) return;
@@ -231,6 +240,16 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 const isFalling = pBody.velocity.y > 0 || (pBody.prev && pBody.y > pBody.prev.y);
                 const isAbove = pBody.bottom <= bBody.top + 28 || pBody.center.y < bBody.top + 16;
                 const isStomp = isFalling && isAbove;
+
+                if (isBeamAttackActive) {
+                    // During pattern/telegraph, simply bounce player safely without killing or damaging
+                    if (isStomp) {
+                        this.player.stompBounce(-320);
+                        this.soundManager?.playStomp();
+                        this.uiManager.spawnParticles(this.x, this.y - 20, 0xF59E0B);
+                    }
+                    return;
+                }
 
                 if (isStomp) {
                     if (this.isStompLocked) {
