@@ -157,6 +157,7 @@ export interface EventMap {
   'checkpoint:changed': CheckpointState | null;
   'boss:alert': BossAlertData | null;
   'orb:collected-popup': OrbCollectPopupData;
+  'cursor:idle': boolean;
 }
 
 type EventCallback<T> = (data: T) => void;
@@ -183,6 +184,7 @@ export class GameEventBus {
   private lastCheckpointPrompt: CheckpointPromptData = { active: false, progress: 0 };
   private lastCheckpoint: CheckpointState | null = null;
   private lastDoorPrompt: DoorPromptData | null = null;
+  private lastCursorIdle: boolean = false;
 
   public static getInstance(): GameEventBus {
     if (!GameEventBus.instance) {
@@ -226,6 +228,8 @@ export class GameEventBus {
         callback(this.lastCheckpointPrompt as EventMap[K]);
       } else if (event === 'checkpoint:changed') {
         callback(this.lastCheckpoint as EventMap[K]);
+      } else if (event === 'cursor:idle') {
+        callback(this.lastCursorIdle as EventMap[K]);
       }
     } catch (err) {
       console.error(`[GameEventBus] Error in initial cached callback for "${String(event)}":`, err);
@@ -248,6 +252,9 @@ export class GameEventBus {
   }
 
   public emit<K extends keyof EventMap>(event: K, data: EventMap[K]): void {
+    if (event === 'cursor:idle') {
+      this.lastCursorIdle = data as boolean;
+    }
     const set = this.listeners.get(event);
     if (set) {
       for (const cb of Array.from(set)) {
@@ -286,6 +293,10 @@ export class GameEventBus {
 
   public getFormattedTime(): string {
     return this.lastFormattedTime;
+  }
+
+  public isCursorIdle(): boolean {
+    return this.lastCursorIdle;
   }
 
   /**

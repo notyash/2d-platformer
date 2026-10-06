@@ -17,6 +17,19 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* --------------------------------------------------------------------------
+   Idle-Based Cursor Visibility Mechanism
+   Hides the mouse cursor globally across the game canvas, UI overlays,
+   menus, and interactive elements when no mouse movement occurs for an idle period.
+   Reappears immediately when mouse movement resumes.
+   -------------------------------------------------------------------------- */
+html.cursor-idle,
+html.cursor-idle *,
+body.cursor-idle,
+body.cursor-idle * {
+  cursor: none !important;
+}
+
 #app {
   display: flex;
   justify-content: center;

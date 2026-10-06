@@ -32,6 +32,7 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
     total: 0,
   });
   const [gameState, setGameState] = useState<GameState>('PLAYING');
+  const [isCursorIdle, setIsCursorIdle] = useState<boolean>(false);
   const [tickCount, setTickCount] = useState<number>(0);
 
   const statsUpdateCount = useRef<number>(0);
@@ -96,6 +97,10 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
       setGameState(newState);
     });
 
+    const unsubCursor = bus.on('cursor:idle', (idle) => {
+      setIsCursorIdle(idle);
+    });
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown, { capture: true });
       unsubStats();
@@ -104,6 +109,7 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
       unsubPhase();
       unsubOrbs();
       unsubState();
+      unsubCursor();
     };
   }, [onOpenUIKit]);
 
@@ -168,6 +174,15 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
       <div className="debug-row">
         <span>Game State:</span>
         <span className="debug-val debug-crimson">{gameState}</span>
+      </div>
+      <div className="debug-row">
+        <span>Cursor:</span>
+        <span
+          className="debug-val"
+          style={{ color: isCursorIdle ? 'var(--parchment-dim)' : 'var(--mint)' }}
+        >
+          {isCursorIdle ? 'Hidden (Idle)' : 'Visible'}
+        </span>
       </div>
       <div
         className="debug-row"
