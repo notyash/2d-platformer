@@ -3,6 +3,7 @@ import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MainStageScene } from './scenes/MainStageScene';
 import { ReactOverlay } from './ui/ReactOverlay';
+import { CursorManager } from './managers/CursorManager';
 
 // Suppress harmless Phaser tilemap dimension warnings for single backdrop images
 const originalWarn = console.warn;
@@ -77,6 +78,7 @@ function showMobileBlocker() {
 // Global Singletons to guard against double instantiation under StrictMode or HMR
 let activeGame: Phaser.Game | null = null;
 let activeReactRoot: Root | null = null;
+let activeCursorManager: CursorManager | null = null;
 
 async function bootstrap() {
   if (isMobileDevice()) {
@@ -104,6 +106,10 @@ async function bootstrap() {
   if (activeReactRoot) {
     activeReactRoot.unmount();
     activeReactRoot = null;
+  }
+  if (activeCursorManager) {
+    activeCursorManager.destroy();
+    activeCursorManager = null;
   }
 
   const app = document.getElementById('app');
@@ -162,6 +168,10 @@ async function bootstrap() {
   // 5. Mount React Overlay UI
   activeReactRoot = createRoot(reactRootEl);
   activeReactRoot.render(React.createElement(ReactOverlay));
+
+  // 6. Initialize Idle-Based Cursor Visibility Mechanism
+  activeCursorManager = CursorManager.getInstance();
+  activeCursorManager.init();
 }
 
 // Start application bootstrap
