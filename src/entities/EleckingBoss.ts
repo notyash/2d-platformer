@@ -802,6 +802,11 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         });
         this.gravityOrbs = [];
 
+        // If boss has already reached Phase 2 or is in Phase 2, DO NOT spawn any gravity orbs!
+        if (this.phase === 2 || this.hasReachedPhase2) {
+            return;
+        }
+
         // Requirement: Orbs only appear inside the arena once the boss is discovered by the player
         if (!this.hasDiscoveredBoss) {
             return;
@@ -1165,6 +1170,16 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 this.arenaCover.setVisible(false);
             }
 
+            // Ensure no gravity orbs exist in Phase 2
+            if (this.orbRevealTimer) {
+                this.orbRevealTimer.remove(false);
+                this.orbRevealTimer = undefined;
+            }
+            this.gravityOrbs.forEach(orb => {
+                if (orb && orb.active) orb.destroy();
+            });
+            this.gravityOrbs = [];
+
             this.tempPlatforms.forEach(platform => {
                 platform.reset(false);
             });
@@ -1412,19 +1427,25 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 if (isFlying) {
                     // Requirement 4: Boss Disappearing (Air Pre-attack)
                     playBossAnimation(this, BOSS_ANIM_KEYS.FLY_DISAPPEAR);
-                    this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim: Phaser.Animations.Animation) => {
-                        if (anim.key === BOSS_ANIM_KEYS.FLY_DISAPPEAR) {
-                            this.vanishAndStrike();
-                        }
-                    });
+                    let handled = false;
+                    const onDisappear = () => {
+                        if (handled || this.isDead) return;
+                        handled = true;
+                        this.vanishAndStrike();
+                    };
+                    this.once('animationcomplete-' + BOSS_ANIM_KEYS.FLY_DISAPPEAR, onDisappear);
+                    this.addBossTimer(850, onDisappear);
                 } else {
                     // Requirement 3: Boss Disappearing (Ground Pre-attack)
                     playBossAnimation(this, BOSS_ANIM_KEYS.GROUND_ATTACK_TELEGRAPH);
-                    this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim: Phaser.Animations.Animation) => {
-                        if (anim.key === BOSS_ANIM_KEYS.GROUND_ATTACK_TELEGRAPH) {
-                            this.vanishAndStrike();
-                        }
-                    });
+                    let handled = false;
+                    const onDisappear = () => {
+                        if (handled || this.isDead) return;
+                        handled = true;
+                        this.vanishAndStrike();
+                    };
+                    this.once('animationcomplete-' + BOSS_ANIM_KEYS.GROUND_ATTACK_TELEGRAPH, onDisappear);
+                    this.addBossTimer(950, onDisappear);
                 }
             }
         };
@@ -1435,6 +1456,12 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private vanishAndStrike() {
         if (!this.hasStarted || this.isDead) return;
         this.bossState = 'vanished';
+        this.setVisible(false);
+        const bBody = this.body as Phaser.Physics.Arcade.Body;
+        if (bBody) {
+            bBody.setVelocity(0, 0);
+            bBody.setEnable(false);
+        }
         // Clear any previous glow sprites
         this.activeTileGlowSprites.forEach(s => { if (s && s.active) s.destroy(); });
         this.activeTileGlowSprites = [];
@@ -1651,38 +1678,47 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
             this.bossState = 'reappearing';
             this.setVisible(true);
-            (this.body as Phaser.Physics.Arcade.Body).setEnable(true);
+            this.setAlpha(1);
+            const bBody = this.body as Phaser.Physics.Arcade.Body;
+            if (bBody) bBody.setEnable(true);
 
             if (this.pendingPhase2Transition) {
                 playBossAnimation(this, BOSS_ANIM_KEYS.FLY_SPAWN);
-                this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim: Phaser.Animations.Animation) => {
-                    if (anim.key === BOSS_ANIM_KEYS.FLY_SPAWN) {
-                        this.descendAndStartPhase2();
-                    }
-                });
+                let transitionHandled = false;
+                const onSpawnComplete = () => {
+                    if (transitionHandled || this.isDead) return;
+                    transitionHandled = true;
+                    this.descendAndStartPhase2();
+                };
+                this.once('animationcomplete-' + BOSS_ANIM_KEYS.FLY_SPAWN, onSpawnComplete);
+                this.addBossTimer(850, onSpawnComplete);
                 return;
             }
 
             if (this.phase === 1) {
                 // Requirement 6: Boss Re-appearing (Air Spawn)
                 playBossAnimation(this, BOSS_ANIM_KEYS.FLY_SPAWN);
-                this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim: Phaser.Animations.Animation) => {
-                    if (anim.key === BOSS_ANIM_KEYS.FLY_SPAWN) {
-                        this.flyTarget = undefined;
-                        this.nextAttackTimer = Phaser.Math.Between(14000, 18000);
-                        this.flyingOrbTimer = 3500;
-                        (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+                let appearHandled = false;
+                const onAppeared = () => {
+                    if (appearHandled || this.isDead || this.phase !== 1) return;
+                    appearHandled = true;
+                    this.flyTarget = undefined;
+                    this.nextAttackTimer = Phaser.Math.Between(14000, 18000);
+                    this.flyingOrbTimer = 3500;
+                    if (bBody) bBody.setVelocity(0, 0);
 
-                        if (this.isPlayerDeadOrDying()) {
-                            this.bossState = 'player-dead-waiting';
-                            playBossAnimation(this, BOSS_ANIM_KEYS.IDLE_FLYING);
-                        } else {
-                            // Player survived: resume movement immediately with no post-beam idle delay
-                            this.bossState = 'idle';
-                            this.flyTarget = undefined;
-                        }
+                    if (this.isPlayerDeadOrDying()) {
+                        this.bossState = 'player-dead-waiting';
+                        playBossAnimation(this, BOSS_ANIM_KEYS.IDLE_FLYING);
+                    } else {
+                        // Player survived: resume movement immediately with proper flying animation
+                        this.bossState = 'idle';
+                        this.flyTarget = undefined;
+                        playBossAnimation(this, BOSS_ANIM_KEYS.IDLE_FLYING);
                     }
-                });
+                };
+                this.once('animationcomplete-' + BOSS_ANIM_KEYS.FLY_SPAWN, onAppeared);
+                this.addBossTimer(850, onAppeared);
             } else if (this.phase === 2) {
                 // Ground reappear after beam strike
                 const arenaLeft = this.arenaZone ? this.arenaZone.left + 64 : 3800;
@@ -1693,24 +1729,27 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 this.setFlipX(this.player.x < this.x);
 
                 playBossAnimation(this, BOSS_ANIM_KEYS.GROUND_SPAWN);
-                this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim: Phaser.Animations.Animation) => {
-                    if (anim.key === BOSS_ANIM_KEYS.GROUND_SPAWN && !this.isDead) {
-                        this.isInvulnerable = false;
-                        GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 2, invulnerable: false });
-                        this.phase2ThunderTimer = this.basePhase2ThunderInterval + Phaser.Math.Between(-1000, 2000);
-                        this.teleportTimer = 5500;
-                        this.orbTimer = 3000;
-                        (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+                let appearHandled = false;
+                const onAppeared = () => {
+                    if (appearHandled || this.isDead || this.phase !== 2) return;
+                    appearHandled = true;
+                    this.isInvulnerable = false;
+                    GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 2, invulnerable: false });
+                    this.phase2ThunderTimer = this.basePhase2ThunderInterval + Phaser.Math.Between(-1000, 2000);
+                    this.teleportTimer = 5500;
+                    this.orbTimer = 3000;
+                    if (bBody) bBody.setVelocity(0, 0);
 
-                        if (this.isPlayerDeadOrDying()) {
-                            this.bossState = 'player-dead-waiting';
-                            playBossAnimation(this, BOSS_ANIM_KEYS.STANDING_IDLE);
-                        } else {
-                            // Player survived: resume patrol immediately
-                            this.startGroundedPatrol();
-                        }
+                    if (this.isPlayerDeadOrDying()) {
+                        this.bossState = 'player-dead-waiting';
+                        playBossAnimation(this, BOSS_ANIM_KEYS.STANDING_IDLE);
+                    } else {
+                        // Player survived: resume patrol immediately
+                        this.startGroundedPatrol();
                     }
-                });
+                };
+                this.once('animationcomplete-' + BOSS_ANIM_KEYS.GROUND_SPAWN, onAppeared);
+                this.addBossTimer(850, onAppeared);
             }
         });
     }
@@ -1718,6 +1757,15 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private transitionToPhase2() {
         this.hasReachedPhase2 = true;
         this.phase = 2;
+        if (this.orbRevealTimer) {
+            this.orbRevealTimer.remove(false);
+            this.orbRevealTimer = undefined;
+        }
+        this.gravityOrbs.forEach(orb => {
+            if (orb && orb.active) orb.destroy();
+        });
+        this.gravityOrbs = [];
+
         if (this.inventoryManager) {
             this.inventoryManager.addGun();
         } else if ((this.scene as any).inventoryManager) {
@@ -1830,8 +1878,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         playBossAnimation(this, BOSS_ANIM_KEYS.LOSING_WINGS);
         this.soundManager?.playPowerup();
 
-        this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim: Phaser.Animations.Animation) => {
-            if (anim.key !== BOSS_ANIM_KEYS.LOSING_WINGS || this.isDead) return;
+        let wingsHandled = false;
+        const onWingsComplete = () => {
+            if (wingsHandled || this.isDead) return;
+            wingsHandled = true;
 
             // Make the boss fall down on the ground
             this.scene.tweens.add({
@@ -1872,7 +1922,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                     this.startGroundedPatrol();
                 }
             });
-        });
+        };
+
+        this.once('animationcomplete-' + BOSS_ANIM_KEYS.LOSING_WINGS, onWingsComplete);
+        this.addBossTimer(1450, onWingsComplete);
     }
 
     private startGroundedPatrol() {
@@ -2114,9 +2167,11 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         // Requirement 15: Play "Boss Raging" animation
         playBossAnimation(this, BOSS_ANIM_KEYS.RAGING);
 
-        this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim: Phaser.Animations.Animation) => {
+        let enrageHandled = false;
+        const onEnraged = () => {
+            if (enrageHandled || this.isDead) return;
+            enrageHandled = true;
             rageEmitter.remove();
-            if (anim.key !== BOSS_ANIM_KEYS.RAGING || this.isDead) return;
 
             this.patrolSpeed = Math.round(this.patrolSpeed * 1.3);
             this.orbInterval = Math.max(1600, Math.round(this.orbInterval * 0.75));
@@ -2124,7 +2179,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
             // Requirement 15: Boss Raging -> then Boss Spawning Minions with double minions
             this.summonMinions(true);
-        });
+        };
+
+        this.once('animationcomplete-' + BOSS_ANIM_KEYS.RAGING, onEnraged);
+        this.addBossTimer(1600, onEnraged);
     }
 
     // Requirements 10, 11, 12, 13: Skeletons Spawning & Minions Sequence
@@ -2141,9 +2199,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         // Minion count: 2-3 normal, 5-6 enraged
         const count = isEnragedSpawn ? Phaser.Math.Between(5, 6) : Phaser.Math.Between(2, 3);
 
-        // Once Boss Spawning Minions animation is done, spawn skeletons
-        this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim: Phaser.Animations.Animation) => {
-            if (anim.key !== BOSS_ANIM_KEYS.SPAWN_MINIONS || this.isDead) return;
+        let summonHandled = false;
+        const onSummonDone = () => {
+            if (summonHandled || this.isDead) return;
+            summonHandled = true;
 
             for (let i = 0; i < count; i++) {
                 const spread = (i - (count - 1) / 2) * 40;
@@ -2194,7 +2253,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                     this.startGroundedPatrol();
                 }
             });
-        });
+        };
+
+        this.once('animationcomplete-' + BOSS_ANIM_KEYS.SPAWN_MINIONS, onSummonDone);
+        this.addBossTimer(1100, onSummonDone);
     }
 
     // Check if any minions are active on the battlefield
@@ -2439,8 +2501,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
         const goldParticleColor = parseInt(TOKENS.colors.gold.replace('#', '0x'), 16);
 
-        this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim: Phaser.Animations.Animation) => {
-            if (anim.key !== BOSS_ANIM_KEYS.DEATH) return;
+        let deathHandled = false;
+        const onDeath = () => {
+            if (deathHandled) return;
+            deathHandled = true;
 
             this.setVisible(false);
 
@@ -2457,7 +2521,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.scene.time.delayedCall(1600, () => {
                 this.spawnVictoryOrb();
             });
-        });
+        };
+
+        this.once('animationcomplete-' + BOSS_ANIM_KEYS.DEATH, onDeath);
+        this.addBossTimer(1500, onDeath);
     }
 
     private spawnVictoryOrb() {
@@ -2620,6 +2687,20 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 }
             }
             return;
+        }
+
+        if (this.bossState === 'player-dead-waiting' && !this.isPlayerDeadOrDying()) {
+            if (this.phase === 1) {
+                this.bossState = 'idle';
+                this.flyTarget = undefined;
+                this.setVisible(true);
+                this.setAlpha(1);
+                playBossAnimation(this, BOSS_ANIM_KEYS.IDLE_FLYING);
+            } else if (this.phase === 2) {
+                this.setVisible(true);
+                this.setAlpha(1);
+                this.startGroundedPatrol();
+            }
         }
 
         if (this.bossState === 'post-beam-idle' || this.bossState === 'player-dead-waiting' || this.isPlayerDeadOrDying()) {
