@@ -1379,6 +1379,17 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
         this.bossState = 'ground-idle-pre-beam';
         (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+        this.setVisible(true);
+        this.setAlpha(1);
+
+        const bossMargin = 56;
+        const arenaLeft = this.arenaZone ? this.arenaZone.left + bossMargin : 3800;
+        const arenaRight = this.arenaZone ? this.arenaZone.right - bossMargin : 4700;
+        const clampedX = Phaser.Math.Clamp(this.x, arenaLeft, arenaRight);
+        this.setX(clampedX);
+
+        const groundY = this.findGroundYBelow(clampedX, this.y);
+        this.setY(groundY - 56);
 
         // Stay idle facing the player before showing pattern
         this.setFlipX(this.player.x < this.x);
@@ -1721,12 +1732,15 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 this.addBossTimer(850, onAppeared);
             } else if (this.phase === 2) {
                 // Ground reappear after beam strike
-                const arenaLeft = this.arenaZone ? this.arenaZone.left + 64 : 3800;
-                const arenaRight = this.arenaZone ? this.arenaZone.right - 64 : 4700;
+                const bossMargin = 56;
+                const arenaLeft = this.arenaZone ? this.arenaZone.left + bossMargin : 3800;
+                const arenaRight = this.arenaZone ? this.arenaZone.right - bossMargin : 4700;
                 const reappearX = Phaser.Math.Clamp(this.x, arenaLeft, arenaRight);
                 const floorTopY = this.findGroundYBelow(reappearX, this.y);
                 this.setPosition(reappearX, floorTopY - 56);
                 this.setFlipX(this.player.x < this.x);
+                this.setVisible(true);
+                this.setAlpha(1);
 
                 playBossAnimation(this, BOSS_ANIM_KEYS.GROUND_SPAWN);
                 let appearHandled = false;
@@ -1799,12 +1813,36 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             }
         }
 
+        if (this.dotBlocks) {
+            let hitDot = false;
+            this.dotBlocks.getChildren().forEach((block: any) => {
+                if (hitDot) return;
+                const bx = block.x !== undefined ? block.x : (block.body ? block.body.x : 0);
+                const by = block.y !== undefined ? block.y : (block.body ? block.body.y : 0);
+                const bw = block.displayWidth || block.width || 32;
+                const bh = block.displayHeight || block.height || 32;
+                if (x >= bx && x < bx + bw && y >= by && y < by + bh) {
+                    hitDot = true;
+                }
+            });
+            if (hitDot) return true;
+        }
+
         if (!this.map || !this.map.layers) return false;
         for (const layerData of this.map.layers) {
             const tLayer = layerData.tilemapLayer;
             if (tLayer) {
                 const name = (layerData.name || '').toLowerCase();
-                if (name.includes('ground') || name.includes('fill') || name.includes('dungeon') || name.includes('boss')) {
+                if (
+                    name.includes('ground') || 
+                    name.includes('fill') || 
+                    name.includes('dungeon') || 
+                    name.includes('boss') ||
+                    name.includes('well') ||
+                    name.includes('wall') ||
+                    name.includes('solid') ||
+                    name.includes('1')
+                ) {
                     const tile = tLayer.getTileAtWorldXY(x, y);
                     if (tile && tile.index !== -1) {
                         return true;
@@ -1815,35 +1853,41 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         return false;
     }
 
-    private findGroundYBelow(startX: number, startY: number = this.y): number {
-        let highestY: number | null = null;
+    private isSolidWallAhead(checkX: number, centerY: number): boolean {
+        // Multi-point vertical sample to prevent any boss body/arm clipping into walls
+        const yOffsets = [-44, -22, 0, 22, 44];
+        for (const offY of yOffsets) {
+            if (this.isSolidTileAt(checkX, centerY + offY)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private findGroundYBelow(startX: number, _startY: number = this.y): number {
+        // 1. Check thunder tiles directly
         for (const [_, tiles] of this.thunderTiles.entries()) {
             for (const t of tiles) {
                 const tx = t.pixelX !== undefined ? t.pixelX : (t as any).x;
-                const ty = t.pixelY !== undefined ? t.pixelY : (t as any).y;
                 const tw = t.width || 32;
-                if (startX >= tx - 8 && startX <= tx + tw + 8) {
-                    if (ty >= startY - 48) {
-                        if (highestY === null || ty < highestY) {
-                            highestY = ty;
-                        }
-                    }
+                if (startX >= tx - 4 && startX <= tx + tw + 4) {
+                    const ty = t.pixelY !== undefined ? t.pixelY : (t as any).y;
+                    if (ty > 0) return ty;
                 }
             }
         }
 
-        const maxScanY = startY + 600;
-        for (let checkY = startY; checkY < maxScanY; checkY += 8) {
+        const arenaBottom = this.arenaZone ? this.arenaZone.bottom : 1344;
+        const expectedFloorY = arenaBottom - 32; // Standard arena ground level
+
+        // 2. Scan specifically around expected floor surface
+        for (let checkY = expectedFloorY - 64; checkY <= arenaBottom + 32; checkY += 8) {
             if (this.isSolidTileAt(startX, checkY)) {
-                const tileTop = Math.floor(checkY / 32) * 32;
-                if (highestY === null || tileTop < highestY) {
-                    highestY = tileTop;
-                }
-                break;
+                return Math.floor(checkY / 32) * 32;
             }
         }
-        if (highestY !== null) return highestY;
-        return this.arenaZone ? this.arenaZone.bottom - 48 : startY + 120;
+
+        return expectedFloorY;
     }
 
     // Requirement 16: Phase 1 ends -> Boss Losing Wings in air -> Falls down to ground
@@ -1931,12 +1975,20 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private startGroundedPatrol() {
         this.bossState = 'patrolling';
         this.isInvulnerable = false;
+        this.setVisible(true);
+        this.setAlpha(1);
         GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 2, invulnerable: false });
         this.p2MoveDuration = Phaser.Math.Between(2000, 3200);
         this.p2PaceFlipTimer = 0;
         this.p2PaceDir = this.player.x > this.x ? 1 : -1;
 
-        const groundY = this.findGroundYBelow(this.x, this.y - 16);
+        const bossMargin = 56;
+        const arenaLeft = this.arenaZone ? this.arenaZone.left + bossMargin : 3800;
+        const arenaRight = this.arenaZone ? this.arenaZone.right - bossMargin : 4700;
+        const clampedX = Phaser.Math.Clamp(this.x, arenaLeft, arenaRight);
+        this.setX(clampedX);
+
+        const groundY = this.findGroundYBelow(clampedX, this.y);
         this.setY(groundY - 56);
 
         const dir = this.player.x > this.x ? 1 : -1;
@@ -1949,7 +2001,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     public getValidBehindPlayerPosition(): number | null {
         if (!this.player || !this.arenaZone) return null;
 
-        const bossMargin = 48; // Margin from arena boundaries to keep boss inside
+        const bossMargin = 56; // 56px visual clearance for arms & sprite
         const minBehindDist = 110;
         const maxBehindDist = 175;
         const arenaLeft = this.arenaZone.left + bossMargin;
@@ -1998,7 +2050,11 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.setVisible(false);
             (this.body as Phaser.Physics.Arcade.Body).setEnable(false);
 
-            const floorTopY = this.findGroundYBelow(targetX, this.y);
+            const bossMargin = 56;
+            const arenaLeft = this.arenaZone ? this.arenaZone.left + bossMargin : 3800;
+            const arenaRight = this.arenaZone ? this.arenaZone.right - bossMargin : 4700;
+            const clampedTargetX = Phaser.Math.Clamp(targetX, arenaLeft, arenaRight);
+            const floorTopY = this.findGroundYBelow(clampedTargetX, this.y);
             const targetGroundY = floorTopY - 56;
 
             // Quick delay before appearing behind the player (20% faster: 140ms)
@@ -2868,12 +2924,20 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         if (this.phase === 2 && this.bossState === 'patrolling') {
             const body = this.body as Phaser.Physics.Arcade.Body;
             if (body) {
-                const groundY = this.findGroundYBelow(this.x, this.y - 16);
-                this.setY(groundY - 56);
-
                 const zone = this.arenaZone;
-                const arenaLeft = zone ? zone.left + 48 : 3760;
-                const arenaRight = zone ? zone.right - 48 : 4780;
+                const bossHalfWidth = 56; // 56px visual clearance for arms & sprite
+                const arenaLeft = zone ? zone.left + bossHalfWidth : 3800;
+                const arenaRight = zone ? zone.right - bossHalfWidth : 4680;
+
+                // Ensure boss position is strictly clamped within safe arena walking bounds
+                if (this.x < arenaLeft) {
+                    this.setX(arenaLeft);
+                } else if (this.x > arenaRight) {
+                    this.setX(arenaRight);
+                }
+
+                const groundY = this.findGroundYBelow(this.x, this.y);
+                this.setY(groundY - 56);
 
                 const distToPlayer = Math.abs(this.player.x - this.x);
                 const isPlayerToLeft = this.player.x < this.x;
@@ -2903,10 +2967,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 if (this.p2IsBackingAway) {
                     desiredDir = isPlayerToLeft ? 1 : -1;
                     this.p2PaceDir = desiredDir;
-                } else if (playerNearLeftCorner && isPlayerToLeft && this.x < arenaLeft + 280) {
+                } else if (playerNearLeftCorner && isPlayerToLeft && this.x < arenaLeft + 240) {
                     desiredDir = 1;
                     this.p2PaceDir = 1;
-                } else if (playerNearRightCorner && !isPlayerToLeft && this.x > arenaRight - 280) {
+                } else if (playerNearRightCorner && !isPlayerToLeft && this.x > arenaRight - 240) {
                     desiredDir = -1;
                     this.p2PaceDir = -1;
                 } else if (distToPlayer > 340) {
@@ -2914,8 +2978,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 }
 
                 if (desiredDir !== 0) {
-                    const checkX = desiredDir > 0 ? this.x + 36 : this.x - 36;
-                    const wallAhead = this.isSolidTileAt(checkX, this.y);
+                    const checkX = desiredDir > 0 ? this.x + bossHalfWidth + 4 : this.x - bossHalfWidth - 4;
+                    const wallAhead = this.isSolidWallAhead(checkX, this.y);
                     const floorAhead = this.isSolidTileAt(checkX, groundY + 8);
 
                     if (wallAhead || !floorAhead) {
