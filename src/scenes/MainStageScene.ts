@@ -758,6 +758,16 @@ export class MainStageScene extends Phaser.Scene {
         this.game.canvas.focus();
         this.input.on('pointerdown', () => this.game.canvas.focus());
 
+        // Disable right-click context menu so mouse interactions never interfere with keyboard movement
+        this.input.mouse?.disableContextMenu();
+        if (this.game.canvas) {
+            this.game.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+        if (typeof window !== 'undefined') {
+            (window as any).__scene = this;
+            (window as any).__player = this.player;
+        }
+
         this.activeRunTimeMs = 0;
         this.soundManager.playGameMusic();
     }

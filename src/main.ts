@@ -138,6 +138,7 @@ async function bootstrap() {
     width: BASE_WIDTH,
     height: BASE_HEIGHT,
     parent: 'game-canvas-host',
+    disableContextMenu: true,
     scale: {
       mode: Phaser.Scale.FIT,
       width: BASE_WIDTH,
@@ -164,6 +165,9 @@ async function bootstrap() {
 
   // 4. Initialize Phaser Game
   activeGame = new Phaser.Game(config);
+  if (typeof window !== 'undefined') {
+    (window as any).__activeGame = activeGame;
+  }
 
   // 5. Mount React Overlay UI
   activeReactRoot = createRoot(reactRootEl);
@@ -172,6 +176,27 @@ async function bootstrap() {
   // 6. Initialize Idle-Based Cursor Visibility Mechanism
   activeCursorManager = CursorManager.getInstance();
   activeCursorManager.init();
+}
+
+// Prevent right-click context menu and auxclick globally so mouse interactions never intercept or freeze keyboard inputs
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'contextmenu',
+    (e) => {
+      e.preventDefault();
+    },
+    { capture: true }
+  );
+
+  window.addEventListener(
+    'auxclick',
+    (e) => {
+      if (e.button === 2) {
+        e.preventDefault();
+      }
+    },
+    { capture: true }
+  );
 }
 
 // Start application bootstrap
