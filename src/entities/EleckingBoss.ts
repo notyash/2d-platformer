@@ -24,8 +24,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
     public hasDiscoveredBoss: boolean = false;
     private hasStarted: boolean = false;
-    private maxHp: number = 50;
-    private hp: number = 50;
+    public maxHp: number = 50;
+    public hp: number = 50;
+    public healthCheckpointRatio: number = 1.0;
     public phase: number = 1;
     public isDead: boolean = false;
     public isInvulnerable: boolean = true;
@@ -413,7 +414,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 this.hasStarted = true;
                 if (this.isPlayerInArena() || isBossRespawn) {
                     this.playerWasInArena = true;
-                    this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp);
+                    if (this.phase === 2 || this.hasReachedPhase2) {
+                        this.resetHealthToCheckpoint();
+                    }
+                    this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp, this.getHealthCheckpoint(), this.getHealthCheckpointPercent());
                 }
                 if (this.phase === 1) {
                     this.bossState = 'idle';
@@ -1024,7 +1028,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             });
         }
 
-        this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp);
+        this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp, this.getHealthCheckpoint(), this.getHealthCheckpointPercent());
         this.spawnGravityOrbs();
 
         if (this.phase === 2) {
@@ -1049,6 +1053,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     }
 
     public resetAll(fullReset: boolean = true) {
+        if (this.isDead && !fullReset) return;
         this.isStompLocked = false;
         if (this.stompLockTimer) {
             this.stompLockTimer.remove(false);
@@ -1062,6 +1067,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.hasShownBossEncounterToast = false;
             this.hasShownShieldedToast = false;
             if (this.soundManager) this.soundManager.stopMusic();
+            this.healthCheckpointRatio = 1.0;
         }
         this.uiManager.hideBossHealthBar();
 
@@ -1105,6 +1111,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         if (!shouldBePhase2) {
             // Phase 1 Reset: stays in Phase 1 until all 7 gravity orbs are collected
             this.hasStarted = this.hasDiscoveredBoss;
+            this.healthCheckpointRatio = 1.0;
             this.hp = this.maxHp;
             this.collectedOrbs = 0;
             this.phase = 1;
@@ -1160,7 +1167,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.isDead = false;
             this.phase = 2;
             this.isInvulnerable = false;
-            this.summonThresholds = this.summonThresholds.filter(t => t < this.hp);
+            this.resetHealthToCheckpoint();
             this.pendingPhase2Transition = false;
             this.currentSequence = [];
             this.phase2ThunderTimer = 8500;
@@ -1227,7 +1234,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.bossState = 'patrolling';
         GameEventBus.getInstance().emitBossPhaseIfChanged({ phase: 2, invulnerable: false });
 
-        this.uiManager.showBossHealthBar('ELECKING', 50, this.hp);
+        this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp, this.getHealthCheckpoint(), this.getHealthCheckpointPercent());
 
         const groundY = this.findGroundYBelow(this.x, this.y);
         this.setY(groundY - 56);
@@ -1541,6 +1548,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
         const wasVanished = this.bossState === 'vanished';
         this.bossState = 'player-dead-waiting';
+
+        if (this.phase === 2 || this.hasReachedPhase2) {
+            this.resetHealthToCheckpoint();
+        }
 
         // Toggle idle animation for wherever the boss is right now (flying / on ground) until player respawns
         if (this.visible && !wasVanished) {
@@ -1962,7 +1973,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                         durationMs: 3800,
                     });
 
-                    this.uiManager.showBossHealthBar('ELECKING', 50, this.hp);
+                    this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp, this.getHealthCheckpoint(), this.getHealthCheckpointPercent());
                     this.startGroundedPatrol();
                 }
             });
@@ -2161,6 +2172,70 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.uiManager.spawnParticles(mouthX, mouthY, 0xA855F7);
     }
 
+    public getHealthCheckpointRatio(): number {
+        return this.healthCheckpointRatio;
+    }
+
+    public getHealthCheckpointPercent(): number {
+        return Math.round(this.healthCheckpointRatio * 100);
+    }
+
+    public getHealthCheckpoint(): number {
+        return this.maxHp * this.healthCheckpointRatio;
+    }
+
+    public getCheckpointHp(): number {
+        return this.getHealthCheckpoint();
+    }
+
+    public updateHealthCheckpoint(): void {
+        const ratio = this.maxHp > 0 ? this.hp / this.maxHp : 0;
+        const prevRatio = this.healthCheckpointRatio;
+
+        if (ratio <= 0) {
+            this.healthCheckpointRatio = 0;
+        } else if (ratio <= 0.25) {
+            this.healthCheckpointRatio = Math.min(this.healthCheckpointRatio, 0.25);
+        } else if (ratio <= 0.50) {
+            this.healthCheckpointRatio = Math.min(this.healthCheckpointRatio, 0.50);
+        } else if (ratio <= 0.75) {
+            this.healthCheckpointRatio = Math.min(this.healthCheckpointRatio, 0.75);
+        }
+
+        if (this.healthCheckpointRatio < prevRatio && this.healthCheckpointRatio > 0) {
+            const percent = Math.round(this.healthCheckpointRatio * 100);
+            this.soundManager?.playCheckpoint();
+            GameEventBus.getInstance().emit('boss:checkpoint', {
+                percent,
+                hp: this.getHealthCheckpoint(),
+            });
+            GameEventBus.getInstance().emit('toast:show', {
+                id: `boss-checkpoint-${percent}`,
+                title: 'BOSS CHECKPOINT',
+                message: `${percent}% Boss Health Checkpoint Reached!`,
+                variant: 'success',
+                icon: 'checkpoint',
+                durationMs: 2500,
+            });
+        }
+    }
+
+    public resetHealthToCheckpoint(): void {
+        if (this.isDead) return;
+        this.hp = this.getHealthCheckpoint();
+        this.uiManager.updateBossHealthBar(
+            this.hp,
+            this.maxHp,
+            this.getHealthCheckpoint(),
+            this.getHealthCheckpointPercent()
+        );
+
+        if (this.hp > 15) {
+            this.hasEnraged = false;
+        }
+        this.summonThresholds = [35, 15].filter(t => t < this.hp);
+    }
+
     public takeDamage(amount: number = 1) {
         if (this.isInvulnerable || 
             this.isDead || 
@@ -2171,12 +2246,14 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.bossState === 'striking') return;
 
         this.hp = Math.max(0, this.hp - amount);
+        this.updateHealthCheckpoint();
+
         this.setTint(parseInt(TOKENS.colors.hazardRed.replace('#', '0x'), 16));
         this.scene.time.delayedCall(120, () => {
             if (this && this.active) this.clearTint();
         });
 
-        this.uiManager.updateBossHealthBar(this.hp, this.maxHp);
+        this.uiManager.updateBossHealthBar(this.hp, this.maxHp, this.getHealthCheckpoint(), this.getHealthCheckpointPercent());
 
         // Requirement 15: Boss will rage when low HP and spawn twice minions
         if (this.hp <= 15 && !this.hasEnraged) {
@@ -2724,7 +2801,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                 } else {
                     this.soundManager?.playBossMusic();
                 }
-                this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp);
+                this.uiManager.showBossHealthBar('ELECKING', this.maxHp, this.hp, this.getHealthCheckpoint(), this.getHealthCheckpointPercent());
             }
         } else if (!inArena && this.playerWasInArena) {
             this.playerWasInArena = false;

@@ -113,18 +113,19 @@ export class UIManager {
         // Visual HUD and Boss Bar now handled exclusively by KamiZuki React HUD / BossBar
     }
 
-    public showBossHealthBar(bossName: string = 'ELECKING', maxHp: number = 50, currentHp: number = 50) {
+    public showBossHealthBar(bossName: string = 'ELECKING', maxHp: number = 50, currentHp: number = 50, checkpointHp?: number, checkpointPercent?: number) {
         const cleanName = bossName.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}⚡]/gu, '').trim().toUpperCase() || 'ELECKING';
-        GameEventBus.getInstance().emitBossHpIfChanged({ currentHp, maxHp, bossName: cleanName, isVisible: true });
+        GameEventBus.getInstance().emitBossHpIfChanged({ currentHp, maxHp, bossName: cleanName, isVisible: true, checkpointHp, checkpointPercent });
     }
 
-    public updateBossHealthBar(currentHp: number, maxHp: number = 50) {
+    public updateBossHealthBar(currentHp: number, maxHp: number = 50, checkpointHp?: number, checkpointPercent?: number) {
         const safeHp = Math.max(0, currentHp);
-        GameEventBus.getInstance().emitBossHpIfChanged({ currentHp: safeHp, maxHp, bossName: 'ELECKING', isVisible: true });
+        GameEventBus.getInstance().emitBossHpIfChanged({ currentHp: safeHp, maxHp, bossName: 'ELECKING', isVisible: true, checkpointHp, checkpointPercent });
     }
 
     public hideBossHealthBar() {
-        GameEventBus.getInstance().emitBossHpIfChanged({ currentHp: 0, maxHp: 50, bossName: 'ELECKING', isVisible: false });
+        const last = GameEventBus.getInstance().getBossHp();
+        GameEventBus.getInstance().emitBossHpIfChanged({ currentHp: 0, maxHp: last.maxHp || 50, bossName: last.bossName || 'ELECKING', isVisible: false, checkpointHp: last.checkpointHp, checkpointPercent: last.checkpointPercent });
     }
 
     updateHUD(formattedTime: string, coins: number, kills: number, deaths: number) {
