@@ -856,7 +856,7 @@ export class MainStageScene extends Phaser.Scene {
         this.totalDeaths++;
         this.player.setPosition(this.player.activeSpawnX, this.player.activeSpawnY);
         this.player.setVelocity(0, 0);
-        const isInsideBossArena = Boolean(this.eleckingBoss?.isPlayerInArena());
+        const isInsideBossArena = Boolean(this.eleckingBoss?.isPlayerInArena() || this.eleckingBoss?.isEntranceRevealed);
         if (isInsideBossArena || (this.eleckingBoss && this.eleckingBoss.hasReachedPhase2)) {
             this.eleckingBoss?.resetAll(false);
         }

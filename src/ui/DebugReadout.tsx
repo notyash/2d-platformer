@@ -152,7 +152,7 @@ export const DebugReadout: React.FC<DebugReadoutProps> = ({ onOpenUIKit }) => {
       <div className="debug-row">
         <span>Boss HP:</span>
         <span className="debug-val">
-          {bossHp.isVisible ? `${bossHp.currentHp}/${bossHp.maxHp}` : 'Inactive'}
+          {bossHp.isVisible ? `${bossHp.currentHp}/${bossHp.maxHp} (${bossHp.checkpointPercent ?? 100}% CP)` : 'Inactive'}
         </span>
       </div>
       <div className="debug-row">

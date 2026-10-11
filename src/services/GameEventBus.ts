@@ -11,6 +11,8 @@ export interface BossHpData {
   maxHp: number;
   bossName: string;
   isVisible: boolean;
+  checkpointHp?: number;
+  checkpointPercent?: number;
 }
 
 export interface BossPhaseData {
@@ -137,6 +139,7 @@ export interface EventMap {
   'stats:changed': GameStats;
   'time:tick': string; // Formatted time string, throttled to ~10Hz
   'boss:hp': BossHpData;
+  'boss:checkpoint': { percent: number; hp: number };
   'boss:phase': BossPhaseData;
   'orbs:updated': OrbsData;
   'toast:show': ToastData;
@@ -358,7 +361,9 @@ export class GameEventBus {
       bossData.currentHp !== this.lastBossHp.currentHp ||
       bossData.maxHp !== this.lastBossHp.maxHp ||
       bossData.isVisible !== this.lastBossHp.isVisible ||
-      bossData.bossName !== this.lastBossHp.bossName
+      bossData.bossName !== this.lastBossHp.bossName ||
+      bossData.checkpointHp !== this.lastBossHp.checkpointHp ||
+      bossData.checkpointPercent !== this.lastBossHp.checkpointPercent
     ) {
       this.lastBossHp = { ...bossData };
       this.emit('boss:hp', this.lastBossHp);
@@ -438,7 +443,7 @@ export class GameEventBus {
     this.lastStats = { coins: 0, kills: 0, deaths: 0 };
     this.lastFormattedTime = '00:00.00';
     this.lastTimeEmitMs = 0;
-    this.lastBossHp = { currentHp: 50, maxHp: 50, bossName: 'ELECKING', isVisible: false };
+    this.lastBossHp = { currentHp: 50, maxHp: 50, bossName: 'ELECKING', isVisible: false, checkpointHp: 50, checkpointPercent: 100 };
     this.lastBossPhase = { phase: 1, invulnerable: true };
     this.lastOrbs = { collected: 0, total: 0 };
     this.lastEquipment = {
