@@ -427,11 +427,14 @@ const ReactOverlayContent: React.FC<ReactOverlayContentProps> = ({ gameState }) 
             left: `${doorPrompt.x}%`,
             top: `${doorPrompt.y}%`,
           }}
+          aria-label="Press E to Enter"
+          data-testid="door-prompt-world"
         >
           <PromptChip
             keyName="E"
             label="to enter"
             variant="crimson"
+            ariaLabel="Press E to Enter"
           />
         </div>
       )}

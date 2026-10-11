@@ -673,7 +673,7 @@ export class EnvironmentManager {
             this.scene.physics.add.existing(zone, true); 
             (zone as any).promptWorldX = zX;
             const topY = obj.gid !== undefined ? (obj.y - (obj.height || 32)) : (obj.y || (zY - zH / 2));
-            (zone as any).promptWorldY = topY - 14;
+            (zone as any).promptWorldY = topY - 24;
             this.doorZones.push(zone);
 
             const doorSpriteX = obj.x + (obj.width ? obj.width / 2 : 16);
@@ -1658,22 +1658,40 @@ export class EnvironmentManager {
         // Handle Teleport Door (Entering door teleports player into Checkpoint2 well, climbing up)
         let isPlayerInDoor = false;
         let activeDoorScreenPos: { x: number; y: number } | null = null;
+        let closestDoorDist = Infinity;
+        const PROMPT_DETECTION_DIST = 380; // Distance at which prompt becomes visible above door
+
         for (const zone of this.doorZones) {
-            if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, zone.getBounds())) {
+            const inDoor = Phaser.Geom.Intersects.RectangleToRectangle(pBounds, zone.getBounds());
+            if (inDoor) {
                 isPlayerInDoor = true;
-                const cam = this.scene.cameras.main;
-                const wx = (zone as any).promptWorldX ?? zone.x;
-                const wy = (zone as any).promptWorldY ?? (zone.y - zone.height / 2);
-                const screenX = ((wx - cam.scrollX) * cam.zoom / 854) * 100;
-                const screenY = ((wy - cam.scrollY) * cam.zoom / 480) * 100;
-                activeDoorScreenPos = { x: screenX, y: screenY };
-                break;
+            }
+
+            const wx = (zone as any).promptWorldX ?? zone.x;
+            const wy = (zone as any).promptWorldY ?? (zone.y - zone.height / 2);
+            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, wx, wy);
+            const dx = Math.abs(this.player.x - wx);
+            const dy = Math.abs(this.player.y - wy);
+
+            // Display prompt above the door from a distance as player approaches (generous approach distance and section height)
+            if (dist <= PROMPT_DETECTION_DIST || (dx <= 360 && dy <= 220)) {
+                if (dist < closestDoorDist) {
+                    closestDoorDist = dist;
+                    const cam = this.scene.cameras.main;
+                    const screenX = ((wx - cam.scrollX) * cam.zoom / 854) * 100;
+                    const screenY = ((wy - cam.scrollY) * cam.zoom / 480) * 100;
+                    if (screenX >= -15 && screenX <= 115 && screenY >= -15 && screenY <= 115) {
+                        activeDoorScreenPos = { x: screenX, y: screenY };
+                    }
+                }
             }
         }
-        if (this.player.isNearDoor !== isPlayerInDoor || isPlayerInDoor) {
-            this.player.isNearDoor = isPlayerInDoor;
+
+        const shouldShowPrompt = Boolean(activeDoorScreenPos && !this.player.isTeleporting && !this.player.isDying);
+        if (this.player.isNearDoor !== shouldShowPrompt || shouldShowPrompt) {
+            this.player.isNearDoor = shouldShowPrompt;
             GameEventBus.getInstance().emitDoorPromptIfChanged(
-                isPlayerInDoor && activeDoorScreenPos
+                shouldShowPrompt && activeDoorScreenPos
                     ? { active: true, x: activeDoorScreenPos.x, y: activeDoorScreenPos.y }
                     : null
             );
