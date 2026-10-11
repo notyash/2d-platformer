@@ -9,6 +9,7 @@ export interface PromptChipProps {
   label: string;
   variant?: 'default' | 'warning' | 'crimson';
   className?: string;
+  ariaLabel?: string;
 }
 
 export const PromptChip: React.FC<PromptChipProps> = ({
@@ -16,6 +17,7 @@ export const PromptChip: React.FC<PromptChipProps> = ({
   label,
   variant = 'warning',
   className = '',
+  ariaLabel,
 }) => {
   return (
     <Panel
@@ -23,6 +25,7 @@ export const PromptChip: React.FC<PromptChipProps> = ({
       className={`kz-prompt-chip kz-prompt-chip--${variant} ${className}`.trim()}
       role="status"
       aria-live="polite"
+      aria-label={ariaLabel || (keyName ? `Press ${keyName} ${label}` : label)}
     >
       <div className="kz-prompt-chip__body">
         <KeyCap size="sm">{keyName}</KeyCap>
