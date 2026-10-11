@@ -100,8 +100,10 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private skeletonBombs: Phaser.Physics.Arcade.Sprite[] = [];
 
     // Movement & Attack Timers
+    private basePatrolSpeed: number = 60;
     private patrolSpeed: number = 60;
     private orbSpeed: number = 220;
+    private baseOrbInterval: number = 3000;
     private orbInterval: number = 3000;
     private orbTimer: number = 3000;
     private flyingOrbTimer: number = 3500;
@@ -109,6 +111,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private basePhase2ThunderInterval: number = 12000;
     private phase2ThunderTimer: number = 7000;
     private teleportTimer: number = 5000;
+    private initialTeleportInterval: number = 6800;
     private baseTeleportInterval: number = 6800;
     private flyTarget?: { x: number, y: number };
     private flyTowardsPlayer: boolean = false;
@@ -597,7 +600,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         if (bossSpawnObj) {
             const speedProp = this.getProp(bossSpawnObj, ['movespeed', 'speed', 'patrolspeed', 'speedx']);
             if (speedProp !== undefined && !isNaN(Number(speedProp))) {
-                this.patrolSpeed = Number(speedProp);
+                this.basePatrolSpeed = Number(speedProp);
+                this.patrolSpeed = this.basePatrolSpeed;
             }
 
             const orbSpeedProp = this.getProp(bossSpawnObj, ['orbspeed', 'rageorbspeed', 'projectilespeed']);
@@ -607,7 +611,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
             const orbIntervalProp = this.getProp(bossSpawnObj, ['orbinterval', 'rageorbinterval', 'shootinterval', 'interval']);
             if (orbIntervalProp !== undefined && !isNaN(Number(orbIntervalProp))) {
-                this.orbInterval = Number(orbIntervalProp);
+                this.baseOrbInterval = Number(orbIntervalProp);
+                this.orbInterval = this.baseOrbInterval;
                 this.orbTimer = this.orbInterval;
             }
 
@@ -1068,6 +1073,11 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.hasShownShieldedToast = false;
             if (this.soundManager) this.soundManager.stopMusic();
             this.healthCheckpointRatio = 1.0;
+            this.hasEnraged = false;
+            this.summonThresholds = [35, 15];
+            this.patrolSpeed = this.basePatrolSpeed;
+            this.orbInterval = this.baseOrbInterval;
+            this.baseTeleportInterval = this.initialTeleportInterval;
         }
         this.uiManager.hideBossHealthBar();
 
@@ -1120,6 +1130,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.hasReachedPhase2 = false;
             this.hasEnraged = false;
             this.summonThresholds = [35, 15];
+            this.patrolSpeed = this.basePatrolSpeed;
+            this.orbInterval = this.baseOrbInterval;
+            this.baseTeleportInterval = this.initialTeleportInterval;
             this.currentSequence = [];
             this.flyTarget = undefined;
             this.flyTowardsPlayer = false;
@@ -2230,10 +2243,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.getHealthCheckpointPercent()
         );
 
-        if (this.hp > 15) {
-            this.hasEnraged = false;
-        }
-        this.summonThresholds = [35, 15].filter(t => t < this.hp);
+        // Keep untriggered thresholds that are strictly below restored checkpoint hp.
+        // Do NOT re-add thresholds that have already triggered in this fight!
+        this.summonThresholds = this.summonThresholds.filter(t => t < this.hp);
     }
 
     public takeDamage(amount: number = 1) {
@@ -2257,6 +2269,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
         // Requirement 15: Boss will rage when low HP and spawn twice minions
         if (this.hp <= 15 && !this.hasEnraged) {
+            this.summonThresholds = this.summonThresholds.filter(t => t > 15);
             this.enrageBoss();
             return;
         }
@@ -2276,6 +2289,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     private enrageBoss() {
         if (this.hasEnraged || this.isDead) return;
         this.hasEnraged = true;
+        this.summonThresholds = this.summonThresholds.filter(t => t > 15);
         this.bossState = 'raging';
         this.isInvulnerable = true;
         (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
@@ -2306,9 +2320,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             enrageHandled = true;
             rageEmitter.remove();
 
-            this.patrolSpeed = Math.round(this.patrolSpeed * 1.3);
-            this.orbInterval = Math.max(1600, Math.round(this.orbInterval * 0.75));
-            this.baseTeleportInterval = Math.round(this.baseTeleportInterval * 0.75);
+            this.patrolSpeed = Math.round(this.basePatrolSpeed * 1.3);
+            this.orbInterval = Math.max(1600, Math.round(this.baseOrbInterval * 0.75));
+            this.baseTeleportInterval = Math.round(this.initialTeleportInterval * 0.75);
 
             // Requirement 15: Boss Raging -> then Boss Spawning Minions with double minions
             this.summonMinions(true);
@@ -2321,6 +2335,19 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
     // Requirements 10, 11, 12, 13: Skeletons Spawning & Minions Sequence
     private summonMinions(isEnragedSpawn: boolean = false) {
         if (!this.hasStarted || this.isDead) return;
+
+        // Check active minions count to prevent flooding the arena across attempts
+        const activeCount = this.getActiveMinionsCount();
+        const maxAllowed = isEnragedSpawn ? 6 : 3;
+        const availableSlots = Math.max(0, maxAllowed - activeCount);
+        if (availableSlots <= 0) {
+            if (this.phase === 2 && !this.isDead) {
+                this.bossState = 'patrolling';
+                this.startGroundedPatrol();
+            }
+            return;
+        }
+
         this.bossState = 'summoning';
         (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
 
@@ -2329,8 +2356,9 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.soundManager?.playEnemyShoot();
 
         const floorY = this.findGroundYBelow(this.x, this.y);
-        // Minion count: 2-3 normal, 5-6 enraged
-        const count = isEnragedSpawn ? Phaser.Math.Between(5, 6) : Phaser.Math.Between(2, 3);
+        // Minion count: 2-3 normal, 5-6 enraged, capped by available slots
+        const rawCount = isEnragedSpawn ? Phaser.Math.Between(5, 6) : Phaser.Math.Between(2, 3);
+        const count = Math.min(rawCount, availableSlots);
 
         let summonHandled = false;
         const onSummonDone = () => {
@@ -2392,13 +2420,18 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.addBossTimer(1100, onSummonDone);
     }
 
-    // Check if any minions are active on the battlefield
-    public hasActiveMinions(): boolean {
-        return this.skeletonBombs.some(s => {
-            if (!s || !s.active) return false;
+    // Check count of active minions on the battlefield
+    public getActiveMinionsCount(): number {
+        this.skeletonBombs = this.skeletonBombs.filter(s => s && s.active);
+        return this.skeletonBombs.filter(s => {
             const state = s.getData('state');
             return state === 'spawning' || state === 'walking' || state === 'priming' || state === 'exploding';
-        });
+        }).length;
+    }
+
+    // Check if any minions are active on the battlefield
+    public hasActiveMinions(): boolean {
+        return this.getActiveMinionsCount() > 0;
     }
 
     private getEffectiveOrbInterval(baseAddRandom: boolean = true): number {
