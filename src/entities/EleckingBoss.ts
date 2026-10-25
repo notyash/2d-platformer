@@ -440,7 +440,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.scene.anims.create({
                 key: 'cloud-thunder-strike',
                 frames: this.scene.anims.generateFrameNumbers('cloud-thunder-attack', { start: 0, end: 4 }),
-                frameRate: 10,
+                frameRate: 20,
                 repeat: 0
             });
         }
@@ -448,7 +448,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             this.scene.anims.create({
                 key: 'lightning-strike',
                 frames: this.scene.anims.generateFrameNumbers('cloud-thunder-attack', { start: 0, end: 4 }),
-                frameRate: 10,
+                frameRate: 20,
                 repeat: 0
             });
         }
@@ -1497,7 +1497,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         this.activeTileGlowSprites.forEach(s => { if (s && s.active) s.destroy(); });
         this.activeTileGlowSprites = [];
 
-        // Requirement 1: The tiles pulse 2 times slowly after the boss has disappeared and before beams striking
+        // All affected tiles glow simultaneously (non-sequential) and pulse only ONCE per strike
         const uniqueDots = Array.from(new Set(this.currentSequence));
         uniqueDots.forEach(dotNumber => {
             const tiles = this.thunderTiles.get(dotNumber) || [];
@@ -1518,22 +1518,17 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                     this.activeAttackEffects.push(glowSprite);
                     this.activeTileGlowSprites.push(glowSprite);
 
-                    // Pulse 2 times (fade up -> fade down -> fade up -> hold/peak) over ~2600ms
+                    // Pulse exactly 1 time (fade up to peak -> fade down), repeat: 0
                     this.scene.tweens.add({
                         targets: glowSprite,
                         alpha: { from: 0.15, to: 1 },
-                        duration: 650,
+                        duration: 250,
                         yoyo: true,
-                        repeat: 1, // 2 full pulses
+                        repeat: 0, // Pulse only once per strike
                         ease: 'Sine.easeInOut',
                         onComplete: () => {
                             if (glowSprite && glowSprite.active) {
-                                this.scene.tweens.add({
-                                    targets: glowSprite,
-                                    alpha: 1,
-                                    duration: 200,
-                                    ease: 'Sine.easeIn'
-                                });
+                                glowSprite.setAlpha(0.85); // remain clearly lit until strike cleanup
                             }
                         }
                     });
@@ -1541,8 +1536,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
             });
         });
 
-        // Disappear for 2.8 seconds while tiles pulse 2 times, then strike beams
-        this.addBossTimer(2850, () => {
+        // Fast transition: 500ms warning delay (1 single pulse) then strike beams immediately
+        this.addBossTimer(500, () => {
             if (this.hasStarted && !this.isDead && this.bossState === 'vanished') {
                 this.executeBeamStrikes();
             }
@@ -1604,12 +1599,12 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                     beamSprites.push(topSprite);
                     this.activeAttackEffects.push(topSprite);
 
-                    this.addBossTimer(40, () => {
+                    this.addBossTimer(20, () => {
                         if (topSprite && topSprite.active) {
                             topSprite.setTexture('boss-main-atk-2', 'main-atk-2-row1');
                         }
                     });
-                    this.addBossTimer(80, () => {
+                    this.addBossTimer(40, () => {
                         if (topSprite && topSprite.active) {
                             topSprite.setTexture('boss-main-atk-3', 'main-atk-3-row1');
                         }
@@ -1617,7 +1612,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
 
                     // b. Use the 32x32 tile from the second row of main attack new4.png as filler beam down to ground
                     const fillerSprites: Phaser.GameObjects.Sprite[] = [];
-                    this.addBossTimer(110, () => {
+                    this.addBossTimer(55, () => {
                         if (!this.hasStarted || this.isDead || this.bossState !== 'striking') return;
 
                         const fillerStart = startY + 32;
@@ -1634,7 +1629,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                         }
 
                         // c. Then use the 32x32 tile from the third row of main attack new5.png for ground impact (sits directly on top of attack tile)
-                        this.addBossTimer(35, () => {
+                        this.addBossTimer(20, () => {
                             if (!this.hasStarted || this.isDead || this.bossState !== 'striking') return;
 
                             const impactSprite = this.scene.add.sprite(tileCenterX, tileY - 16, 'boss-main-atk-5', 'main-atk-5-row3');
@@ -1656,8 +1651,8 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                             // Lethal beam collision check on the vertical column directly above the attack tile
                             const beamColumnHeight = tileY - startY;
                             const damageCheckTimer = this.scene.time.addEvent({
-                                delay: 20,
-                                repeat: 20,
+                                delay: 15,
+                                repeat: 16,
                                 callback: () => {
                                     if (!this.player || this.player.isDying || !impactSprite.active) return;
                                     const pBody = this.player.body as Phaser.Physics.Arcade.Body;
@@ -1671,15 +1666,15 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                                 }
                             });
 
-                            // Cleanup beam after duration
-                            this.addBossTimer(460, () => {
+                            // Cleanup beam after duration (snappier active duration)
+                            this.addBossTimer(260, () => {
                                 damageCheckTimer.remove();
                                 beamSprites.forEach(s => {
                                     if (s && s.active) {
                                         this.scene.tweens.add({
                                             targets: s,
                                             alpha: 0,
-                                            duration: 80,
+                                            duration: 60,
                                             onComplete: () => { if (s.active) s.destroy(); }
                                         });
                                     }
@@ -1689,17 +1684,17 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
                     });
                 });
             });
-            delay += 600;
+            delay += 240;
         });
 
         // Stop attack tiles glowing once the beams have disappeared
-        this.addBossTimer(delay + 480, () => {
+        this.addBossTimer(delay + 260, () => {
             this.activeTileGlowSprites.forEach(glow => {
                 if (glow && glow.active) {
                     this.scene.tweens.add({
                         targets: glow,
                         alpha: 0,
-                        duration: 120,
+                        duration: 80,
                         onComplete: () => { if (glow.active) glow.destroy(); }
                     });
                 }
@@ -1708,7 +1703,7 @@ export class EleckingBoss extends Phaser.Physics.Arcade.Sprite {
         });
 
         // Reappearing sequence (Requirement 6)
-        this.addBossTimer(delay + 900, () => {
+        this.addBossTimer(delay + 480, () => {
             if (!this.hasStarted || this.isDead) return;
 
             this.bossState = 'reappearing';
