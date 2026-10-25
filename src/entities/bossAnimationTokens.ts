@@ -449,7 +449,7 @@ export const BOSS_ANIMATION_TOKENS: Record<string, BossAnimationTokenConfig> = {
         description: 'Direct main projectile / melee discharge',
         useCase: 'Primary direct offensive strike',
         frameCount: 5,
-        frameRate: 8,
+        frameRate: 16,
         repeat: 0,
         frames: buildFrames('main attack new', 5, '.png', 'boss-main-atk')
     },
@@ -663,7 +663,7 @@ export function setupAttackTileGlowAnimations(scene: Phaser.Scene): void {
                     { key: 'atk-tile-glow-3', frame: `tile-${dot}-glow-3` },
                     { key: 'atk-tile-glow-4', frame: `tile-${dot}-glow-4` },
                 ],
-                frameRate: 8,
+                frameRate: 12,
                 repeat: -1
             });
         }
